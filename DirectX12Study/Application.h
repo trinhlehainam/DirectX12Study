@@ -15,10 +15,10 @@ private:
 	HWND windowHandle_;
 	std::unique_ptr<Dx12Wrapper> dx_;
 
-	Application() = default;
+	Application();
 	Application(const Application&) = delete;
 	void operator = (const Application&) = delete;
-	~Application() = default;
+	~Application();
 public:
 	static Application& Instance();
 	bool Initialize();

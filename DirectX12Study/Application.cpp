@@ -8,6 +8,13 @@ namespace
 	constexpr int WINDOW_HEIGHT = 720;
 }
 
+Application::Application()
+{
+
+}
+
+Application::~Application() = default;
+
 LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	if (msg == WM_DESTROY)
