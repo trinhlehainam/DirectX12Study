@@ -33,7 +33,7 @@ Application& Application::Instance()
 
 bool Application::Initialize()
 {
-	dx_ = std::make_unique<Dx12Wrapper>();
+	
 
 	WNDCLASSEX wc = {};
 	wc.hInstance = inst_;
@@ -73,6 +73,10 @@ bool Application::Initialize()
 		return false;
 	}
 
+	dx_ = std::make_unique<Dx12Wrapper>();
+	if (!dx_->Initialize(wndHandle))
+		return false;
+
 	ShowWindow(wndHandle, SW_SHOW);
 	UpdateWindow(wndHandle);
 
@@ -96,5 +100,6 @@ void Application::Run()
 
 void Application::Terminate()
 {
+	dx_->Terminate();
 	UnregisterClassW(className, inst_);
 }
