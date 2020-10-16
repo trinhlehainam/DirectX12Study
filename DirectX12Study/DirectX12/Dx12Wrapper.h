@@ -4,12 +4,6 @@
 #include <dxgi1_6.h>
 #include <vector>
 
-struct Size
-{
-	size_t width;
-	size_t height;
-};
-
 /// <summary>
 /// DirectX12 feature
 /// </summary>
@@ -23,7 +17,7 @@ private:
 	IDXGIFactory7* dxgi_ = nullptr;
 	IDXGISwapChain3* swapchain_ = nullptr;
 
-	std::vector<ID3D12Resource*> bbResources_; // 
+	std::vector<ID3D12Resource*> bbResources_;  
 	ID3D12DescriptorHeap* rtvHeap_;
 	bool CreateRenderTargetDescriptorHeap();
 

@@ -93,7 +93,6 @@ void Application::Run()
 		}
 		if (msg.message == WM_QUIT)
 			break;
-
 		dx_->Update();
 	}
 }
@@ -102,4 +101,9 @@ void Application::Terminate()
 {
 	dx_->Terminate();
 	UnregisterClassW(className, inst_);
+}
+
+Size Application::GetWindowSize() const
+{
+	return { WINDOW_WIDTH,WINDOW_HEIGHT };
 }

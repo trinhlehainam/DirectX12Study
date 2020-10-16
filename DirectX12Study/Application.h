@@ -1,13 +1,19 @@
 #pragma once
 #include <Windows.h>
 #include <memory>
+
+struct Size
+{
+	size_t width;
+	size_t height;
+};
+
+class Dx12Wrapper;
+
 /// <summary>
 /// Application management
 /// Singleton
 /// </summary>
-
-class Dx12Wrapper;
-
 class Application
 {
 private:
@@ -24,5 +30,6 @@ public:
 	bool Initialize();
 	void Run();
 	void Terminate();
+	Size GetWindowSize() const;
 };
 
