@@ -33,8 +33,6 @@ Application& Application::Instance()
 
 bool Application::Initialize()
 {
-	
-
 	WNDCLASSEX wc = {};
 	wc.hInstance = inst_;
 	wc.lpszClassName = className;
@@ -95,6 +93,8 @@ void Application::Run()
 		}
 		if (msg.message == WM_QUIT)
 			break;
+
+		dx_->Update();
 	}
 }
 

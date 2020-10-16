@@ -4,7 +4,8 @@
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR, int)
 {
 	auto& app = Application::Instance();
-	app.Initialize();
+	if (!app.Initialize())
+		return -1;
 	app.Run();
 	app.Terminate();
 	return 0;
