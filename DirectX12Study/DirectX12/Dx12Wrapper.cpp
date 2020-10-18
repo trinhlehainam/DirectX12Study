@@ -15,6 +15,19 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     };
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
     HRESULT result = S_OK;
+
+#if _DEBUG
+    ID3D12Debug* debug = nullptr;
+    D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+    debug->EnableDebugLayer();
+    debug->Release();
+
+    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&dxgi_));
+#else
+    result = CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_));
+#endif
+    assert(SUCCEEDED(result));
+
     for (auto& fLevel : featureLevels)
     {
         result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(&dev_));
@@ -28,17 +41,6 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
         OutputDebugString(L"Feature level not found");
         return false;
     }
-#if _DEBUG
-    /*ID3D12Debug* debug = nullptr;
-    D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
-    debug->EnableDebugLayer();
-    debug->Release();*/
-
-    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&dxgi_));
-#else
-    result = CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_));
-#endif
-    assert(SUCCEEDED(result));
 
     D3D12_COMMAND_QUEUE_DESC cmdQdesc = {};
     cmdQdesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
