@@ -1,5 +1,6 @@
-
+// Pixel shader
 float4 PS() :SV_TARGET
 {
-	return float4(1,1,1,1);
+	// Object color
+	return float4(1,0,1,1);
 }
