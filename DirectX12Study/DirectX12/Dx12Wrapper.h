@@ -17,12 +17,23 @@ private:
 	IDXGIFactory7* dxgi_ = nullptr;
 	IDXGISwapChain3* swapchain_ = nullptr;
 
-	std::vector<ID3D12Resource*> bbResources_;  
+	std::vector<ID3D12Resource*> bbResources_;
 	ID3D12DescriptorHeap* rtvHeap_;
 	bool CreateRenderTargetDescriptorHeap();
 
-	ID3D12Fence1* fence_ = nullptr; // fence object ( necessary for cooperation between CPU and GPU )
+	ID3D12Fence1* fence_ = nullptr;				// fence object ( necessary for cooperation between CPU and GPU )
 	uint64_t fenceValue_ = 0;
+
+	ID3D12Resource* vertexBuffer_;				//頂点バッファ
+	D3D12_VERTEX_BUFFER_VIEW vbView_;
+	// 頂点バッファを生成 (して、CPU側の頂点情報をコピー)
+	void CreateVertexBuffer();
+
+	// Graphic pipeline
+	ID3D12PipelineState* pipeline_ = nullptr;
+	ID3D12RootSignature* rootSig_ = nullptr;
+	void OutputFromErrorBlob(ID3DBlob* errBlob);
+	bool CreatePipelineState();
 public:
 	bool Initialize(HWND);
 	// Update Direct3D12
