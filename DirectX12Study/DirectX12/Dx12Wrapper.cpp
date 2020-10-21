@@ -107,6 +107,9 @@ bool Dx12Wrapper::CreatePipelineState()
     // Set up Rasterizer
     gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     gpsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    gpsDesc.RasterizerState.DepthClipEnable = false;
+    gpsDesc.RasterizerState.MultisampleEnable = false;
+    gpsDesc.RasterizerState.SlopeScaledDepthBias = 0.0f;
 
     // Set up Pixel Shader
     ID3DBlob* pxBlob = nullptr;
@@ -128,7 +131,7 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.BlendState.AlphaToCoverageEnable = false;
     gpsDesc.BlendState.IndependentBlendEnable = false;
     gpsDesc.BlendState.RenderTarget[0].BlendEnable = false;
-    gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0xf;     //¦
+    gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
     gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     gpsDesc.NumRenderTargets = 1;
 
@@ -282,8 +285,6 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 
 bool Dx12Wrapper::Update()
 {
-    /*static int iR = 0;
-    iR = (iR + 1) % 256;*/
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_,pipeline_);
 
@@ -301,9 +302,9 @@ bool Dx12Wrapper::Update()
     auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
     const auto rtvIncreSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     rtvHeap.ptr += static_cast<ULONG_PTR>(bbIdx) * rtvIncreSize;
-    float clrColor[4] = { 255.0f,0.0f,0.0f,1.0f };
+    float bgColor[4] = { 0.0f,0.0f,0.0f,1.0f };
     cmdList_->OMSetRenderTargets(1, &rtvHeap, false, nullptr);
-    cmdList_->ClearRenderTargetView(rtvHeap, clrColor, 0 ,nullptr);
+    cmdList_->ClearRenderTargetView(rtvHeap, bgColor, 0 ,nullptr);
 
     cmdList_->SetGraphicsRootSignature(rootSig_);
     cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
