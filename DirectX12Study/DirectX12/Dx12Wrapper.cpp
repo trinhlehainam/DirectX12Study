@@ -11,20 +11,26 @@
 #pragma comment(lib,"dxgi.lib")
 
 using namespace DirectX;
-
-XMFLOAT3 vertices_[3];
+struct Vertex
+{
+    XMFLOAT3 pos;
+    XMFLOAT2 uv;
+};
+std::vector<Vertex> vertices_;
 
 void CreateVertices()
-{
-    vertices_[0] = XMFLOAT3(-1, -1, 0);
-    vertices_[1] = XMFLOAT3(0, 1, 0);
-    vertices_[2] = XMFLOAT3(1, -1, 0);
+{                       
+                           // Position               // UV
+    vertices_.push_back({ { -0.4f, -0.7f, 0.0f },   { 0.0f, 1.0f } });     // bottom left  
+    vertices_.push_back({ { -0.4f, 0.7f, 0.0f },    { 0.0f, 0.0f } });     // top left
+    vertices_.push_back({ { 0.4f, -0.7f, 0.0f },    { 1.0f, 1.0f } });     // bottom right
+    vertices_.push_back({ { 0.4f, 0.7f, 0.0f },     { 1.0f, 0.0f } });     // top right
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
 {
     CreateVertices();
-    // How to store resource setting
+    // 確保する領域の仕様に関する設定
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -32,10 +38,11 @@ void Dx12Wrapper::CreateVertexBuffer()
     heapProp.CreationNodeMask = 0;
     heapProp.VisibleNodeMask = 0;
 
+    // 確保した領域の用に関する設定
     D3D12_RESOURCE_DESC resDesc = {};
     resDesc.Format = DXGI_FORMAT_UNKNOWN;
     resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resDesc.Width = sizeof(vertices_);  // 4*3*3 = 36 bytes
+    resDesc.Width = sizeof(vertices_[0])*vertices_.size();  // 4*3*3 = 36 bytes
     resDesc.Height = 1;
     resDesc.SampleDesc.Count = 1;
     resDesc.DepthOrArraySize = 1;
@@ -51,14 +58,14 @@ void Dx12Wrapper::CreateVertexBuffer()
         IID_PPV_ARGS(&vertexBuffer_));
     assert(SUCCEEDED(result));
 
-    XMFLOAT3* mappedData = nullptr;
+    Vertex* mappedData = nullptr;
     result = vertexBuffer_->Map(0,nullptr,(void**)&mappedData);
     std::copy(std::begin(vertices_), std::end(vertices_), mappedData);
     assert(SUCCEEDED(result));
     vertexBuffer_->Unmap(0,nullptr);
 
     vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
-    vbView_.SizeInBytes = sizeof(vertices_);
+    vbView_.SizeInBytes = sizeof(vertices_[0]) * vertices_.size();
     vbView_.StrideInBytes = sizeof(vertices_[0]);
 }
 
@@ -75,6 +82,130 @@ void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
     }
 }
 
+bool Dx12Wrapper::CreateTexure()
+{
+    // Create buffer
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    rsDesc.Width = 256;
+    rsDesc.Height = 256;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    rsDesc.MipLevels = 1;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    auto result = dev_->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&textureBuffer_)
+    );
+    assert(SUCCEEDED(result));
+
+    std::vector<uint8_t> textureData(4 * 256 * 256);
+    for (auto& col : textureData)
+    {
+        col = rand() % 256;
+    }
+    D3D12_BOX box;
+    box.left = 0;
+    box.right = 256;
+    box.top = 0;
+    box.bottom = 256;
+    box.back = 1;
+    box.front = 0;
+    result = textureBuffer_->WriteToSubresource(0,
+        &box,
+        textureData.data(),
+        4 * 256,
+        4 * 256 * 256);
+    assert(SUCCEEDED(result));
+
+    // Create SRV Desciptor Heap
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.NumDescriptors = 1;
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    desc.NodeMask = 0;
+    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvDescHeap_));
+    assert(SUCCEEDED(result));
+
+    // Create SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    srvDesc.Shader4ComponentMapping = D3D12_DECODE_SHADER_4_COMPONENT_MAPPING(1,1,1,1);
+
+    dev_->CreateShaderResourceView(
+        textureBuffer_,
+        &srvDesc,
+        srvDescHeap_->GetCPUDescriptorHandleForHeapStart()
+    );
+
+    // Root Signature
+    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
+    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    rtSigDesc.NumParameters = 1;
+    D3D12_ROOT_PARAMETER rp[1] = {};
+    rp[0].DescriptorTable.NumDescriptorRanges = 1;
+    D3D12_DESCRIPTOR_RANGE range[1] = {};
+    range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
+    range[0].BaseShaderRegister = 0;                            // 0つまり(t0) を表す
+    range[0].NumDescriptors = 1;                                // t0->t0まで
+    range[0].OffsetInDescriptorsFromTableStart = 0;
+    rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rp[0].DescriptorTable.pDescriptorRanges = range;
+    rp[0].DescriptorTable.NumDescriptorRanges = _countof(range);
+    rtSigDesc.pParameters = rp;
+    rtSigDesc.NumParameters = _countof(rp);
+
+    //サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
+    //動きyや、UVをもとに色をとってくるときのルールを指定するもの
+    D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+    //WRAPは繰り返しを表す。
+    samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    samplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    samplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    samplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    samplerDesc[0].RegisterSpace = 0;
+    samplerDesc[0].ShaderRegister = 0;
+    samplerDesc[0].MaxAnisotropy = 0.0f;
+    samplerDesc[0].MaxLOD = 0.0f;
+    samplerDesc[0].MinLOD = 0.0f;
+    samplerDesc[0].MipLODBias = 0.0f;
+    
+    rtSigDesc.pStaticSamplers = samplerDesc;
+    rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
+
+    ID3DBlob* rootSigBlob = nullptr;
+    ID3DBlob* errBlob = nullptr;
+    result = D3D12SerializeRootSignature(&rtSigDesc,
+        D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
+        &rootSigBlob,
+        &errBlob);
+    OutputFromErrorBlob(errBlob);
+    assert(SUCCEEDED(result));
+    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
+    assert(SUCCEEDED(result));
+
+    return true;
+}
+
 bool Dx12Wrapper::CreatePipelineState()
 {
     HRESULT result = S_OK;
@@ -83,41 +214,70 @@ bool Dx12Wrapper::CreatePipelineState()
     //まず入力レイアウト（ちょうてんのフォーマット）
     
     D3D12_INPUT_ELEMENT_DESC layout[] = {
-    { "POSITION",
-    0,
-    DXGI_FORMAT_R32G32B32_FLOAT,
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0} };
+    // POSITION layout
+    { 
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> 3D array R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    // UV layout
+    {
+    "TEXCOORD",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> 2D array R32G32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                 //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    }
+    };
 
     gpsDesc.InputLayout.NumElements = _countof(layout);
     gpsDesc.InputLayout.pInputElementDescs = layout;
     gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-    // 頂点シェーダ
+    // Vertex Shader
     ID3DBlob* errBlob = nullptr;
     ID3DBlob* vsBlob = nullptr;
-    result = D3DCompileFromFile(L"shader/vs.hlsl", nullptr, nullptr, "VS", "vs_5_1", 0, 0, &vsBlob,&errBlob);
+    result = D3DCompileFromFile(
+        L"shader/vs.hlsl",                                  // path to shader file
+        nullptr,                                            // define marcro object 
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
+        "VS",                                               // entry name
+        "vs_5_1",                                           // shader version
+        0, 0,                                               // Flag1, Flag2 (unknown)
+        &vsBlob,
+        &errBlob);
     OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
     gpsDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
     gpsDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 
-    // Set up Rasterizer
+    // Rasterizer
     gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     gpsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
     gpsDesc.RasterizerState.DepthClipEnable = false;
     gpsDesc.RasterizerState.MultisampleEnable = false;
     gpsDesc.RasterizerState.SlopeScaledDepthBias = 0.0f;
 
-    // Set up Pixel Shader
-    ID3DBlob* pxBlob = nullptr;
-    result = D3DCompileFromFile(L"shader/ps.hlsl", nullptr, nullptr, "PS", "ps_5_1", 0, 0, &pxBlob, &errBlob);
+    // Pixel Shader
+    ID3DBlob* psBlob = nullptr;
+    result = D3DCompileFromFile(
+        L"shader/ps.hlsl",                              // path to shader file
+        nullptr,                                        // define marcro object 
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
+        "PS",                                           // entry name
+        "ps_5_1",                                       // shader version
+        0,0,                                            // Flag1, Flag2 (unknown)
+        &psBlob, 
+        &errBlob);
     OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    gpsDesc.PS.BytecodeLength = pxBlob->GetBufferSize();
-    gpsDesc.PS.pShaderBytecode = pxBlob->GetBufferPointer();
+    gpsDesc.PS.BytecodeLength = psBlob->GetBufferSize();
+    gpsDesc.PS.pShaderBytecode = psBlob->GetBufferPointer();
 
     // Other set up
     gpsDesc.DepthStencilState.DepthEnable = false;
@@ -125,34 +285,46 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.NodeMask = 0;
     gpsDesc.SampleDesc.Count = 1;
     gpsDesc.SampleDesc.Quality = 0;
-    gpsDesc.SampleMask = 0xffffffff;
+    gpsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
     // Output set up
+    gpsDesc.NumRenderTargets = 1;
+    gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    // Blend
     gpsDesc.BlendState.AlphaToCoverageEnable = false;
     gpsDesc.BlendState.IndependentBlendEnable = false;
     gpsDesc.BlendState.RenderTarget[0].BlendEnable = false;
+    /*gpsDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    gpsDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    gpsDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+    gpsDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+    gpsDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+    gpsDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;*/
+    
     gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //※ color : ABGR
-    gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    gpsDesc.NumRenderTargets = 1;
-
+    
     // Root Signature
     ID3DBlob* rootSigBlob = nullptr;
     D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     rootSigDesc.NumParameters = 0;
     rootSigDesc.NumStaticSamplers = 0;
-
     result = D3D12SerializeRootSignature(&rootSigDesc,
         D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
         &rootSigBlob,
         &errBlob);
+    OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
-    assert(SUCCEEDED(result));
+    /*result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
+    assert(SUCCEEDED(result));*/
     gpsDesc.pRootSignature = rootSig_;
 
     result = dev_->CreateGraphicsPipelineState(&gpsDesc,IID_PPV_ARGS(&pipeline_));
     assert(SUCCEEDED(result));
+
+    vsBlob->Release();
+    psBlob->Release();
+
     return true;
 }
 
@@ -244,6 +416,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
 
     CreateRenderTargetDescriptorHeap();
     CreateVertexBuffer();
+    CreateTexure();
     CreatePipelineState();
 
     return true;
@@ -285,8 +458,12 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 
 bool Dx12Wrapper::Update()
 {
+    /*static int R;
+    R = (R + 1) % 256;*/
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_,pipeline_);
+    /*cmdList_->Reset(cmdAlloc_,nullptr);
+    cmdList_->SetPipelineState(pipeline_);*/
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -307,7 +484,7 @@ bool Dx12Wrapper::Update()
     cmdList_->ClearRenderTargetView(rtvHeap, bgColor, 0 ,nullptr);
 
     cmdList_->SetGraphicsRootSignature(rootSig_);
-    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     
     // ビューポートと、シザーの設定
     auto wsize = Application::Instance().GetWindowSize();
@@ -327,9 +504,13 @@ bool Dx12Wrapper::Update()
     rc.bottom = wsize.height;
     cmdList_->RSSetScissorRects(1, &rc);
 
+    ID3D12DescriptorHeap* descHeaps[] = { srvDescHeap_ };
+    cmdList_->SetDescriptorHeaps(1, descHeaps);
+    cmdList_->SetGraphicsRootDescriptorTable(0, srvDescHeap_->GetGPUDescriptorHandleForHeapStart());
+
     // Draw Triangle
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);
-    cmdList_->DrawInstanced(3, 1, 0, 0);
+    cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

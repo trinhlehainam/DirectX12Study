@@ -24,10 +24,16 @@ private:
 	ID3D12Fence1* fence_ = nullptr;				// fence object ( necessary for cooperation between CPU and GPU )
 	uint64_t fenceValue_ = 0;
 
+	// Vertex Buffer
 	ID3D12Resource* vertexBuffer_;				//頂点バッファ
 	D3D12_VERTEX_BUFFER_VIEW vbView_;
 	// 頂点バッファを生成 (して、CPU側の頂点情報をコピー)
 	void CreateVertexBuffer();
+
+	// Texture Buffer
+	ID3D12Resource* textureBuffer_;
+	ID3D12DescriptorHeap* srvDescHeap_;		// Shader Resource View Desciptor Heap
+	bool CreateTexure();
 
 	// Graphic pipeline
 	ID3D12PipelineState* pipeline_ = nullptr;

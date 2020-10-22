@@ -71,8 +71,8 @@ bool Application::Initialize()
 		return false;
 	}
 
-	dx_ = std::make_unique<Dx12Wrapper>();
-	if (!dx_->Initialize(wndHandle))
+	dxWrapper_ = std::make_unique<Dx12Wrapper>();
+	if (!dxWrapper_->Initialize(wndHandle))
 		return false;
 
 	ShowWindow(wndHandle, SW_SHOW);
@@ -93,13 +93,13 @@ void Application::Run()
 		}
 		if (msg.message == WM_QUIT)
 			break;
-		dx_->Update();
+		dxWrapper_->Update();
 	}
 }
 
 void Application::Terminate()
 {
-	dx_->Terminate();
+	dxWrapper_->Terminate();
 	UnregisterClassW(className, inst_);
 }
 

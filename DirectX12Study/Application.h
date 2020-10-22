@@ -19,7 +19,7 @@ class Application
 private:
 	HINSTANCE inst_;
 	HWND windowHandle_;
-	std::unique_ptr<Dx12Wrapper> dx_;
+	std::unique_ptr<Dx12Wrapper> dxWrapper_;
 
 	Application();
 	Application(const Application&) = delete;
