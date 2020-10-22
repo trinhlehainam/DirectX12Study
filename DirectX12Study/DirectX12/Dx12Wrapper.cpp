@@ -147,7 +147,7 @@ bool Dx12Wrapper::CreateTexure()
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-    srvDesc.Shader4ComponentMapping = D3D12_DECODE_SHADER_4_COMPONENT_MAPPING(1,1,1,1);
+    srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(1,1,1,1);
 
     dev_->CreateShaderResourceView(
         textureBuffer_,
@@ -294,29 +294,29 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.BlendState.AlphaToCoverageEnable = false;
     gpsDesc.BlendState.IndependentBlendEnable = false;
     gpsDesc.BlendState.RenderTarget[0].BlendEnable = false;
-    /*gpsDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    gpsDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    gpsDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-    gpsDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-    gpsDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
-    gpsDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;*/
+    //gpsDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    //gpsDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    //gpsDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+    //gpsDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+    //gpsDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+    //gpsDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
     
     gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
     
     // Root Signature
-    ID3DBlob* rootSigBlob = nullptr;
-    D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
-    rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    rootSigDesc.NumParameters = 0;
-    rootSigDesc.NumStaticSamplers = 0;
-    result = D3D12SerializeRootSignature(&rootSigDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
-        &rootSigBlob,
-        &errBlob);
-    OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    /*result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
-    assert(SUCCEEDED(result));*/
+    //ID3DBlob* rootSigBlob = nullptr;
+    //D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
+    //rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    //rootSigDesc.NumParameters = 0;
+    //rootSigDesc.NumStaticSamplers = 0;
+    //result = D3D12SerializeRootSignature(&rootSigDesc,
+    //    D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
+    //    &rootSigBlob,
+    //    &errBlob);
+    //OutputFromErrorBlob(errBlob);
+    //assert(SUCCEEDED(result));
+    //result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
+    //assert(SUCCEEDED(result));
     gpsDesc.pRootSignature = rootSig_;
 
     result = dev_->CreateGraphicsPipelineState(&gpsDesc,IID_PPV_ARGS(&pipeline_));
