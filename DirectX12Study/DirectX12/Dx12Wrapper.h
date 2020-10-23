@@ -32,8 +32,12 @@ private:
 
 	// Texture Buffer
 	ID3D12Resource* textureBuffer_;
-	ID3D12DescriptorHeap* srvDescHeap_;		// Shader Resource View Desciptor Heap
+	ID3D12DescriptorHeap* resourceViewHeap_;		// Shader Resource View Desciptor Heap
 	bool CreateTexure();
+
+	// Constant Buffer
+	ID3D12Resource* constantBuffer_;
+	bool CreateConstantBuffer();
 
 	// Graphic pipeline
 	ID3D12PipelineState* pipeline_ = nullptr;

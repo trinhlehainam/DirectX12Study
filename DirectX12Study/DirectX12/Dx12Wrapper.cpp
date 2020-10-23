@@ -1,14 +1,17 @@
 #include "Dx12Wrapper.h"
 #include "../Application.h"
+#include "../Loader/BmpLoader.h"
 #include <cassert>
 #include <algorithm>
 #include <string>
 #include <DirectXmath.h>
 #include <d3dcompiler.h>
+#include <DirectXTex.h>
 
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"DirectXTex.lib")
 
 using namespace DirectX;
 struct Vertex
@@ -21,10 +24,10 @@ std::vector<Vertex> vertices_;
 void CreateVertices()
 {                       
                            // Position               // UV
-    vertices_.push_back({ { -0.4f, -0.7f, 0.0f },   { 0.0f, 1.0f } });     // bottom left  
-    vertices_.push_back({ { -0.4f, 0.7f, 0.0f },    { 0.0f, 0.0f } });     // top left
-    vertices_.push_back({ { 0.4f, -0.7f, 0.0f },    { 1.0f, 1.0f } });     // bottom right
-    vertices_.push_back({ { 0.4f, 0.7f, 0.0f },     { 1.0f, 0.0f } });     // top right
+    vertices_.push_back({ { 0.0f, 100.0f, 0.0f },   { 0.0f, 1.0f } });     // bottom left  
+    vertices_.push_back({ { 0.0f, 0.0f, 0.0f },    { 0.0f, 0.0f } });     // top left
+    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },    { 1.0f, 1.0f } });     // bottom right
+    vertices_.push_back({ { 100.0f, 0.0f, 0.0f },     { 1.0f, 0.0f } });     // top right
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -84,6 +87,18 @@ void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
 
 bool Dx12Wrapper::CreateTexure()
 {
+    HRESULT result = S_OK;
+    CoInitializeEx(0, COINIT_MULTITHREADED);
+
+    TexMetadata metadata;
+    ScratchImage scratch;
+    result = DirectX::LoadFromWICFile(
+        L"resource/image/textest.png",
+        WIC_FLAGS_IGNORE_SRGB,
+        &metadata,
+        scratch);
+    assert(SUCCEEDED(result));
+
     // Create buffer
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
@@ -91,17 +106,17 @@ bool Dx12Wrapper::CreateTexure()
     heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 
     D3D12_RESOURCE_DESC rsDesc = {};
-    rsDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    rsDesc.Width = 256;
-    rsDesc.Height = 256;
-    rsDesc.DepthOrArraySize = 1;
-    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    rsDesc.MipLevels = 1;
+    rsDesc.Format = metadata.format;
+    rsDesc.Width = metadata.width;
+    rsDesc.Height = metadata.height;
+    rsDesc.DepthOrArraySize = metadata.arraySize;
+    rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
+    rsDesc.MipLevels = metadata.mipLevels;
     rsDesc.SampleDesc.Count = 1;
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    auto result = dev_->CreateCommittedResource(
+    result = dev_->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -111,23 +126,48 @@ bool Dx12Wrapper::CreateTexure()
     );
     assert(SUCCEEDED(result));
 
-    std::vector<uint8_t> textureData(4 * 256 * 256);
-    for (auto& col : textureData)
+    /*----------------Load bit map file----------------*/
+    /*
+    BmpLoader bmp("resource/image/sample.bmp");
+    auto bsize = bmp.GetBmpSize();
+    auto& rawData = bmp.GetRawData();
+    std::vector<uint8_t> texData(4 * bsize.width * bsize.height);
+    int texIdx = 0;
+
+    //Read bmp file normally
+    for (int i = 0; i < rawData.size(); )
     {
-        col = rand() % 256;
+        texData[texIdx++] = rawData[i++];
+        texData[texIdx++] = rawData[i++];
+        texData[texIdx++] = rawData[i++];
+        texData[texIdx++] = 0xff;
     }
+
+    for (int y = bsize.height - 1; y >= 0; y--)
+    {
+        for (int x = 0; x < bsize.width; x+=4) {
+            texData[texIdx++] = rawData[(x + y * bsize.width + x) * 3 + 0];
+            texData[texIdx++] = rawData[(x + y * bsize.width + x) * 3 + 1];
+            texData[texIdx++] = rawData[(x + y * bsize.width + x) * 3 + 2];
+            texData[texIdx++] = 0xff;
+        }
+    }
+
     D3D12_BOX box;
     box.left = 0;
-    box.right = 256;
+    box.right = bsize.width;
     box.top = 0;
-    box.bottom = 256;
+    box.bottom = bsize.height;
     box.back = 1;
     box.front = 0;
+    */
+
+    auto image = scratch.GetImage(0,0,0);
     result = textureBuffer_->WriteToSubresource(0,
-        &box,
-        textureData.data(),
-        4 * 256,
-        4 * 256 * 256);
+        nullptr,
+        image->pixels,
+        image->rowPitch,
+        image->slicePitch);
     assert(SUCCEEDED(result));
 
     // Create SRV Desciptor Heap
@@ -136,23 +176,23 @@ bool Dx12Wrapper::CreateTexure()
     desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     desc.NodeMask = 0;
-    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvDescHeap_));
+    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
     assert(SUCCEEDED(result));
 
     // Create SRV
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Format = metadata.format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-    srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(1,1,1,1);
+    srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0,1,2,3); // ※
 
     dev_->CreateShaderResourceView(
         textureBuffer_,
         &srvDesc,
-        srvDescHeap_->GetCPUDescriptorHandleForHeapStart()
+        resourceViewHeap_->GetCPUDescriptorHandleForHeapStart()
     );
 
     // Root Signature
@@ -206,6 +246,37 @@ bool Dx12Wrapper::CreateTexure()
     return true;
 }
 
+bool Dx12Wrapper::CreateConstantBuffer()
+{
+    HRESULT result = S_OK;
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProp.CreationNodeMask = 0;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_UNKNOWN;
+    rsDesc.Width = sizeof(XMMATRIX) % 256;
+    rsDesc.Height = 1;
+    rsDesc.MipLevels = 1;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    rsDesc.SampleDesc.Count = 1;
+
+    result = dev_->CreateCommittedResource(
+    &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&constantBuffer_));
+    assert(SUCCEEDED(result));
+    return true;
+}
+
 bool Dx12Wrapper::CreatePipelineState()
 {
     HRESULT result = S_OK;
@@ -218,19 +289,19 @@ bool Dx12Wrapper::CreatePipelineState()
     { 
     "POSITION",                                   //semantic
     0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> 3D array R32G32B32
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
     0,                                            //スロット番号（頂点データが入ってくる入口地番号）
     0,                                            //このデータが何バイト目から始まるのか
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
     0},
     // UV layout
     {
-    "TEXCOORD",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> 2D array R32G32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                 //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    "TEXCOORD",                                   
+    0,                                            
+    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
+    0,                                            
+    D3D12_APPEND_ALIGNED_ELEMENT,                 
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   
     0
     }
     };
@@ -388,7 +459,8 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     scDesc.SampleDesc.Count = 1;
     scDesc.SampleDesc.Quality = 0;
-    scDesc.Scaling = DXGI_SCALING_STRETCH;
+    scDesc.Scaling = DXGI_SCALING_NONE;
+    //scDesc.Scaling = DXGI_SCALING_STRETCH;
     scDesc.Stereo = false;
     scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     result = dxgi_->CreateSwapChainForHwnd(cmdQue_,
@@ -416,6 +488,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
 
     CreateRenderTargetDescriptorHeap();
     CreateVertexBuffer();
+    CreateConstantBuffer();
     CreateTexure();
     CreatePipelineState();
 
@@ -458,12 +531,10 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 
 bool Dx12Wrapper::Update()
 {
-    /*static int R;
-    R = (R + 1) % 256;*/
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_,pipeline_);
-    /*cmdList_->Reset(cmdAlloc_,nullptr);
-    cmdList_->SetPipelineState(pipeline_);*/
+    //cmdList_->Reset(cmdAlloc_, nullptr);
+    //cmdList_->SetPipelineState(pipeline_);
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -504,9 +575,9 @@ bool Dx12Wrapper::Update()
     rc.bottom = wsize.height;
     cmdList_->RSSetScissorRects(1, &rc);
 
-    ID3D12DescriptorHeap* descHeaps[] = { srvDescHeap_ };
+    ID3D12DescriptorHeap* descHeaps[] = { resourceViewHeap_ };
     cmdList_->SetDescriptorHeaps(1, descHeaps);
-    cmdList_->SetGraphicsRootDescriptorTable(0, srvDescHeap_->GetGPUDescriptorHandleForHeapStart());
+    cmdList_->SetGraphicsRootDescriptorTable(0, resourceViewHeap_->GetGPUDescriptorHandleForHeapStart());
 
     // Draw Triangle
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);

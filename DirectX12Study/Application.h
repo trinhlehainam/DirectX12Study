@@ -2,11 +2,7 @@
 #include <Windows.h>
 #include <memory>
 
-struct Size
-{
-	size_t width;
-	size_t height;
-};
+#include "common.h"
 
 class Dx12Wrapper;
 
