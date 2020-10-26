@@ -200,13 +200,13 @@ bool Dx12Wrapper::CreateTexure()
         resourceViewHeap_->GetCPUDescriptorHandleForHeapStart()
     );
 
-    auto cbDesc = constantBuffer_->GetDesc();
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = cbDesc.Width;
-    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
-    heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+    //auto cbDesc = constantBuffer_->GetDesc();
+    //D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    //cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
+    //cbvDesc.SizeInBytes = cbDesc.Width;
+    //auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
+    //heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    //dev_->CreateConstantBufferView(&cbvDesc, heapPos);
 
     // Root Signature
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};

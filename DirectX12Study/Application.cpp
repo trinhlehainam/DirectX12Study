@@ -39,7 +39,7 @@ bool Application::Initialize()
 	wc.hInstance = inst_;
 	wc.lpszClassName = className;
 	wc.cbSize = sizeof(wc);
-	wc.lpfnWndProc = (WNDPROC)WindowProcedure;
+	wc.lpfnWndProc = WindowProcedure;
 	auto regCls = RegisterClassEx(&wc);
 	RECT rc = { 0,0,WINDOW_WIDTH, WINDOW_HEIGHT };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
