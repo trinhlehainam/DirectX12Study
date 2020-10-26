@@ -21,13 +21,18 @@ struct Vertex
 };
 std::vector<Vertex> vertices_;
 
+unsigned int AlignedValue(unsigned int value, unsigned int align)
+{
+    return value + (align - (value % align)) % align;
+}
+
 void CreateVertices()
 {                       
                            // Position               // UV
-    vertices_.push_back({ { 0.0f, 100.0f, 0.0f },   { 0.0f, 1.0f } });     // bottom left  
-    vertices_.push_back({ { 0.0f, 0.0f, 0.0f },    { 0.0f, 0.0f } });     // top left
-    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },    { 1.0f, 1.0f } });     // bottom right
-    vertices_.push_back({ { 100.0f, 0.0f, 0.0f },     { 1.0f, 0.0f } });     // top right
+    vertices_.push_back({ { 0.0f, 100.0f, 0.0f },   { 0.0f, 1.0f } });          // bottom left  
+    vertices_.push_back({ { 0.0f, 0.0f, 0.0f },    { 0.0f, 0.0f } });           // top left
+    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },    { 1.0f, 1.0f } });       // bottom right
+    vertices_.push_back({ { 100.0f, 0.0f, 0.0f },     { 1.0f, 0.0f } });        // top right
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -195,18 +200,30 @@ bool Dx12Wrapper::CreateTexure()
         resourceViewHeap_->GetCPUDescriptorHandleForHeapStart()
     );
 
+    auto cbDesc = constantBuffer_->GetDesc();
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = cbDesc.Width;
+    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
+    heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+
     // Root Signature
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     rtSigDesc.NumParameters = 1;
     D3D12_ROOT_PARAMETER rp[1] = {};
     rp[0].DescriptorTable.NumDescriptorRanges = 1;
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
+    D3D12_DESCRIPTOR_RANGE range[2] = {};
     range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
     range[0].BaseShaderRegister = 0;                            // 0‚Â‚Ü‚è(t0) ‚ð•\‚·
     range[0].NumDescriptors = 1;                                // t0->t0‚Ü‚Å
     range[0].OffsetInDescriptorsFromTableStart = 0;
-    rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // t
+    range[1].BaseShaderRegister = 0;                            // 0‚Â‚Ü‚è(t0) ‚ð•\‚·
+    range[1].NumDescriptors = 1;                                // t0->t0‚Ü‚Å
+    range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rp[0].DescriptorTable.pDescriptorRanges = range;
     rp[0].DescriptorTable.NumDescriptorRanges = _countof(range);
     rtSigDesc.pParameters = rp;
@@ -257,7 +274,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
 
     D3D12_RESOURCE_DESC rsDesc = {};
     rsDesc.Format = DXGI_FORMAT_UNKNOWN;
-    rsDesc.Width = sizeof(XMMATRIX) % 256;
+    rsDesc.Width = AlignedValue(sizeof(XMMATRIX),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
     rsDesc.Height = 1;
     rsDesc.MipLevels = 1;
     rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -274,6 +291,17 @@ bool Dx12Wrapper::CreateConstantBuffer()
         nullptr,
         IID_PPV_ARGS(&constantBuffer_));
     assert(SUCCEEDED(result));
+
+    XMMATRIX tempMat = XMMatrixIdentity();
+    XMMATRIX* mat;
+    constantBuffer_->Map(0, nullptr, (void**)&mat);
+    tempMat.r[0].m128_f32[0] = 1.0f / 640.f;
+    tempMat.r[1].m128_f32[1] = -1.0f / 360.0f;
+    tempMat.r[0].m128_f32[3] = -1.0f;
+    tempMat.r[1].m128_f32[3] = 1.0f;
+    *mat = tempMat;
+    constantBuffer_->Unmap(0, nullptr);
+
     return true;
 }
 

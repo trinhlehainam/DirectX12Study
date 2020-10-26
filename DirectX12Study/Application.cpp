@@ -17,12 +17,14 @@ Application::~Application() = default;
 
 LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	if (msg == WM_DESTROY)
+	switch(msg)
 	{
+	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
+	default:
+		return DefWindowProc(hwnd, msg, wparam, lparam);
 	}
-	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
 Application& Application::Instance()
