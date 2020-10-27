@@ -28,14 +28,24 @@ unsigned int AlignedValue(unsigned int value, unsigned int align)
 
 void CreateVertices()
 {
-    // Position               // UV
-    vertices_.push_back({ { -100.0f, -100.0f, 0.0f },   { 0.0f, 1.0f } });          // bottom left  
-    vertices_.push_back({ { -100.0f, 100.0f, 0.0f },     { 0.0f, 0.0f } });           // top left
-    vertices_.push_back({ { 100.0f, -100.0f, 0.0f },    { 1.0f, 1.0f } });       // bottom right
-    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },     { 1.0f, 0.0f } });        // top right
+                            // Position               // UV
+    vertices_.push_back({ { -100.0f, -100.0f, -100.0f },   { 0.0f, 1.0f } });          // bottom left  
+    vertices_.push_back({ { -100.0f, 100.0f, -100.0f },     { 0.0f, 0.0f } });           // top left
+    vertices_.push_back({ { 100.0f, 100.0f, -100.0f },     { 1.0f, 0.0f } });        // top right
+    vertices_.push_back({ { 100.0f, -100.0f, -100.0f },    { 1.0f, 1.0f } });       // bottom right
 
-    indices_ = { 0,1,2, 2,1,3,
-                2,3,6, 6,3,7 };
+    vertices_.push_back({ { 100.0f, -100.0f, 100.0f },    { 0.0f, 1.0f } });
+    vertices_.push_back({ { 100.0f, 100.0f, 100.0f },     { 0.0f, 0.0f } });
+    vertices_.push_back({ { -100.0f, 100.0f, 100.0f },     { 1.0f, 0.0f } });
+    vertices_.push_back({ { -100.0f, -100.0f, 100.0f },   { 1.0f, 1.0f } });
+    
+    indices_ = { 0,1,2,  0,2,3,
+                 2,4,3,  2,4,5,
+                 4,5,6,  4,6,7,
+                 0,1,6,  0,7,6,
+                 //2,1,6,  2,6,5,
+                 //0,3,4,  0,3,7
+                };
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -79,14 +89,6 @@ void Dx12Wrapper::CreateVertexBuffer()
     vbView_.SizeInBytes = sizeof(vertices_[0]) * vertices_.size();
     vbView_.StrideInBytes = sizeof(vertices_[0]);
 
-    result = dev_->CreateCommittedResource(&heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&vertexBuffer_));
-    assert(SUCCEEDED(result));
-
 }
 
 void Dx12Wrapper::CreateIndexBuffer()
@@ -112,10 +114,6 @@ void Dx12Wrapper::CreateIndexBuffer()
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
-    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
-    ibView_.Format = DXGI_FORMAT_R32_UINT;
-
     result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -129,6 +127,11 @@ void Dx12Wrapper::CreateIndexBuffer()
     std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
     assert(SUCCEEDED(result));
     indicesBuffer_->Unmap(0, nullptr);
+
+    ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
+    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
+    ibView_.Format = DXGI_FORMAT_R32_UINT;
+
 }
 
 void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
@@ -364,7 +367,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
-        { 0.0f, 100.0f, 150.0f, 1.0f },
+        { 0.0f, 150.0f, 150.0f, 1.0f },
         { 0.0f, 0.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 1.0f });
     /*tempMat *= XMMatrixLookAtRH(
@@ -373,10 +376,10 @@ bool Dx12Wrapper::CreateConstantBuffer()
         { 0.0f, 1.0f, 0.0f, 1.0f });*/
 
     // projection array
-    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV4,
+    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
         static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
         0.1f,
-        300.0f);
+        200.0f);
     //XMFLOAT4X4* mat;
     result = constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
     assert(SUCCEEDED(result));
@@ -612,6 +615,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
 
     CreateRenderTargetDescriptorHeap();
     CreateVertexBuffer();
+    CreateIndexBuffer();
     CreateTexure();
     CreatePipelineState();
 
@@ -660,6 +664,7 @@ bool Dx12Wrapper::Update()
     //cmdList_->Reset(cmdAlloc_, nullptr);
     //cmdList_->SetPipelineState(pipeline_);
     angle += 0.01f;
+    mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -680,7 +685,7 @@ bool Dx12Wrapper::Update()
     cmdList_->ClearRenderTargetView(rtvHeap, bgColor, 0 ,nullptr);
 
     cmdList_->SetGraphicsRootSignature(rootSig_);
-    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
     // ビューポートと、シザーの設定
     auto wsize = Application::Instance().GetWindowSize();
@@ -706,8 +711,9 @@ bool Dx12Wrapper::Update()
 
     // Draw Triangle
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);
-    //cmdList_->IASetIndexBuffer(&ibView_);
-    cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
+    cmdList_->IASetIndexBuffer(&ibView_);
+    //cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
+    cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
 
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;

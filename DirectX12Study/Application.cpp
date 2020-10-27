@@ -89,7 +89,7 @@ bool Application::Initialize()
 void Application::Run()
 {
 	MSG msg = {};
-	while (1)
+	while (true)
 	{
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
