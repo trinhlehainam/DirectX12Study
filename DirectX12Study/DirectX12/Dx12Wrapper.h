@@ -3,6 +3,7 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <vector>
+#include <DirectXmath.h>
 
 /// <summary>
 /// DirectX12 feature
@@ -10,6 +11,11 @@
 class Dx12Wrapper
 {
 private:
+	struct BasicMatrix {
+		DirectX::XMMATRIX world;
+		DirectX::XMMATRIX viewproj;
+	};
+	BasicMatrix* mappedBasicMatrix_ = nullptr;
 	ID3D12Device* dev_ = nullptr;
 	ID3D12CommandAllocator* cmdAlloc_ = nullptr;
 	ID3D12GraphicsCommandList* cmdList_ = nullptr;
@@ -30,14 +36,18 @@ private:
 	// 頂点バッファを生成 (して、CPU側の頂点情報をコピー)
 	void CreateVertexBuffer();
 
+	ID3D12Resource* indicesBuffer_;
+	D3D12_INDEX_BUFFER_VIEW ibView_;
+	void CreateIndexBuffer();
+
 	// Texture Buffer
 	ID3D12Resource* textureBuffer_;
 	ID3D12DescriptorHeap* resourceViewHeap_;		// Shader Resource View Desciptor Heap
-	bool CreateTexure();
-
+	bool CreateShaderResource();
 	// Constant Buffer
 	ID3D12Resource* constantBuffer_;
 	bool CreateConstantBuffer();
+	bool CreateTexure();
 
 	// Graphic pipeline
 	ID3D12PipelineState* pipeline_ = nullptr;

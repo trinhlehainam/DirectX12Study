@@ -4,7 +4,6 @@
 #include <cassert>
 #include <algorithm>
 #include <string>
-#include <DirectXmath.h>
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
@@ -20,6 +19,7 @@ struct Vertex
     XMFLOAT2 uv;
 };
 std::vector<Vertex> vertices_;
+std::vector<uint32_t> indices_;
 
 unsigned int AlignedValue(unsigned int value, unsigned int align)
 {
@@ -27,12 +27,15 @@ unsigned int AlignedValue(unsigned int value, unsigned int align)
 }
 
 void CreateVertices()
-{                       
-                           // Position               // UV
-    vertices_.push_back({ { 0.0f, 100.0f, 0.0f },   { 0.0f, 1.0f } });          // bottom left  
-    vertices_.push_back({ { 0.0f, 0.0f, 0.0f },    { 0.0f, 0.0f } });           // top left
-    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },    { 1.0f, 1.0f } });       // bottom right
-    vertices_.push_back({ { 100.0f, 0.0f, 0.0f },     { 1.0f, 0.0f } });        // top right
+{
+    // Position               // UV
+    vertices_.push_back({ { -100.0f, -100.0f, 0.0f },   { 0.0f, 1.0f } });          // bottom left  
+    vertices_.push_back({ { -100.0f, 100.0f, 0.0f },     { 0.0f, 0.0f } });           // top left
+    vertices_.push_back({ { 100.0f, -100.0f, 0.0f },    { 1.0f, 1.0f } });       // bottom right
+    vertices_.push_back({ { 100.0f, 100.0f, 0.0f },     { 1.0f, 0.0f } });        // top right
+
+    indices_ = { 0,1,2, 2,1,3,
+                2,3,6, 6,3,7 };
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -47,20 +50,20 @@ void Dx12Wrapper::CreateVertexBuffer()
     heapProp.VisibleNodeMask = 0;
 
     // 確保した領域の用に関する設定
-    D3D12_RESOURCE_DESC resDesc = {};
-    resDesc.Format = DXGI_FORMAT_UNKNOWN;
-    resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resDesc.Width = sizeof(vertices_[0])*vertices_.size();  // 4*3*3 = 36 bytes
-    resDesc.Height = 1;
-    resDesc.SampleDesc.Count = 1;
-    resDesc.DepthOrArraySize = 1;
-    resDesc.MipLevels = 1;
-    resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_UNKNOWN;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    rsDesc.Width = sizeof(vertices_[0])*vertices_.size();  // 4*3*3 = 36 bytes
+    rsDesc.Height = 1;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.MipLevels = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     
     auto result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
-        &resDesc,
+        &rsDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&vertexBuffer_));
@@ -75,6 +78,57 @@ void Dx12Wrapper::CreateVertexBuffer()
     vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
     vbView_.SizeInBytes = sizeof(vertices_[0]) * vertices_.size();
     vbView_.StrideInBytes = sizeof(vertices_[0]);
+
+    result = dev_->CreateCommittedResource(&heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&vertexBuffer_));
+    assert(SUCCEEDED(result));
+
+}
+
+void Dx12Wrapper::CreateIndexBuffer()
+{
+    HRESULT result = S_OK;
+    // 確保する領域の仕様に関する設定
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProp.CreationNodeMask = 0;
+    heapProp.VisibleNodeMask = 0;
+
+    // 確保した領域の用に関する設定
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_UNKNOWN;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    rsDesc.Width = sizeof(indices_[0]) * indices_.size();
+    rsDesc.Height = 1;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.MipLevels = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
+    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
+    ibView_.Format = DXGI_FORMAT_R32_UINT;
+
+    result = dev_->CreateCommittedResource(&heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&indicesBuffer_));
+    assert(SUCCEEDED(result));
+
+    uint32_t* mappedIdxData = nullptr;
+    result = indicesBuffer_->Map(0, nullptr, (void**)&mappedIdxData);
+    std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
+    assert(SUCCEEDED(result));
+    indicesBuffer_->Unmap(0, nullptr);
 }
 
 void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
@@ -90,10 +144,9 @@ void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
     }
 }
 
-bool Dx12Wrapper::CreateTexure()
+bool Dx12Wrapper::CreateShaderResource()
 {
     HRESULT result = S_OK;
-    CoInitializeEx(0, COINIT_MULTITHREADED);
 
     TexMetadata metadata;
     ScratchImage scratch;
@@ -167,21 +220,12 @@ bool Dx12Wrapper::CreateTexure()
     box.front = 0;
     */
 
-    auto image = scratch.GetImage(0,0,0);
+    auto image = scratch.GetImage(0, 0, 0);
     result = textureBuffer_->WriteToSubresource(0,
         nullptr,
         image->pixels,
         image->rowPitch,
         image->slicePitch);
-    assert(SUCCEEDED(result));
-
-    // Create SRV Desciptor Heap
-    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.NumDescriptors = 1;
-    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    desc.NodeMask = 0;
-    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
     assert(SUCCEEDED(result));
 
     // Create SRV
@@ -192,23 +236,37 @@ bool Dx12Wrapper::CreateTexure()
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-    srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0,1,2,3); // ※
+    srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3); // ※
 
+    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
     dev_->CreateShaderResourceView(
         textureBuffer_,
         &srvDesc,
-        resourceViewHeap_->GetCPUDescriptorHandleForHeapStart()
+        heapPos
     );
+    return true;
+}
 
-    //auto cbDesc = constantBuffer_->GetDesc();
-    //D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    //cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
-    //cbvDesc.SizeInBytes = cbDesc.Width;
-    //auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
-    //heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    //dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+bool Dx12Wrapper::CreateTexure()
+{
+    HRESULT result = S_OK;
+    result = CoInitializeEx(0, COINIT_MULTITHREADED);
+    assert(SUCCEEDED(result));
 
-    // Root Signature
+    // Create CBV_SRV_UAV Desciptor Heap
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.NumDescriptors = 2;            // ※ There are 2 descriptors (CBV, SRV)
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    desc.NodeMask = 0;
+    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
+    assert(SUCCEEDED(result));
+
+    CreateShaderResource();
+
+    CreateConstantBuffer();
+
+    //Root Signature
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     rtSigDesc.NumParameters = 1;
@@ -292,15 +350,53 @@ bool Dx12Wrapper::CreateConstantBuffer()
         IID_PPV_ARGS(&constantBuffer_));
     assert(SUCCEEDED(result));
 
+    auto wSize = Application::Instance().GetWindowSize();
+    // XXMatrixIdentity
+    // 1 0 0 0
+    // 0 1 0 0
+    // 0 0 1 0
+    // 0 0 0 1
     XMMATRIX tempMat = XMMatrixIdentity();
-    XMMATRIX* mat;
-    constantBuffer_->Map(0, nullptr, (void**)&mat);
-    tempMat.r[0].m128_f32[0] = 1.0f / 640.f;
-    tempMat.r[1].m128_f32[1] = -1.0f / 360.0f;
-    tempMat.r[0].m128_f32[3] = -1.0f;
-    tempMat.r[1].m128_f32[3] = 1.0f;
-    *mat = tempMat;
+
+    // world coordinate
+    XMMATRIX world = XMMatrixRotationY(XM_PIDIV4);
+    /*tempMat *= XMMatrixRotationY(XM_PIDIV4);*/
+
+    // camera array (view)
+    XMMATRIX viewproj = XMMatrixLookAtRH(
+        { 0.0f, 100.0f, 150.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 1.0f, 0.0f, 1.0f });
+    /*tempMat *= XMMatrixLookAtRH(
+        { 0.0f, 100.0f, 150.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 1.0f, 0.0f, 1.0f });*/
+
+    // projection array
+    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV4,
+        static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+        0.1f,
+        300.0f);
+    //XMFLOAT4X4* mat;
+    result = constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
+    assert(SUCCEEDED(result));
+    //tempMat.r[0].m128_f32[0] = 2.0f / wSize.width;
+    //tempMat.r[1].m128_f32[1] = -2.0f / wSize.height;
+    //tempMat.r[3].m128_f32[0] = -1.0f;
+    //tempMat.r[3].m128_f32[1] = 1.0f;
+    //XMStoreFloat4x4(mat, tempMat);
+
+    mappedBasicMatrix_->viewproj = viewproj;
+    mappedBasicMatrix_->world = world;
     constantBuffer_->Unmap(0, nullptr);
+
+    auto cbDesc = constantBuffer_->GetDesc();
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = cbDesc.Width;
+    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
+    heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    dev_->CreateConstantBufferView(&cbvDesc, heapPos);
 
     return true;
 }
@@ -516,7 +612,6 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
 
     CreateRenderTargetDescriptorHeap();
     CreateVertexBuffer();
-    CreateConstantBuffer();
     CreateTexure();
     CreatePipelineState();
 
@@ -559,10 +654,12 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 
 bool Dx12Wrapper::Update()
 {
+    static float angle = 0;
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_,pipeline_);
     //cmdList_->Reset(cmdAlloc_, nullptr);
     //cmdList_->SetPipelineState(pipeline_);
+    angle += 0.01f;
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -609,7 +706,9 @@ bool Dx12Wrapper::Update()
 
     // Draw Triangle
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);
+    //cmdList_->IASetIndexBuffer(&ibView_);
     cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
+
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

@@ -36,9 +36,12 @@ Application& Application::Instance()
 bool Application::Initialize()
 {
 	WNDCLASSEX wc = {};
+	wc.cbSize = sizeof(wc);
+	wc.style = CS_HREDRAW | CS_VREDRAW;;
 	wc.hInstance = inst_;
 	wc.lpszClassName = className;
-	wc.cbSize = sizeof(wc);
+	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
+	
 	wc.lpfnWndProc = WindowProcedure;
 	auto regCls = RegisterClassEx(&wc);
 	RECT rc = { 0,0,WINDOW_WIDTH, WINDOW_HEIGHT };
