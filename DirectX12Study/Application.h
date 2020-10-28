@@ -16,6 +16,7 @@ private:
 	HINSTANCE inst_;
 	HWND windowHandle_;
 	std::unique_ptr<Dx12Wrapper> dxWrapper_;
+	bool isRunning_;
 
 	Application();
 	Application(const Application&) = delete;

@@ -21,10 +21,11 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
 	{
 	case WM_DESTROY:
 		PostQuitMessage(0);
-		return 0;
+		break;
 	default:
 		return DefWindowProc(hwnd, msg, wparam, lparam);
 	}
+	return 0;
 }
 
 Application& Application::Instance()
@@ -35,6 +36,8 @@ Application& Application::Instance()
 
 bool Application::Initialize()
 {
+	isRunning_ = true;
+
 	WNDCLASSEX wc = {};
 	wc.cbSize = sizeof(wc);
 	wc.style = CS_HREDRAW | CS_VREDRAW;;
@@ -89,15 +92,22 @@ bool Application::Initialize()
 void Application::Run()
 {
 	MSG msg = {};
-	while (1)
+	while (isRunning_)
 	{
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
+
+			if (msg.message == WM_QUIT)
+			{
+				isRunning_ = false;
+				break;
+			}
 		}
-		if (msg.message == WM_QUIT)
+		if (!isRunning_)
 			break;
+
 		dxWrapper_->Update();
 	}
 }
