@@ -526,14 +526,13 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
         D3D_FEATURE_LEVEL_11_1,
         D3D_FEATURE_LEVEL_11_0,
     };
-    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_1_0_CORE;
     HRESULT result = S_OK;
 
-#if _DEBUG
-    ID3D12Debug* debug = nullptr;
-    D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
-    debug->EnableDebugLayer();
-    debug->Release();
+#if defined(DEBUG) || defined(_DEBUG)
+    //ID3D12Debug* debug = nullptr;
+    //D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+    //debug->EnableDebugLayer();
+    //debug->Release();
 
     result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&dxgi_));
 #else
@@ -544,15 +543,13 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     for (auto& fLevel : featureLevels)
     {
         result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(&dev_));
-        if (SUCCEEDED(result)) {
-            featureLevel = fLevel;
-            break;
+        if (FAILED(result)) {
+            IDXGIAdapter4* pAdapter;
+            dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
+            D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(&dev_));
+            //OutputDebugString(L"Feature level not found");
+            //return false;
         }
-    }
-    if (featureLevel == D3D_FEATURE_LEVEL_1_0_CORE)
-    {
-        OutputDebugString(L"Feature level not found");
-        return false;
     }
 
     D3D12_COMMAND_QUEUE_DESC cmdQdesc = {};
