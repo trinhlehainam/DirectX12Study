@@ -145,12 +145,14 @@
     <ClCompile Include="Loader\BmpLoader.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PMDLoader\PMDModel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
+    <ClInclude Include="PMDLoader\PMDModel.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\PS.hlsl">

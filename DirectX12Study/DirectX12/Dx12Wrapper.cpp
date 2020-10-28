@@ -1,6 +1,7 @@
 #include "Dx12Wrapper.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
+#include "../PMDLoader/PMDModel.h"
 #include <cassert>
 #include <algorithm>
 #include <string>
@@ -28,24 +29,24 @@ unsigned int AlignedValue(unsigned int value, unsigned int align)
 
 void CreateVertices()
 {
-                            // Position               // UV
-    vertices_.push_back({ { -100.0f, -100.0f, -100.0f },   { 0.0f, 1.0f } });          // bottom left  
-    vertices_.push_back({ { -100.0f, 100.0f, -100.0f },     { 0.0f, 0.0f } });           // top left
-    vertices_.push_back({ { 100.0f, 100.0f, -100.0f },     { 1.0f, 0.0f } });        // top right
-    vertices_.push_back({ { 100.0f, -100.0f, -100.0f },    { 1.0f, 1.0f } });       // bottom right
+                            // Position                     // UV
+    vertices_.push_back({ { -100.0f, -100.0f, 100.0f },   { 0.0f, 1.0f } });          // bottom left  
+    vertices_.push_back({ { -100.0f, 100.0f, 100.0f },     { 0.0f, 0.0f } });           // top left
+    vertices_.push_back({ { 100.0f, 100.0f, 100.0f },     { 1.0f, 0.0f } });        // top right
+    vertices_.push_back({ { 100.0f, -100.0f, 100.0f },    { 1.0f, 1.0f } });       // bottom right
 
-    vertices_.push_back({ { 100.0f, -100.0f, 100.0f },    { 0.0f, 1.0f } });
-    vertices_.push_back({ { 100.0f, 100.0f, 100.0f },     { 0.0f, 0.0f } });
-    vertices_.push_back({ { -100.0f, 100.0f, 100.0f },     { 1.0f, 0.0f } });
-    vertices_.push_back({ { -100.0f, -100.0f, 100.0f },   { 1.0f, 1.0f } });
-    
-    indices_ = { 0,1,2,  0,2,3,
-                 2,4,3,  2,4,5,
-                 4,5,6,  4,6,7,
-                 0,1,6,  0,7,6,
-                 //2,1,6,  2,6,5,
-                 //0,3,4,  0,3,7
-                };
+    vertices_.push_back({ { 100.0f, -100.0f, -100.0f },    { 0.0f, 1.0f } });
+    vertices_.push_back({ { 100.0f, 100.0f, -100.0f },     { 0.0f, 0.0f } });
+    vertices_.push_back({ { -100.0f, 100.0f, -100.0f },     { 1.0f, 0.0f } });
+    vertices_.push_back({ { -100.0f, -100.0f, -100.0f },   { 1.0f, 1.0f } });
+   
+    // ŽžŒv‰ñ‚è
+    indices_ = { 0,1,2,      0,2,3, 
+                 3,2,5,      3,5,4,
+                 5,6,7,      5,7,4,
+                 1,7,6,      1,0,7,
+                 1,6,5,      1,5,2,
+                 0,3,4,      0,4,7};
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -114,6 +115,7 @@ void Dx12Wrapper::CreateIndexBuffer()
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+    
     result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -122,16 +124,15 @@ void Dx12Wrapper::CreateIndexBuffer()
         IID_PPV_ARGS(&indicesBuffer_));
     assert(SUCCEEDED(result));
 
+    ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
+    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
+    ibView_.Format = DXGI_FORMAT_R32_UINT;
+
     uint32_t* mappedIdxData = nullptr;
     result = indicesBuffer_->Map(0, nullptr, (void**)&mappedIdxData);
     std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
     assert(SUCCEEDED(result));
     indicesBuffer_->Unmap(0, nullptr);
-
-    ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
-    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
-    ibView_.Format = DXGI_FORMAT_R32_UINT;
-
 }
 
 void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
@@ -266,9 +267,15 @@ bool Dx12Wrapper::CreateTexure()
     assert(SUCCEEDED(result));
 
     CreateShaderResource();
-
     CreateConstantBuffer();
+    CreateRootSignature();
 
+    return true;
+}
+
+void Dx12Wrapper::CreateRootSignature()
+{
+    HRESULT result = S_OK;
     //Root Signature
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -306,7 +313,7 @@ bool Dx12Wrapper::CreateTexure()
     samplerDesc[0].MaxLOD = 0.0f;
     samplerDesc[0].MinLOD = 0.0f;
     samplerDesc[0].MipLODBias = 0.0f;
-    
+
     rtSigDesc.pStaticSamplers = samplerDesc;
     rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
 
@@ -320,8 +327,6 @@ bool Dx12Wrapper::CreateTexure()
     assert(SUCCEEDED(result));
     result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
     assert(SUCCEEDED(result));
-
-    return true;
 }
 
 bool Dx12Wrapper::CreateConstantBuffer()
@@ -367,7 +372,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
-        { 0.0f, 150.0f, 150.0f, 1.0f },
+        { 0.0f, 200.0f, 200.0f, 1.0f },
         { 0.0f, 0.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 1.0f });
     /*tempMat *= XMMatrixLookAtRH(
@@ -379,7 +384,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
     viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
         static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
         0.1f,
-        200.0f);
+        300.0f);
     //XMFLOAT4X4* mat;
     result = constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
     assert(SUCCEEDED(result));
@@ -455,7 +460,7 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 
     // Rasterizer
-    gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
     gpsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
     gpsDesc.RasterizerState.DepthClipEnable = false;
     gpsDesc.RasterizerState.MultisampleEnable = false;
@@ -502,19 +507,6 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
     
     // Root Signature
-    //ID3DBlob* rootSigBlob = nullptr;
-    //D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
-    //rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    //rootSigDesc.NumParameters = 0;
-    //rootSigDesc.NumStaticSamplers = 0;
-    //result = D3D12SerializeRootSignature(&rootSigDesc,
-    //    D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
-    //    &rootSigBlob,
-    //    &errBlob);
-    //OutputFromErrorBlob(errBlob);
-    //assert(SUCCEEDED(result));
-    //result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig_));
-    //assert(SUCCEEDED(result));
     gpsDesc.pRootSignature = rootSig_;
 
     result = dev_->CreateGraphicsPipelineState(&gpsDesc,IID_PPV_ARGS(&pipeline_));
@@ -570,6 +562,9 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     cmdQdesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     result = dev_->CreateCommandQueue(&cmdQdesc, IID_PPV_ARGS(&cmdQue_));
     assert(SUCCEEDED(result));
+
+    pmdModel_ = std::make_shared<PMDModel>();
+    pmdModel_->Load("resource/PMD/model/‰‰¹ƒ~ƒN.pmd");
 
     auto& app = Application::Instance();
     auto wsize = app.GetWindowSize();
@@ -664,7 +659,8 @@ bool Dx12Wrapper::Update()
     //cmdList_->Reset(cmdAlloc_, nullptr);
     //cmdList_->SetPipelineState(pipeline_);
     angle += 0.01f;
-    mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+
+    mappedBasicMatrix_->world = XMMatrixRotationY(angle) * XMMatrixRotationX(angle);
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -714,7 +710,6 @@ bool Dx12Wrapper::Update()
     cmdList_->IASetIndexBuffer(&ibView_);
     //cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
     cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
-
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

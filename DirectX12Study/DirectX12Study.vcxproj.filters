@@ -27,6 +27,9 @@
     <ClCompile Include="Loader\BmpLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PMDLoader\PMDModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -39,6 +42,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDLoader\PMDModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

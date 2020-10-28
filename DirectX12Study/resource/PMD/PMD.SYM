@@ -1,0 +1,219 @@
+#include "typedef.h"
+//MMDのモデルデータ(PMD)形式
+
+const DWORD	FILESIZE = GetFileSize();
+
+//ヘッダー構造体
+struct t_header{
+BYTE magic[3];
+float version;
+BYTE model_name[20];
+BYTE comment[256];
+};
+//頂点リスト構造体
+struct t_vertex{
+float pos[3];
+float normal_vec[3];
+float uv[2];
+WORD bone_num[2];
+BYTE bone_weight;
+BYTE edge_flag;
+};
+//材質リスト構造体
+struct t_material{
+float diffuse_color[3];
+float alpha;
+float specularity;
+float specular_color[3];
+float mirror_color[3];
+BYTE toon_index;
+BYTE edge_flag;
+DWORD face_vert_count;
+char texture_file_name[20];
+};
+//ボーンリスト構造体
+struct t_bone{
+char bone_name[20];
+WORD parent_bone_index;
+WORD tail_pos_bone_index;
+BYTE bone_type;
+WORD ik_parent_bone_index;
+float bone_head_pos[3];
+};
+//IKリスト構造体
+struct t_ik_data{
+WORD ik_bone_index;
+WORD ik_target_bone_index;
+BYTE ik_chain_length;
+WORD iterations;
+float control_weight;
+// WORD ik_child_bone_index[ik_chain_length];
+};
+//表情リスト構造体
+struct t_skin_data{
+char skin_name[20];
+DWORD skin_vert_count;
+BYTE skin_type;
+// t_skin_vert_data skin_vert_data[skin_vert_count];
+};
+//表情リスト構造体 type：base
+struct t_skin_vert_data_base{
+DWORD skin_vert_index;
+float skin_vert_pos[3];
+};
+//表情リスト構造体 type：base以外
+struct t_skin_vert_data_nobase{
+DWORD base_skin_vert_index;
+float skin_vert_pos_offset[3];
+};
+//ボーン枠用表示リスト構造体
+struct t_bone_disp{
+WORD bone_index;
+BYTE bone_disp_frame_index;
+};
+//物理演算_剛体リスト構造体
+struct t_rigidbody{
+char rigidbody_name[20];
+WORD rigidbody_rel_bone_index;
+BYTE rigidbody_group_index;
+WORD rigidbody_group_target;
+BYTE shape_type;
+float shape_w;
+float shape_h;
+float shape_d;
+float pos_pos[3];
+float pos_rot[3];
+float rigidbody_weight;
+float rigidbody_pos_dim;
+float rigidbody_rot_dim;
+float rigidbody_recoil;
+float rigidbody_friction;
+BYTE rigidbody_type;
+};
+//物理演算_ジョイントリスト構造体
+struct t_joint{
+char joint_name[20];
+DWORD joint_rigidbody_a;
+DWORD joint_rigidbody_b;
+float joint_pos[3];
+float joint_rot[3];
+float constrain_pos_1[3];
+float constrain_pos_2[3];
+float constrain_rot_1[3];
+float constrain_rot_2[3];
+float spring_pos[3];
+float spring_rot[3];
+};
+
+
+//●解析開始！
+DWORD i;
+
+//ヘッダー読み込み
+$t_header header;
+
+//頂点数読み込み
+$DWORD vert_count;
+
+//頂点データ読み込み
+$t_vertex vertex[vert_count];
+
+//面頂点リスト頂点数
+$DWORD face_vert_count;
+
+//面頂点リストデータ読み込み
+$WORD face_vert_index[face_vert_count];
+
+//材質リスト材質数
+$DWORD material_count;
+
+//材質リストデータ読み込み
+$t_material material[material_count];
+
+//ボーンリストボーン数
+$WORD bone_count;
+
+//ボーンリストデータ読み込み
+$t_bone bone[bone_count];
+
+//IKリストIK数
+$WORD ik_data_count;
+
+//IKリストデータ読み込み
+for(i=0; i < ik_data_count; i++){
+$t_ik_data ik_data;
+$WORD ik_child_bone_index[ik_data.ik_chain_length];
+}
+
+//表情リスト表情数
+$WORD skin_count;
+
+//表情リストデータ読み込み
+for(i=0; i < skin_count; i++){
+$t_skin_data skin_data;
+if(skin_data.skin_type == 0){
+$t_skin_vert_data_base skin_data_base[skin_data.skin_vert_count];
+}else{
+$t_skin_vert_data_nobase skin_data_nobase[skin_data.skin_vert_count];
+}
+}
+
+//表情枠用表示リスト表情数
+$BYTE skin_disp_count;
+
+//表情枠用表示リストデータ読み込み
+$WORD skin_index[skin_disp_count];
+
+//ボーン枠用枠名リスト枠名数
+$BYTE bone_disp_name_count;
+
+//ボーン枠用枠名リストデータ読み込み
+for(i=0; i < bone_disp_name_count; i++){
+$char disp_name[50];
+}
+
+//ボーン枠用表示リストボーン数
+$DWORD bone_disp_count;
+
+//ボーン枠用表示リストデータ読み込み
+$t_bone_disp bone_disp[bone_disp_count];
+
+//拡張対応
+if (GetCurrentOffset() < FILESIZE){
+//英名対応
+$BYTE english_name_compatibility;
+if(english_name_compatibility == 1){
+$char model_name_eg[20];
+$char comment_eg[256];
+//ボーンリスト(英語)
+for(i=0; i < bone_count; i++){
+$char bone_name_eg[20];
+}
+//表情リスト(英語)
+for(i=0; i < (skin_count - 1); i++){
+$char skin_name_eg[20];
+}
+//ボーン枠用枠名リスト(英語)
+for(i=0; i < bone_disp_name_count; i++){
+$char disp_name_eg[50];
+}
+}
+}
+if (GetCurrentOffset() < FILESIZE){
+//トゥーンテクスチャリスト
+for(i=0; i < 10; i++){
+$char toon_file_name[100];
+}
+}
+if (GetCurrentOffset() < FILESIZE){
+//物理演算_剛体リスト鋼体数
+$DWORD rigidbody_count;
+
+$t_rigidbody rigidbody[rigidbody_count];
+}
+if (GetCurrentOffset() < FILESIZE){
+//物理演算_ジョイントリストジョイント数
+$DWORD joint_count;
+
+$t_joint joint[joint_count];
+}

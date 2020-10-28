@@ -4,6 +4,9 @@
 #include <dxgi1_6.h>
 #include <vector>
 #include <DirectXmath.h>
+#include <memory>
+
+class PMDModel;
 
 /// <summary>
 /// DirectX12 feature
@@ -11,6 +14,7 @@
 class Dx12Wrapper
 {
 private:
+	std::shared_ptr<PMDModel> pmdModel_;
 	struct BasicMatrix {
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
@@ -47,6 +51,8 @@ private:
 	// Constant Buffer
 	ID3D12Resource* constantBuffer_;
 	bool CreateConstantBuffer();
+	// Root Signature
+	void CreateRootSignature();
 	bool CreateTexure();
 
 	// Graphic pipeline
