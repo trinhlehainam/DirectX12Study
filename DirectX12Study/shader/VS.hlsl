@@ -1,22 +1,18 @@
 #include "common.hlsli"
 
-cbuffer Matrix:register (b0)
-{
-	matrix world;
-	matrix viewproj;
-	//matrix mat;
-}
-
 /// Vertex shader
 ///基本頂点シェーダ
 /// @param pos 頂点座標
 /// @return システム頂点座標
-VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD)
+VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL)
 {
 	VsOutput ret;
 	pos = mul(mul(viewproj,world), pos);
 	ret.svpos = pos;
 	ret.pos = pos;
+	matrix warudo = world;
+	warudo._14_24_34 = 0.0f;		// 平行移動成分無効
+	ret.norm = mul(world,normal);
 	ret.uv = uv;
 	return ret;
 }

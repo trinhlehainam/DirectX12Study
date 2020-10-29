@@ -2,6 +2,7 @@
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDLoader/PMDModel.h"
+#include "../common.h"
 #include <cassert>
 #include <algorithm>
 #include <string>
@@ -14,13 +15,9 @@
 #pragma comment(lib,"DirectXTex.lib")
 
 using namespace DirectX;
-struct Vertex
-{
-    XMFLOAT3 pos;
-    XMFLOAT2 uv;
-};
+
 std::vector<Vertex> vertices_;
-std::vector<uint32_t> indices_;
+std::vector<uint16_t> indices_;
 
 unsigned int AlignedValue(unsigned int value, unsigned int align)
 {
@@ -30,23 +27,23 @@ unsigned int AlignedValue(unsigned int value, unsigned int align)
 void CreateVertices()
 {
                             // Position                     // UV
-    vertices_.push_back({ { -100.0f, -100.0f, 100.0f },   { 0.0f, 1.0f } });          // bottom left  
-    vertices_.push_back({ { -100.0f, 100.0f, 100.0f },     { 0.0f, 0.0f } });           // top left
-    vertices_.push_back({ { 100.0f, 100.0f, 100.0f },     { 1.0f, 0.0f } });        // top right
-    vertices_.push_back({ { 100.0f, -100.0f, 100.0f },    { 1.0f, 1.0f } });       // bottom right
-
-    vertices_.push_back({ { 100.0f, -100.0f, -100.0f },    { 0.0f, 1.0f } });
-    vertices_.push_back({ { 100.0f, 100.0f, -100.0f },     { 0.0f, 0.0f } });
-    vertices_.push_back({ { -100.0f, 100.0f, -100.0f },     { 1.0f, 0.0f } });
-    vertices_.push_back({ { -100.0f, -100.0f, -100.0f },   { 1.0f, 1.0f } });
+    //vertices_.push_back({ { -100.0f, -100.0f, 100.0f },   { 0.0f, 1.0f } });          // bottom left  
+    //vertices_.push_back({ { -100.0f, 100.0f, 100.0f },     { 0.0f, 0.0f } });           // top left
+    //vertices_.push_back({ { 100.0f, 100.0f, 100.0f },     { 1.0f, 0.0f } });        // top right
+    //vertices_.push_back({ { 100.0f, -100.0f, 100.0f },    { 1.0f, 1.0f } });       // bottom right
+    //
+    //vertices_.push_back({ { 100.0f, -100.0f, -100.0f },    { 0.0f, 1.0f } });
+    //vertices_.push_back({ { 100.0f, 100.0f, -100.0f },     { 0.0f, 0.0f } });
+    //vertices_.push_back({ { -100.0f, 100.0f, -100.0f },     { 1.0f, 0.0f } });
+    //vertices_.push_back({ { -100.0f, -100.0f, -100.0f },   { 1.0f, 1.0f } });
    
     // 時計回り
-    indices_ = { 0,1,2,      0,2,3, 
-                 3,2,5,      3,5,4,
-                 5,6,7,      5,7,4,
-                 1,7,6,      1,0,7,
-                 1,6,5,      1,5,2,
-                 0,3,4,      0,4,7};
+    //indices_ = { 0,1,2,      0,2,3, 
+    //             3,2,5,      3,5,4,
+    //             5,6,7,      5,7,4,
+    //             1,7,6,      1,0,7,
+    //             1,6,5,      1,5,2,
+    //             0,3,4,      0,4,7};
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -126,9 +123,10 @@ void Dx12Wrapper::CreateIndexBuffer()
 
     ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
     ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
-    ibView_.Format = DXGI_FORMAT_R32_UINT;
+    ibView_.Format = DXGI_FORMAT_R16_UINT;
 
-    uint32_t* mappedIdxData = nullptr;
+    auto indexType = indices_.back();
+    decltype(indexType)* mappedIdxData = nullptr;
     result = indicesBuffer_->Map(0, nullptr, (void**)&mappedIdxData);
     std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
     assert(SUCCEEDED(result));
@@ -266,8 +264,8 @@ bool Dx12Wrapper::CreateTexure()
     result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
     assert(SUCCEEDED(result));
 
+    CreateTransformBuffer();
     CreateShaderResource();
-    CreateConstantBuffer();
     CreateRootSignature();
 
     return true;
@@ -329,7 +327,7 @@ void Dx12Wrapper::CreateRootSignature()
     assert(SUCCEEDED(result));
 }
 
-bool Dx12Wrapper::CreateConstantBuffer()
+bool Dx12Wrapper::CreateTransformBuffer()
 {
     HRESULT result = S_OK;
     D3D12_HEAP_PROPERTIES heapProp = {};
@@ -355,7 +353,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
         &rsDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
-        IID_PPV_ARGS(&constantBuffer_));
+        IID_PPV_ARGS(&transformBuffer_));
     assert(SUCCEEDED(result));
 
     auto wSize = Application::Instance().GetWindowSize();
@@ -372,8 +370,8 @@ bool Dx12Wrapper::CreateConstantBuffer()
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
-        { 0.0f, 200.0f, 200.0f, 1.0f },
-        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 10.0f, 15.0f, 1.0f },
+        { 0.0f, 10.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 1.0f });
     /*tempMat *= XMMatrixLookAtRH(
         { 0.0f, 100.0f, 150.0f, 1.0f },
@@ -386,7 +384,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
         0.1f,
         300.0f);
     //XMFLOAT4X4* mat;
-    result = constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
+    result = transformBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
     assert(SUCCEEDED(result));
     //tempMat.r[0].m128_f32[0] = 2.0f / wSize.width;
     //tempMat.r[1].m128_f32[1] = -2.0f / wSize.height;
@@ -396,16 +394,33 @@ bool Dx12Wrapper::CreateConstantBuffer()
 
     mappedBasicMatrix_->viewproj = viewproj;
     mappedBasicMatrix_->world = world;
-    constantBuffer_->Unmap(0, nullptr);
+    transformBuffer_->Unmap(0, nullptr);
 
-    auto cbDesc = constantBuffer_->GetDesc();
+    auto cbDesc = transformBuffer_->GetDesc();
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
+    cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = cbDesc.Width;
     auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
     heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     dev_->CreateConstantBufferView(&cbvDesc, heapPos);
 
+    return true;
+}
+
+bool Dx12Wrapper::CreateMaterialBuffer()
+{
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+    D3D12_RESOURCE_DESC rsDesc = {};
+    auto& mats = pmdModel_->GetMaterials();
+    rsDesc.Width = mats.size() * AlignedValue(sizeof(mats[0]),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    dev_->CreateCommittedResource(&heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&materialBuffer_)
+    );
     return true;
 }
 
@@ -426,6 +441,15 @@ bool Dx12Wrapper::CreatePipelineState()
     0,                                            //このデータが何バイト目から始まるのか
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
     0},
+    {
+    "NORMAL",
+    0,
+    DXGI_FORMAT_R32G32B32_FLOAT,                     // float2 -> [2D array] R32G32
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
     // UV layout
     {
     "TEXCOORD",                                   
@@ -460,7 +484,7 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 
     // Rasterizer
-    gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+    gpsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     gpsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
     gpsDesc.RasterizerState.DepthClipEnable = false;
     gpsDesc.RasterizerState.MultisampleEnable = false;
@@ -483,7 +507,12 @@ bool Dx12Wrapper::CreatePipelineState()
     gpsDesc.PS.pShaderBytecode = psBlob->GetBufferPointer();
 
     // Other set up
-    gpsDesc.DepthStencilState.DepthEnable = false;
+
+    // Depth/Stencil
+    gpsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    gpsDesc.DepthStencilState.DepthEnable = true;
+    gpsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+    gpsDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     gpsDesc.DepthStencilState.StencilEnable = false;
     gpsDesc.NodeMask = 0;
     gpsDesc.SampleDesc.Count = 1;
@@ -560,8 +589,11 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     result = dev_->CreateCommandQueue(&cmdQdesc, IID_PPV_ARGS(&cmdQue_));
     assert(SUCCEEDED(result));
 
+    // Load model vertices
     pmdModel_ = std::make_shared<PMDModel>();
-    pmdModel_->Load("resource/PMD/model/初音ミク.pmd");
+    pmdModel_->Load("resource/PMD/model/RubyRose.pmd");
+    vertices_ = pmdModel_->GetVerices();
+    indices_ = pmdModel_->GetIndices();
 
     auto& app = Application::Instance();
     auto wsize = app.GetWindowSize();
@@ -606,6 +638,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     fenceValue_ = fence_->GetCompletedValue();
 
     CreateRenderTargetDescriptorHeap();
+    CreateDepthBuffer();
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateTexure();
@@ -648,6 +681,62 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
     return SUCCEEDED(result);
 }
 
+bool Dx12Wrapper::CreateDepthBuffer()
+{
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProp.CreationNodeMask = 0;
+    heapProp.VisibleNodeMask = 0;
+
+    auto rtvDesc = bbResources_[0]->GetDesc();
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    rsDesc.MipLevels = 1;
+    rsDesc.Width = rtvDesc.Width;
+    rsDesc.Height = rtvDesc.Height;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.SampleDesc.Quality = 0;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = rsDesc.Format;
+    clearValue.DepthStencil.Depth = 1.0f;
+
+    auto result = dev_->CreateCommittedResource(&heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue,
+        IID_PPV_ARGS(&depthBuffer_));
+    assert(SUCCEEDED(result));
+
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.NumDescriptors = 1;
+    desc.NodeMask = 0;
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&dsvHeap_));
+    assert(SUCCEEDED(result));
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0; // number order NOT count of
+    dsvDesc.Format = rsDesc.Format;
+    dev_->CreateDepthStencilView(
+        depthBuffer_,
+        &dsvDesc,
+        dsvHeap_->GetCPUDescriptorHandleForHeapStart());
+
+    return true;
+}
+
 bool Dx12Wrapper::Update()
 {
     static float angle = 0;
@@ -657,7 +746,11 @@ bool Dx12Wrapper::Update()
     //cmdList_->SetPipelineState(pipeline_);
     angle += 0.01f;
 
-    mappedBasicMatrix_->world = XMMatrixRotationY(angle) * XMMatrixRotationX(angle);
+    mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+    for (auto& vertex : vertices_)
+    {
+        vertex.pos.x += 0.01f;
+    }
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -671,10 +764,12 @@ bool Dx12Wrapper::Update()
     cmdList_->ResourceBarrier(1, &barrier);
 
     auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+    auto dsvHeap = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
     const auto rtvIncreSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     rtvHeap.ptr += static_cast<ULONG_PTR>(bbIdx) * rtvIncreSize;
     float bgColor[4] = { 0.0f,0.0f,0.0f,1.0f };
-    cmdList_->OMSetRenderTargets(1, &rtvHeap, false, nullptr);
+    cmdList_->OMSetRenderTargets(1, &rtvHeap, false, &dsvHeap);
+    cmdList_->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     cmdList_->ClearRenderTargetView(rtvHeap, bgColor, 0 ,nullptr);
 
     cmdList_->SetGraphicsRootSignature(rootSig_);
@@ -706,7 +801,19 @@ bool Dx12Wrapper::Update()
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);
     cmdList_->IASetIndexBuffer(&ibView_);
     //cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
-    cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
+    auto materials = pmdModel_->GetMaterials();
+    uint32_t indexOffset = 0;
+    for (auto& m : materials)
+    {
+        mappedBasicMatrix_->diffuse = m.diffuse;
+        cmdList_->DrawIndexedInstanced(m.indices,
+            1,
+            indexOffset,
+            0,
+            0);
+        indexOffset += m.indices;
+    }
+    //cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
