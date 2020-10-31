@@ -19,7 +19,13 @@ private:
 	struct BasicMatrix {
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
+	};
+	struct BasicMaterial {
 		DirectX::XMFLOAT3 diffuse;
+		float alpha;
+		DirectX::XMFLOAT3 specular;
+		float specularity;
+		DirectX::XMFLOAT3 ambient;
 	};
 
 	BasicMatrix* mappedBasicMatrix_ = nullptr;
@@ -63,7 +69,7 @@ private:
 	bool CreateTransformBuffer();
 
 	ID3D12Resource* materialBuffer_;
-	ID3D12DescriptorHeap* materialDescHeap;
+	ID3D12DescriptorHeap* materialDescHeap_;
 	bool CreateMaterialBuffer();
 
 	// Root Signature

@@ -40,8 +40,8 @@ bool PMDModel::Load(const char* path)
 		DirectX::XMFLOAT3 diffuse;
 		FLOAT alpha;
 		FLOAT specularity;
-		FLOAT specular_color[3];
-		FLOAT mirror_color[3];
+		DirectX::XMFLOAT3 specular_color;
+		DirectX::XMFLOAT3 mirror_color;
 		BYTE toon_index;
 		BYTE edge_flag;
 		DWORD face_vert_count;
@@ -72,7 +72,7 @@ bool PMDModel::Load(const char* path)
 	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
 	for (auto& m : materials)
 	{
-		materials_.push_back({ m.diffuse,m.face_vert_count });
+		materials_.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color,m.face_vert_count });
 	}
 
 	fclose(fp);

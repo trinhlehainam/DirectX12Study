@@ -266,6 +266,7 @@ bool Dx12Wrapper::CreateTexure()
 
     CreateTransformBuffer();
     CreateShaderResource();
+    CreateMaterialBuffer();
     CreateRootSignature();
 
     return true;
@@ -278,22 +279,40 @@ void Dx12Wrapper::CreateRootSignature()
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     rtSigDesc.NumParameters = 1;
-    D3D12_ROOT_PARAMETER rp[1] = {};
-    rp[0].DescriptorTable.NumDescriptorRanges = 1;
-    D3D12_DESCRIPTOR_RANGE range[2] = {};
+    D3D12_ROOT_PARAMETER rootParam[2] = {};
+    rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+
+    // Descriptor table
+    D3D12_DESCRIPTOR_RANGE range[3] = {};
+    // 
     range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
     range[0].BaseShaderRegister = 0;                            // 0つまり(t0) を表す
     range[0].NumDescriptors = 1;                                // t0->t0まで
     range[0].OffsetInDescriptorsFromTableStart = 0;
-    range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // t
-    range[1].BaseShaderRegister = 0;                            // 0つまり(t0) を表す
-    range[1].NumDescriptors = 1;                                // t0->t0まで
+    range[1].RegisterSpace = 0;
+    range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
+    range[1].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
+    range[1].NumDescriptors = 1;                                // b0->b0まで
     range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    rp[0].DescriptorTable.pDescriptorRanges = range;
-    rp[0].DescriptorTable.NumDescriptorRanges = _countof(range);
-    rtSigDesc.pParameters = rp;
-    rtSigDesc.NumParameters = _countof(rp);
+    range[1].RegisterSpace = 0;
+    
+    // material
+    range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
+    range[2].BaseShaderRegister = 1;                            // 1つまり(b1) を表す
+    range[2].NumDescriptors = 1;                                // b1->b1まで
+    range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    range[2].RegisterSpace = 0;
+
+    rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParam[0].DescriptorTable.pDescriptorRanges = &range[0];
+    rootParam[0].DescriptorTable.NumDescriptorRanges = 2;
+
+    rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParam[1].DescriptorTable.pDescriptorRanges = &range[2];
+    rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
+
+    rtSigDesc.pParameters = rootParam;
+    rtSigDesc.NumParameters = _countof(rootParam);
 
     //サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
     //動きyや、UVをもとに色をとってくるときのルールを指定するもの
@@ -413,14 +432,64 @@ bool Dx12Wrapper::CreateMaterialBuffer()
     heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
     D3D12_RESOURCE_DESC rsDesc = {};
     auto& mats = pmdModel_->GetMaterials();
-    rsDesc.Width = mats.size() * AlignedValue(sizeof(mats[0]),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-    dev_->CreateCommittedResource(&heapProp,
+    auto strideBytes = AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    rsDesc.Width = mats.size() * strideBytes;
+    rsDesc.Height = 1;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    rsDesc.MipLevels = 1;
+    rsDesc.SampleDesc.Count = 1;
+
+    auto result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&materialBuffer_)
     );
+    assert(SUCCEEDED(result));
+
+    D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
+    descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    descHeap.NodeMask = 0;
+    descHeap.NumDescriptors = mats.size();
+    descHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    result = dev_->CreateDescriptorHeap(
+        &descHeap,
+        IID_PPV_ARGS(&materialDescHeap_)
+    );
+    assert(SUCCEEDED(result));
+    
+    auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
+    auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    auto heapAddress = materialDescHeap_->GetCPUDescriptorHandleForHeapStart();
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.SizeInBytes = strideBytes;
+    cbvDesc.BufferLocation = gpuAddress;
+    
+    BasicMaterial* mappedMaterial = nullptr;
+    result = materialBuffer_->Map(0, nullptr, (void**)&mappedMaterial);
+    assert(SUCCEEDED(result));
+    for (int i = 0; i < mats.size(); ++i)
+    {
+        mappedMaterial->diffuse = mats[i].diffuse;
+        mappedMaterial->alpha = mats[i].alpha;
+        mappedMaterial->specular = mats[i].specular;
+        mappedMaterial->specularity = mats[i].specularity;
+        mappedMaterial->ambient = mats[i].ambient;
+        cbvDesc.BufferLocation = gpuAddress;
+        dev_->CreateConstantBufferView(
+            &cbvDesc,
+            heapAddress);
+        // move memory offset
+        mappedMaterial += strideBytes;
+        gpuAddress += strideBytes;
+        heapAddress.ptr += heapSize;
+    }
+    materialBuffer_->Unmap(0, nullptr);
+
     return true;
 }
 
@@ -591,7 +660,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
 
     // Load model vertices
     pmdModel_ = std::make_shared<PMDModel>();
-    pmdModel_->Load("resource/PMD/model/RubyRose.pmd");
+    pmdModel_->Load("resource/PMD/model/初音ミクVer2.pmd");
     vertices_ = pmdModel_->GetVerices();
     indices_ = pmdModel_->GetIndices();
 
@@ -747,10 +816,6 @@ bool Dx12Wrapper::Update()
     angle += 0.01f;
 
     mappedBasicMatrix_->world = XMMatrixRotationY(angle);
-    for (auto& vertex : vertices_)
-    {
-        vertex.pos.x += 0.01f;
-    }
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -802,16 +867,21 @@ bool Dx12Wrapper::Update()
     cmdList_->IASetIndexBuffer(&ibView_);
     //cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
     auto materials = pmdModel_->GetMaterials();
+
+    cmdList_->SetDescriptorHeaps(1, (ID3D12DescriptorHeap*const*)&materialDescHeap_);
+    auto materialHeapPos = materialDescHeap_->GetGPUDescriptorHandleForHeapStart();
     uint32_t indexOffset = 0;
     for (auto& m : materials)
     {
-        mappedBasicMatrix_->diffuse = m.diffuse;
+        cmdList_->SetGraphicsRootDescriptorTable(1, materialHeapPos);
+
         cmdList_->DrawIndexedInstanced(m.indices,
             1,
             indexOffset,
             0,
             0);
         indexOffset += m.indices;
+        materialHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
     //cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
 
