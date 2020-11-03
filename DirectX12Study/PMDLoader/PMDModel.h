@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <string>
 #include "../common.h"
 
 struct PMDMaterial
@@ -20,10 +21,12 @@ private:
 	std::vector<Vertex> vertices_;
 	std::vector<uint16_t> indices_;
 	std::vector<PMDMaterial> materials_;
+	std::vector<std::string> texturePaths_;
 public:
 	bool Load(const char* path);
 	const std::vector<Vertex>& GetVerices() const;
 	const std::vector<uint16_t>& GetIndices() const;
 	const std::vector<PMDMaterial>& GetMaterials() const;
+	const std::vector<std::string>& GetTexturePaths() const;
 };
 

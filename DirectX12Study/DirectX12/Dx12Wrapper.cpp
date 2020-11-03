@@ -16,6 +16,26 @@
 
 using namespace DirectX;
 
+namespace
+{
+    // convert string to wide string
+    std::wstring ConvertStringToWideString(const std::string& str)
+    {
+        std::wstring ret;
+        auto wstringSize = MultiByteToWideChar(
+            CP_ACP,
+            MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+            str.c_str(), str.length(), nullptr, 0);
+        ret.resize(wstringSize);
+        MultiByteToWideChar(
+            CP_ACP,
+            MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+            str.c_str(), str.length(), &ret[0], ret.length());
+        return ret;
+    }
+}
+
+
 std::vector<Vertex> vertices_;
 std::vector<uint16_t> indices_;
 
@@ -249,7 +269,58 @@ bool Dx12Wrapper::CreateShaderResource()
     return true;
 }
 
-bool Dx12Wrapper::CreateTexure()
+bool Dx12Wrapper::CreateTextureFromPath(const std::wstring& path, ID3D12Resource*& buffer)
+{
+    HRESULT result = S_OK;
+
+    TexMetadata metadata;
+    ScratchImage scratch;
+    result = DirectX::LoadFromWICFile(
+        path.c_str(),
+        WIC_FLAGS_IGNORE_SRGB,
+        &metadata,
+        scratch);
+    assert(SUCCEEDED(result));
+
+    // Create buffer
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = metadata.format;
+    rsDesc.Width = metadata.width;
+    rsDesc.Height = metadata.height;
+    rsDesc.DepthOrArraySize = metadata.arraySize;
+    rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
+    rsDesc.MipLevels = metadata.mipLevels;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    result = dev_->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&buffer)
+    );
+    assert(SUCCEEDED(result));
+
+    auto image = scratch.GetImage(0, 0, 0);
+    result = buffer->WriteToSubresource(0,
+        nullptr,
+        image->pixels,
+        image->rowPitch,
+        image->slicePitch);
+    assert(SUCCEEDED(result));
+
+    return true;
+}
+
+bool Dx12Wrapper::CreateTexture()
 {
     HRESULT result = S_OK;
     result = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -264,8 +335,8 @@ bool Dx12Wrapper::CreateTexure()
     result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
     assert(SUCCEEDED(result));
 
-    CreateTransformBuffer();
     CreateShaderResource();
+    CreateTransformBuffer();
     CreateMaterialBuffer();
     CreateRootSignature();
 
@@ -357,7 +428,7 @@ bool Dx12Wrapper::CreateTransformBuffer()
 
     D3D12_RESOURCE_DESC rsDesc = {};
     rsDesc.Format = DXGI_FORMAT_UNKNOWN;
-    rsDesc.Width = AlignedValue(sizeof(XMMATRIX),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    rsDesc.Width = AlignedValue(sizeof(BasicMaterial),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
     rsDesc.Height = 1;
     rsDesc.MipLevels = 1;
     rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -469,16 +540,18 @@ bool Dx12Wrapper::CreateMaterialBuffer()
     cbvDesc.SizeInBytes = strideBytes;
     cbvDesc.BufferLocation = gpuAddress;
     
-    BasicMaterial* mappedMaterial = nullptr;
+    // Need to re-watch mapping data
+    uint8_t* mappedMaterial = nullptr;
     result = materialBuffer_->Map(0, nullptr, (void**)&mappedMaterial);
     assert(SUCCEEDED(result));
     for (int i = 0; i < mats.size(); ++i)
     {
-        mappedMaterial->diffuse = mats[i].diffuse;
-        mappedMaterial->alpha = mats[i].alpha;
-        mappedMaterial->specular = mats[i].specular;
-        mappedMaterial->specularity = mats[i].specularity;
-        mappedMaterial->ambient = mats[i].ambient;
+        BasicMaterial* materialData = (BasicMaterial*)mappedMaterial;
+        materialData->diffuse = mats[i].diffuse;
+        materialData->alpha = mats[i].alpha;
+        materialData->specular = mats[i].specular;
+        materialData->specularity = mats[i].specularity;
+        materialData->ambient = mats[i].ambient;
         cbvDesc.BufferLocation = gpuAddress;
         dev_->CreateConstantBufferView(
             &cbvDesc,
@@ -710,7 +783,7 @@ bool Dx12Wrapper::Initialize(HWND hwnd)
     CreateDepthBuffer();
     CreateVertexBuffer();
     CreateIndexBuffer();
-    CreateTexure();
+    CreateTexture();
     CreatePipelineState();
 
     return true;

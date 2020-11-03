@@ -18,8 +18,9 @@ float4 PS(VsOutput input) : SV_TARGET
 	float3 eyePos = float3(0.0f, 10.0f, 15.0f);
 	float3 eyeRay = normalize(eyePos - input.pos);
 	float3 lightRay = reflect(-lightPos, input.norm.xyz);
-	float specularity = saturate(pow(saturate(dot(eyeRay, lightRay)), specular));
+	// saturate
+	float s = saturate(pow(saturate(dot(eyeRay, lightRay)), specularity));
 	
-	return float4(brightness * diffuse + specular.rgb* specularity, alpha);
+	return float4(brightness * diffuse + specular.rgb * s + ambient, alpha);
 	//return tex.Sample(smp,input.uv);
 }

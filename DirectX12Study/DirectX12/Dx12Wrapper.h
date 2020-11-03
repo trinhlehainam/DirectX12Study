@@ -74,7 +74,10 @@ private:
 
 	// Root Signature
 	void CreateRootSignature();
-	bool CreateTexure();
+
+	std::vector<ID3D12Resource*> texturesBuffers_;
+	bool CreateTextureFromPath(const std::wstring& path, ID3D12Resource*& buffer);
+	bool CreateTexture();
 
 	// Graphic pipeline
 	ID3D12PipelineState* pipeline_ = nullptr;

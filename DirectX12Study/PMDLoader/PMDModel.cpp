@@ -2,6 +2,17 @@
 #include <stdio.h>
 #include <Windows.h>
 
+namespace
+{
+	std::string GetTexturePathFromModelPath(const char* modelPath, const char* texturePath)
+	{
+		std::string ret = modelPath;
+		auto idx = ret.rfind("/") + 1;
+
+		return ret.substr(0, idx) + texturePath;
+	}
+}
+
 bool PMDModel::Load(const char* path)
 {
 	//Ž¯•ÊŽq"pmd"
@@ -72,6 +83,13 @@ bool PMDModel::Load(const char* path)
 	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
 	for (auto& m : materials)
 	{
+		std::string texPath = m.textureFilePath;
+		if (!texPath.empty())
+		{
+			texPath = GetTexturePathFromModelPath(path, m.textureFilePath);
+		}
+
+		texturePaths_.push_back(texPath);
 		materials_.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color,m.face_vert_count });
 	}
 
@@ -93,4 +111,9 @@ const std::vector<uint16_t>& PMDModel::GetIndices() const
 const std::vector<PMDMaterial>& PMDModel::GetMaterials() const
 {
 	return materials_;
+}
+
+const std::vector<std::string>& PMDModel::GetTexturePaths() const
+{
+	return texturePaths_;
 }
