@@ -5,7 +5,6 @@
 #include "../common.h"
 #include <cassert>
 #include <algorithm>
-#include <string>
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
@@ -132,7 +131,6 @@ void Dx12Wrapper::CreateIndexBuffer()
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    
     result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -260,7 +258,7 @@ bool Dx12Wrapper::CreateShaderResource()
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3); // ※
 
-    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
+    auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
     dev_->CreateShaderResourceView(
         textureBuffer_,
         &srvDesc,
@@ -269,7 +267,7 @@ bool Dx12Wrapper::CreateShaderResource()
     return true;
 }
 
-bool Dx12Wrapper::CreateTextureFromPath(const std::wstring& path, ID3D12Resource*& buffer)
+bool Dx12Wrapper::CreateTexture(const std::wstring& path, ID3D12Resource*& buffer)
 {
     HRESULT result = S_OK;
 
@@ -326,21 +324,29 @@ bool Dx12Wrapper::CreateTexture()
     result = CoInitializeEx(0, COINIT_MULTITHREADED);
     assert(SUCCEEDED(result));
 
-    // Create CBV_SRV_UAV Desciptor Heap
-    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.NumDescriptors = 2;            // ※ There are 2 descriptors (CBV, SRV)
-    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    desc.NodeMask = 0;
-    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resourceViewHeap_));
-    assert(SUCCEEDED(result));
+    
 
-    CreateShaderResource();
+    //CreateShaderResource();
     CreateTransformBuffer();
-    CreateMaterialBuffer();
+
+    LoadTextureToBuffer();
+    CreateWhiteTexture();
+    CreateMaterialAndTextureBuffer();
+
     CreateRootSignature();
 
     return true;
+}
+
+void Dx12Wrapper::LoadTextureToBuffer()
+{
+    auto& paths = pmdModel_->GetTexturePaths();
+    texturesBuffers_.resize(paths.size());
+    for (int i = 0; i < paths.size(); ++i)
+    {
+        if (!paths[i].empty())
+            CreateTexture(ConvertStringToWideString(paths[i]), texturesBuffers_[i]);
+    }
 }
 
 void Dx12Wrapper::CreateRootSignature()
@@ -355,32 +361,36 @@ void Dx12Wrapper::CreateRootSignature()
 
     // Descriptor table
     D3D12_DESCRIPTOR_RANGE range[3] = {};
-    // 
-    range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
-    range[0].BaseShaderRegister = 0;                            // 0つまり(t0) を表す
-    range[0].NumDescriptors = 1;                                // t0->t0まで
+
+    // transform
+    range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
+    range[0].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
+    range[0].NumDescriptors = 1;                                // b0->b0まで
     range[0].OffsetInDescriptorsFromTableStart = 0;
+    range[0].RegisterSpace = 0;
+
+    // material
     range[1].RegisterSpace = 0;
     range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
-    range[1].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
-    range[1].NumDescriptors = 1;                                // b0->b0まで
+    range[1].BaseShaderRegister = 1;                            // 1つまり(b1) を表す
+    range[1].NumDescriptors = 1;                                // b1->b1まで
     range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     range[1].RegisterSpace = 0;
     
-    // material
-    range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
-    range[2].BaseShaderRegister = 1;                            // 1つまり(b1) を表す
-    range[2].NumDescriptors = 1;                                // b1->b1まで
+    // texture
+    range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
+    range[2].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
+    range[2].NumDescriptors = 1;                                // b0->b0まで
     range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     range[2].RegisterSpace = 0;
 
     rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rootParam[0].DescriptorTable.pDescriptorRanges = &range[0];
-    rootParam[0].DescriptorTable.NumDescriptorRanges = 2;
+    rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
 
     rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rootParam[1].DescriptorTable.pDescriptorRanges = &range[2];
-    rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
+    rootParam[1].DescriptorTable.pDescriptorRanges = &range[1];
+    rootParam[1].DescriptorTable.NumDescriptorRanges = 2;
 
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
@@ -420,6 +430,15 @@ void Dx12Wrapper::CreateRootSignature()
 bool Dx12Wrapper::CreateTransformBuffer()
 {
     HRESULT result = S_OK;
+
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.NumDescriptors = 1;
+    desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    desc.NodeMask = 0;
+    result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&transformDescHeap_));
+    assert(SUCCEEDED(result));
+
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProp.CreationNodeMask = 0;
@@ -490,19 +509,59 @@ bool Dx12Wrapper::CreateTransformBuffer()
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = cbDesc.Width;
-    auto heapPos = resourceViewHeap_->GetCPUDescriptorHandleForHeapStart();
-    heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
+    //heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     dev_->CreateConstantBufferView(&cbvDesc, heapPos);
 
     return true;
 }
 
-bool Dx12Wrapper::CreateMaterialBuffer()
+void Dx12Wrapper::CreateWhiteTexture()
+{
+    HRESULT result = S_OK;
+
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    rsDesc.Width = 4;
+    rsDesc.Height = 4;
+    rsDesc.DepthOrArraySize = 1;
+    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    rsDesc.MipLevels = 1;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    result = dev_->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&whiteTexture_)
+    );
+    assert(SUCCEEDED(result));
+
+    std::vector<uint8_t> texdata(4 * 4 * 4);
+    std::fill(texdata.begin(), texdata.end(), 0xff);
+
+    // Send texdata to whiteTexture_
+    result = whiteTexture_->WriteToSubresource(0, nullptr, texdata.data(), 4 * 4, texdata.size());
+    assert(SUCCEEDED(result));
+}
+
+bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
 {
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
     D3D12_RESOURCE_DESC rsDesc = {};
     auto& mats = pmdModel_->GetMaterials();
+    auto& paths = pmdModel_->GetTexturePaths();
+
     auto strideBytes = AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
     rsDesc.Width = mats.size() * strideBytes;
     rsDesc.Height = 1;
@@ -525,7 +584,7 @@ bool Dx12Wrapper::CreateMaterialBuffer()
     D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
     descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descHeap.NodeMask = 0;
-    descHeap.NumDescriptors = mats.size();
+    descHeap.NumDescriptors = mats.size() + paths.size();
     descHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     result = dev_->CreateDescriptorHeap(
         &descHeap,
@@ -559,6 +618,26 @@ bool Dx12Wrapper::CreateMaterialBuffer()
         // move memory offset
         mappedMaterial += strideBytes;
         gpuAddress += strideBytes;
+        heapAddress.ptr += heapSize;
+        
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        if (texturesBuffers_[i])
+            srvDesc.Format = texturesBuffers_[i]->GetDesc().Format;
+        else
+            srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3); // ※
+
+        dev_->CreateShaderResourceView(
+            texturesBuffers_[i] == nullptr ? whiteTexture_ : texturesBuffers_[i],
+            &srvDesc,
+            heapAddress
+        );
+
         heapAddress.ptr += heapSize;
     }
     materialBuffer_->Unmap(0, nullptr);
@@ -931,9 +1010,10 @@ bool Dx12Wrapper::Update()
     rc.bottom = wsize.height;
     cmdList_->RSSetScissorRects(1, &rc);
 
-    ID3D12DescriptorHeap* descHeaps[] = { resourceViewHeap_ };
-    cmdList_->SetDescriptorHeaps(1, descHeaps);
-    cmdList_->SetGraphicsRootDescriptorTable(0, resourceViewHeap_->GetGPUDescriptorHandleForHeapStart());
+    /*-------------Set up transform-------------*/
+    cmdList_->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)&transformDescHeap_);
+    cmdList_->SetGraphicsRootDescriptorTable(0, transformDescHeap_->GetGPUDescriptorHandleForHeapStart());
+    /*-------------------------------------------*/
 
     // Draw Triangle
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);
@@ -941,8 +1021,10 @@ bool Dx12Wrapper::Update()
     //cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
     auto materials = pmdModel_->GetMaterials();
 
+    /*-------------Set up material and texture-------------*/
     cmdList_->SetDescriptorHeaps(1, (ID3D12DescriptorHeap*const*)&materialDescHeap_);
     auto materialHeapPos = materialDescHeap_->GetGPUDescriptorHandleForHeapStart();
+    auto materialHeapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     uint32_t indexOffset = 0;
     for (auto& m : materials)
     {
@@ -954,9 +1036,10 @@ bool Dx12Wrapper::Update()
             0,
             0);
         indexOffset += m.indices;
-        materialHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        materialHeapPos.ptr += static_cast<UINT>(2 * materialHeapSize);
     }
     //cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
+    /*-------------------------------------------*/
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

@@ -5,6 +5,7 @@
 #include <vector>
 #include <DirectXmath.h>
 #include <memory>
+#include <string>
 
 class PMDModel;
 
@@ -61,23 +62,31 @@ private:
 
 	// Texture Buffer
 	ID3D12Resource* textureBuffer_;
-	ID3D12DescriptorHeap* resourceViewHeap_;		// Shader Resource View Desciptor Heap
 	bool CreateShaderResource();
 
 	// Constant Buffer
 	ID3D12Resource* transformBuffer_;
+	ID3D12DescriptorHeap* transformDescHeap_;
 	bool CreateTransformBuffer();
+
+	std::vector<ID3D12Resource*> texturesBuffers_;
+	void LoadTextureToBuffer();
+
+	// White Texture
+	ID3D12Resource* whiteTexture_ = nullptr;
+	// If texture from file path is null, it will reference white texture
+	void CreateWhiteTexture();
 
 	ID3D12Resource* materialBuffer_;
 	ID3D12DescriptorHeap* materialDescHeap_;
-	bool CreateMaterialBuffer();
+	bool CreateMaterialAndTextureBuffer();
 
 	// Root Signature
 	void CreateRootSignature();
 
-	std::vector<ID3D12Resource*> texturesBuffers_;
-	bool CreateTextureFromPath(const std::wstring& path, ID3D12Resource*& buffer);
-	bool CreateTexture();
+	// Create texture from PMD file
+	bool CreateTexture(const std::wstring& path, ID3D12Resource*& buffer);
+	bool CreateTexture(void);
 
 	// Graphic pipeline
 	ID3D12PipelineState* pipeline_ = nullptr;

@@ -21,6 +21,6 @@ float4 PS(VsOutput input) : SV_TARGET
 	// saturate
 	float s = saturate(pow(saturate(dot(eyeRay, lightRay)), specularity));
 	
-	return float4(brightness * diffuse + specular.rgb * s + ambient, alpha);
+	return float4(brightness * diffuse + specular.rgb * s + ambient, alpha) * tex.Sample(smp, input.uv);
 	//return tex.Sample(smp,input.uv);
 }
