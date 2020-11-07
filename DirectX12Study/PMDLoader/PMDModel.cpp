@@ -1,6 +1,9 @@
 #include "PMDModel.h"
 #include <stdio.h>
 #include <Windows.h>
+#include <sstream>
+#include <iomanip>
+#include <array>
 
 namespace
 {
@@ -56,7 +59,7 @@ bool PMDModel::Load(const char* path)
 		BYTE toon_index;
 		BYTE edge_flag;
 		DWORD face_vert_count;
-		char textureFilePath[20];
+		char textureFileName[20];
 	};
 #pragma pack()
 
@@ -81,15 +84,76 @@ bool PMDModel::Load(const char* path)
 	fread_s(&cMaterial, sizeof(cMaterial), sizeof(cMaterial), 1, fp);
 	std::vector<Material> materials(cMaterial);
 	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
+
+	uint16_t boneNum = 0;
+	fread_s(&boneNum, sizeof(boneNum), sizeof(boneNum), 1, fp);
+
+	fseek(fp, boneNum * 39, SEEK_CUR);
+
+	// IK(inverse kematic)
+	uint16_t ikNum = 0;
+	fread_s(&ikNum, sizeof(ikNum), sizeof(ikNum), 1, fp);
+	for (int i = 0; i < ikNum; ++i)
+	{
+		fseek(fp, 4, SEEK_CUR);
+		uint8_t chainNum;
+		fread_s(&chainNum, sizeof(chainNum), sizeof(chainNum), 1, fp);
+		fseek(fp, sizeof(uint16_t) + sizeof(float), SEEK_CUR);
+		fseek(fp, sizeof(uint16_t) * chainNum, SEEK_CUR);
+	}
+
+	uint16_t skinNum = 0;
+	fread_s(&skinNum, sizeof(skinNum), sizeof(skinNum), 1, fp);
+	for (int i = 0; i < skinNum; ++i)
+	{
+		fseek(fp, 20, SEEK_CUR);	// Name of facial skin
+		uint32_t skinVertCnt = 0;		// number of facial vertex
+		fread_s(&skinVertCnt, sizeof(skinVertCnt), sizeof(skinVertCnt), 1, fp);
+		fseek(fp, 1, SEEK_CUR);		// kind of facial
+		fseek(fp, 16 * skinVertCnt, SEEK_CUR); // position of vertices
+	}
+
+	uint8_t skinDispNum = 0;
+	fread_s(&skinDispNum, sizeof(skinDispNum), sizeof(skinDispNum), 1, fp);
+	fseek(fp, sizeof(uint16_t)* skinDispNum, SEEK_CUR);
+
+	uint8_t ikNameNum = 0;
+	fread_s(&ikNameNum, sizeof(ikNameNum), sizeof(ikNameNum), 1, fp);
+	fseek(fp, 50 * ikNameNum, SEEK_CUR);
+
+	uint32_t boneDispNum = 0;
+	fread_s(&boneDispNum, sizeof(boneDispNum), sizeof(boneDispNum), 1, fp);
+	fseek(fp, 
+		(sizeof(uint16_t) + sizeof(uint8_t)) * boneDispNum, 
+		SEEK_CUR);
+
+	uint8_t isEngAvalable = 0;
+	fread_s(&isEngAvalable, sizeof(isEngAvalable), sizeof(isEngAvalable), 1, fp);
+	if (isEngAvalable)
+	{
+		fseek(fp, 276, SEEK_CUR);
+		fseek(fp, boneNum * 20, SEEK_CUR);
+		fseek(fp, (skinNum-1) * 20, SEEK_CUR);		// list of facial skin's English name
+		fseek(fp, ikNameNum * 50, SEEK_CUR);
+	}
+	
+	std::array<char[100], 10> toonNames;
+	fread_s(toonNames.data(), sizeof(toonNames[0])* toonNames.size(), sizeof(toonNames[0])* toonNames.size(), 1, fp);
+
 	for (auto& m : materials)
 	{
-		std::string texPath = m.textureFilePath;
-		if (!texPath.empty())
-		{
-			texPath = GetTexturePathFromModelPath(path, m.textureFilePath);
-		}
+		//std::ostringstream oss;
+		//oss << "toon";
+		//oss << std::setfill('0');
+		//oss << std::setw(2);
+		//oss << m.toon_index + 1;
+		//oss << ".bmp";
+		if(m.toon_index > toonNames.size() - 1)
+			toonPaths_.push_back(toonNames[0]);
+		else
+			toonPaths_.push_back(toonNames[m.toon_index]);
 
-		texturePaths_.push_back(texPath);
+		modelPaths_.push_back(m.textureFileName);
 		materials_.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color,m.face_vert_count });
 	}
 
@@ -113,7 +177,12 @@ const std::vector<PMDMaterial>& PMDModel::GetMaterials() const
 	return materials_;
 }
 
-const std::vector<std::string>& PMDModel::GetTexturePaths() const
+const std::vector<std::string>& PMDModel::GetModelPaths() const
 {
-	return texturePaths_;
+	return modelPaths_;
+}
+
+const std::vector<std::string>& PMDModel::GetToonPaths() const
+{
+	return toonPaths_;
 }

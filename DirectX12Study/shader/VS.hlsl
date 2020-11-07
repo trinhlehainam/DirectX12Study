@@ -8,8 +8,9 @@ VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL
 {
 	VsOutput ret;
 	pos = mul(mul(viewproj,world), pos);
-	ret.svpos = pos;
+	
 	ret.pos = pos;
+	ret.svpos = pos;
 	matrix warudo = world;
 	warudo._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	ret.norm = mul(world,normal);

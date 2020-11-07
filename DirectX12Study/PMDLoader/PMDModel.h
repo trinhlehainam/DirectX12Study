@@ -21,12 +21,14 @@ private:
 	std::vector<Vertex> vertices_;
 	std::vector<uint16_t> indices_;
 	std::vector<PMDMaterial> materials_;
-	std::vector<std::string> texturePaths_;
+	std::vector<std::string> modelPaths_;
+	std::vector<std::string> toonPaths_;
 public:
 	bool Load(const char* path);
 	const std::vector<Vertex>& GetVerices() const;
 	const std::vector<uint16_t>& GetIndices() const;
 	const std::vector<PMDMaterial>& GetMaterials() const;
-	const std::vector<std::string>& GetTexturePaths() const;
+	const std::vector<std::string>& GetModelPaths() const;
+	const std::vector<std::string>& GetToonPaths() const;
 };
 
