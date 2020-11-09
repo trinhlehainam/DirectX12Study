@@ -9,7 +9,7 @@
 #include <d3dx12.h>
 
 class PMDModel;
-using namespace Microsoft::WRL;
+using Microsoft::WRL::ComPtr;
 
 /// <summary>
 /// DirectX12 feature
@@ -32,68 +32,70 @@ private:
 	};
 
 	BasicMatrix* mappedBasicMatrix_ = nullptr;
-	ComPtr<ID3D12Device> dev_ = nullptr;
-	ComPtr<ID3D12CommandAllocator> cmdAlloc_ = nullptr;
-	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
-	ComPtr<ID3D12CommandQueue> cmdQue_ = nullptr;
-	ComPtr<IDXGIFactory7> dxgi_ = nullptr;
-	ComPtr<IDXGISwapChain3> swapchain_ = nullptr;
+	ComPtr<ID3D12Device> dev_;
+	ComPtr<ID3D12CommandAllocator> cmdAlloc_;
+	ComPtr<ID3D12GraphicsCommandList> cmdList_;
+	ComPtr<ID3D12CommandQueue> cmdQue_;
+	ComPtr<IDXGIFactory7> dxgi_;
+	ComPtr<IDXGISwapChain3> swapchain_;
 
 	void CreateCommandFamily();
 	void CreateSwapChain(const HWND& hwnd);
 
 	// Renter Target View
-	std::vector<ID3D12Resource*> backBuffers_;
-	ID3D12DescriptorHeap* rtvHeap_;
+	std::vector<ComPtr<ID3D12Resource>> backBuffers_;
+	ComPtr<ID3D12DescriptorHeap> rtvHeap_;
 	bool CreateRenderTargetViews();
 
 	// Depth/Stencil Buffer
-	ID3D12Resource* depthBuffer_;
-	ID3D12DescriptorHeap* dsvHeap_;
+	ComPtr<ID3D12Resource> depthBuffer_;
+	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
 	bool CreateDepthBuffer();
 
-	ID3D12Fence1* fence_ = nullptr;				// fence object ( necessary for cooperation between CPU and GPU )
+	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
 	uint64_t fenceValue_ = 0;
 
+	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_PROPERTIES = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD));
+
 	// Vertex Buffer
-	ID3D12Resource* vertexBuffer_;				//頂点バッファ
+	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
 	D3D12_VERTEX_BUFFER_VIEW vbView_;
 	// 頂点バッファを生成 (して、CPU側の頂点情報をコピー)
 	void CreateVertexBuffer();
 
-	ID3D12Resource* indicesBuffer_;
+	ComPtr<ID3D12Resource> indicesBuffer_;
 	D3D12_INDEX_BUFFER_VIEW ibView_;
 	void CreateIndexBuffer();
 
 	// Constant Buffer
-	ID3D12Resource* transformBuffer_;
-	ID3D12DescriptorHeap* transformDescHeap_;
+	ComPtr<ID3D12Resource> transformBuffer_;
+	ComPtr<ID3D12DescriptorHeap> transformDescHeap_;
 	bool CreateTransformBuffer();
 
 	// White Texture
-	ID3D12Resource* whiteTexture_ = nullptr;
-	ID3D12Resource* blackTexture_ = nullptr;
-	ID3D12Resource* gradTexture_ = nullptr;
+	ComPtr<ID3D12Resource> whiteTexture_;
+	ComPtr<ID3D12Resource> blackTexture_;
+	ComPtr<ID3D12Resource> gradTexture_ ;
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultColorTexture();
 
-	std::vector<ID3D12Resource*> textureBuffers_;
-	std::vector<ID3D12Resource*> sphBuffers_;
-	std::vector<ID3D12Resource*> spaBuffers_;
-	std::vector<ID3D12Resource*> toonBuffers_;
+	std::vector<ComPtr<ID3D12Resource>> textureBuffers_;
+	std::vector<ComPtr<ID3D12Resource>> sphBuffers_;
+	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;
+	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;
 	// Create texture from PMD file
-	bool CreateTextureFromFilePath(const std::wstring& path, ID3D12Resource*& buffer);
+	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
 	void LoadTextureToBuffer();
-	ID3D12Resource* materialBuffer_;
-	ID3D12DescriptorHeap* materialDescHeap_;
+	ComPtr<ID3D12Resource> materialBuffer_;
+	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
 	bool CreateMaterialAndTextureBuffer();
 
 	void CreateRootSignature();
 	bool CreateTexture(void);
 
 	// Graphic pipeline
-	ID3D12PipelineState* pipeline_ = nullptr;
-	ID3D12RootSignature* rootSig_ = nullptr;
+	ComPtr<ID3D12PipelineState> pipeline_;
+	ComPtr<ID3D12RootSignature> rootSig_ ;
 	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 	bool CreatePipelineStateObject();
 public:
