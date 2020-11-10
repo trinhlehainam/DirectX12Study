@@ -57,6 +57,8 @@ private:
 
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_PROPERTIES = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD));
 
+	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, UINT16 arraySize, D3D12_HEAP_PROPERTIES = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), DXGI_FORMAT texFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+
 	// Vertex Buffer
 	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
 	D3D12_VERTEX_BUFFER_VIEW vbView_;
@@ -77,7 +79,10 @@ private:
 	ComPtr<ID3D12Resource> blackTexture_;
 	ComPtr<ID3D12Resource> gradTexture_ ;
 	// If texture from file path is null, it will reference white texture
-	void CreateDefaultColorTexture();
+	void CreateDefaultTexture();
+
+	// Send resouce from uploader(intermediate) buffer to GPU reading buffer
+	void UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata);
 
 	std::vector<ComPtr<ID3D12Resource>> textureBuffers_;
 	std::vector<ComPtr<ID3D12Resource>> sphBuffers_;
@@ -104,6 +109,7 @@ public:
 	// true: no problem
 	// false: error
 	bool Update();
+	void ExecuteAndWait();
 	void Terminate();
 };
 

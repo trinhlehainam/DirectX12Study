@@ -12,6 +12,7 @@
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"DirectXTex.lib")
+#pragma comment(lib,"DxGuid.lib")
 
 using namespace DirectX;
 
@@ -104,37 +105,6 @@ void CreateVertices()
 void Dx12Wrapper::CreateVertexBuffer()
 {
     HRESULT result = S_OK;
-    //CreateVertices();
-
-    // 確保する領域の仕様に関する設定
-    //D3D12_HEAP_PROPERTIES heapProp = {};
-    //heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
-    //heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    //heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    //heapProp.CreationNodeMask = 0;
-    //heapProp.VisibleNodeMask = 0;
-    //CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_UPLOAD);
-
-    // 確保した領域の用に関する設定
-    //D3D12_RESOURCE_DESC rsDesc = {};
-    //rsDesc.Format = DXGI_FORMAT_UNKNOWN;
-    //rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    //rsDesc.Width = sizeof(vertices_[0])*vertices_.size();  // 4*3*3 = 36 bytes
-    //rsDesc.Height = 1;
-    //rsDesc.SampleDesc.Count = 1;
-    //rsDesc.DepthOrArraySize = 1;
-    //rsDesc.MipLevels = 1;
-    //rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    //rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-    //CD3DX12_RESOURCE_DESC rsDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(vertices_[0]) * vertices_.size());
-    
-    //auto result = dev_->CreateCommittedResource(&heapProp,
-    //    D3D12_HEAP_FLAG_NONE,
-    //    &rsDesc,
-    //    D3D12_RESOURCE_STATE_GENERIC_READ,
-    //    nullptr,
-    //    IID_PPV_ARGS(vertexBuffer_.GetAddressOf()));
-    //assert(SUCCEEDED(result));
 
     vertexBuffer_ = CreateBuffer(sizeof(vertices_[0]) * vertices_.size());
 
@@ -153,33 +123,6 @@ void Dx12Wrapper::CreateVertexBuffer()
 void Dx12Wrapper::CreateIndexBuffer()
 {
     HRESULT result = S_OK;
-    // 確保する領域の仕様に関する設定
-    //D3D12_HEAP_PROPERTIES heapProp = {};
-    //heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
-    //heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    //heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    //heapProp.CreationNodeMask = 0;
-    //heapProp.VisibleNodeMask = 0;
-
-    // 確保した領域の用に関する設定
-    D3D12_RESOURCE_DESC rsDesc = {};
-    //rsDesc.Format = DXGI_FORMAT_UNKNOWN;
-    //rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    //rsDesc.Width = sizeof(indices_[0]) * indices_.size();
-    //rsDesc.Height = 1;
-    //rsDesc.SampleDesc.Count = 1;
-    //rsDesc.DepthOrArraySize = 1;
-    //rsDesc.MipLevels = 1;
-    //rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    //rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-    //
-    //result = dev_->CreateCommittedResource(&heapProp,
-    //    D3D12_HEAP_FLAG_NONE,
-    //    &rsDesc,
-    //    D3D12_RESOURCE_STATE_GENERIC_READ,
-    //    nullptr,
-    //    IID_PPV_ARGS(indicesBuffer_.GetAddressOf()));
-    //assert(SUCCEEDED(result));
 
     indicesBuffer_ = CreateBuffer(sizeof(indices_[0]) * indices_.size());
 
@@ -187,7 +130,7 @@ void Dx12Wrapper::CreateIndexBuffer()
     ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
     ibView_.Format = DXGI_FORMAT_R16_UINT;
 
-    auto indexType = indices_.back();
+    auto indexType = indices_[0];
     decltype(indexType)* mappedIdxData = nullptr;
     result = indicesBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedIdxData));
     std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
@@ -267,7 +210,7 @@ bool Dx12Wrapper::CreateTexture()
 
     CreateTransformBuffer();
     LoadTextureToBuffer();
-    CreateDefaultColorTexture();
+    CreateDefaultTexture();
     CreateMaterialAndTextureBuffer();
     CreateRootSignature();
 
@@ -337,33 +280,30 @@ void Dx12Wrapper::CreateRootSignature()
     D3D12_DESCRIPTOR_RANGE range[3] = {};
 
     // transform
-    range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
-    range[0].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
-    range[0].NumDescriptors = 1;                                // b0->b0まで
-    range[0].OffsetInDescriptorsFromTableStart = 0;
-    range[0].RegisterSpace = 0;
+    range[0] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
+        1,                                      // number of descriptors
+        0);                                     // base shader register
 
     // material
-    range[1].RegisterSpace = 0;
-    range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;       // b
-    range[1].BaseShaderRegister = 1;                            // 1つまり(b1) を表す
-    range[1].NumDescriptors = 1;                                // b1->b1まで
-    range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    range[1] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,    
+        1,
+        1);
     
     // texture
-    range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;       // t
-    range[2].BaseShaderRegister = 0;                            // 0つまり(b0) を表す
-    range[2].NumDescriptors = 4;                                // t0->t3まで
-    range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    range[2].RegisterSpace = 0;
+    range[2] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+        4,
+        0
+    );
 
-    rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    rootParam[0].DescriptorTable.pDescriptorRanges = &range[0];
-    rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0]);
 
-    rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rootParam[1].DescriptorTable.pDescriptorRanges = &range[1];
-    rootParam[1].DescriptorTable.NumDescriptorRanges = 2;
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1],
+        2,                                          // number of descriptor range
+        &range[1],                                  // pointer to descritpor range
+        D3D12_SHADER_VISIBILITY_PIXEL);             // shader visibility
 
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
@@ -372,18 +312,9 @@ void Dx12Wrapper::CreateRootSignature()
     //動きyや、UVをもとに色をとってくるときのルールを指定するもの
     D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
     //WRAPは繰り返しを表す。
-    samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-    samplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    samplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    samplerDesc[0].RegisterSpace = 0;
-    samplerDesc[0].ShaderRegister = 0;
-    samplerDesc[0].MaxAnisotropy = 0.0f;
-    samplerDesc[0].MaxLOD = 0.0f;
-    samplerDesc[0].MinLOD = 0.0f;
-    samplerDesc[0].MipLODBias = 0.0f;
+    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
+        0,                                  // shader register location
+        D3D12_FILTER_MIN_MAG_MIP_POINT);    // Filter     
 
     samplerDesc[1]= samplerDesc[0];
     samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -418,31 +349,7 @@ bool Dx12Wrapper::CreateTransformBuffer()
     result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(transformDescHeap_.GetAddressOf()));
     assert(SUCCEEDED(result));
 
-    D3D12_HEAP_PROPERTIES heapProp = {};
-    heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
-    heapProp.CreationNodeMask = 0;
-    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-
-    D3D12_RESOURCE_DESC rsDesc = {};
-    rsDesc.Format = DXGI_FORMAT_UNKNOWN;
-    rsDesc.Width = AlignedValue(sizeof(BasicMaterial),D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-    rsDesc.Height = 1;
-    rsDesc.MipLevels = 1;
-    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-    rsDesc.DepthOrArraySize = 1;
-    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    rsDesc.SampleDesc.Count = 1;
-
-    result = dev_->CreateCommittedResource(
-    &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(transformBuffer_.GetAddressOf()));
-    assert(SUCCEEDED(result));
+    transformBuffer_ = CreateBuffer(AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 
     auto wSize = Application::Instance().GetWindowSize();
     // XXMatrixIdentity
@@ -461,10 +368,6 @@ bool Dx12Wrapper::CreateTransformBuffer()
         { 0.0f, 10.0f, 15.0f, 1.0f },
         { 0.0f, 10.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 1.0f });
-    /*tempMat *= XMMatrixLookAtRH(
-        { 0.0f, 100.0f, 150.0f, 1.0f },
-        { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 1.0f, 0.0f, 1.0f });*/
 
     // projection array
     viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
@@ -474,11 +377,6 @@ bool Dx12Wrapper::CreateTransformBuffer()
     //XMFLOAT4X4* mat;
     result = transformBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBasicMatrix_));
     assert(SUCCEEDED(result));
-    //tempMat.r[0].m128_f32[0] = 2.0f / wSize.width;
-    //tempMat.r[1].m128_f32[1] = -2.0f / wSize.height;
-    //tempMat.r[3].m128_f32[0] = -1.0f;
-    //tempMat.r[3].m128_f32[1] = 1.0f;
-    //XMStoreFloat4x4(mat, tempMat);
 
     mappedBasicMatrix_->viewproj = viewproj;
     mappedBasicMatrix_->world = world;
@@ -495,55 +393,14 @@ bool Dx12Wrapper::CreateTransformBuffer()
     return true;
 }
 
-void Dx12Wrapper::CreateDefaultColorTexture()
+void Dx12Wrapper::CreateDefaultTexture()
 {
     HRESULT result = S_OK;
 
-    D3D12_HEAP_PROPERTIES heapProp = {};
-    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-
-    D3D12_RESOURCE_DESC rsDesc = {};
-    rsDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    rsDesc.Width = 4;
-    rsDesc.Height = 4;
-    rsDesc.DepthOrArraySize = 1;
-    rsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    rsDesc.MipLevels = 1;
-    rsDesc.SampleDesc.Count = 1;
-    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(whiteTexture_.GetAddressOf())
-    );
-    assert(SUCCEEDED(result));
-
-    result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(blackTexture_.GetAddressOf())
-    );
-    assert(SUCCEEDED(result));
-
-    result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(gradTexture_.GetAddressOf())
-    );
-    assert(SUCCEEDED(result));
+    // 転送先
+    whiteTexture_ = CreateTex2DBuffer(4, 4, 1);
+    blackTexture_ = CreateTex2DBuffer(4, 4, 1);
+    gradTexture_ = CreateTex2DBuffer(4, 4, 1);
 
     struct Color
     {
@@ -554,35 +411,63 @@ void Dx12Wrapper::CreateDefaultColorTexture()
     };
 
     std::vector<Color> texdata(4 * 4);
-    std::fill(texdata.begin(), texdata.end(), Color(0xff,0xff,0xff,0xff));
+    std::fill(texdata.begin(), texdata.end(), Color(0xff, 0xff, 0xff, 0xff));
 
-    // Send texdata to whiteTexture_
-    result = whiteTexture_->WriteToSubresource(0, nullptr, texdata.data(), 4 * 4, 4 * 4 * 4);
-    assert(SUCCEEDED(result));
+    D3D12_SUBRESOURCE_DATA subresourcedata = {};
+    subresourcedata.pData = texdata.data();
+    subresourcedata.RowPitch = sizeof(texdata[0]) * 4;
+    subresourcedata.SlicePitch = texdata.size() * 4;
+
+    // 転送元
+    UpdateSubresourceToTextureBuffer(whiteTexture_.Get(), subresourcedata);
 
     std::fill(texdata.begin(), texdata.end(), Color(0x00, 0x00, 0x00, 0xff));
-    // Send texdata to whiteTexture_
-    result = blackTexture_->WriteToSubresource(0, nullptr, texdata.data(), 4 * 4, 4 * 4 * 4);
-    assert(SUCCEEDED(result));
-
+    UpdateSubresourceToTextureBuffer(blackTexture_.Get(), subresourcedata);
+    
     texdata.resize(256);
     for (size_t i = 0; i < 256; ++i)
         std::fill_n(&texdata[i], 1, Color(255 - i, 255 - i, 255 - i, 0xff));
+    
+    UpdateSubresourceToTextureBuffer(gradTexture_.Get(), subresourcedata);
+}
 
-    // Send texdata to whiteTexture_
-    result = gradTexture_->WriteToSubresource(0, nullptr, texdata.data(), 4 * 4, 4 * 256);
-    assert(SUCCEEDED(result));
+void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata)
+{
+
+    auto uploadBufferSize = GetRequiredIntermediateSize(texBuffer, 0, 1);
+    ComPtr<ID3D12Resource> intermediateBuffer = CreateBuffer(uploadBufferSize);
+
+    uint8_t* data = nullptr;
+    intermediateBuffer->Map(0, nullptr, reinterpret_cast<void**>(&data));
+    std::fill_n(data, uploadBufferSize, 0xff);
+    intermediateBuffer->Unmap(0, nullptr);
+
+    auto dst = CD3DX12_TEXTURE_COPY_LOCATION(texBuffer);
+    // 中でcmdList->CopyTextureRegionが走っているため
+    // コマンドキューうを実行して待ちをしなければならない
+    cmdList_->Reset(cmdAlloc_.Get(), nullptr);
+    cmdAlloc_->Reset();
+    UpdateSubresources(cmdList_.Get(), texBuffer, intermediateBuffer.Get(), 0, 0, 1, &subresourcedata);
+    cmdList_->ResourceBarrier(1,
+        &CD3DX12_RESOURCE_BARRIER::Transition(texBuffer,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+    cmdList_->Close();
+    cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
+    ExecuteAndWait();
 }
 
 bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
 {
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
-    D3D12_RESOURCE_DESC rsDesc = {};
+
     auto& mats = pmdModel_->GetMaterials();
     auto& paths = pmdModel_->GetModelPaths();
 
     auto strideBytes = AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    D3D12_RESOURCE_DESC rsDesc = {};
     rsDesc.Width = mats.size() * strideBytes;
     rsDesc.Height = 1;
     rsDesc.DepthOrArraySize = 1;
@@ -614,7 +499,7 @@ bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
     
     auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
     auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    auto heapAddress = materialDescHeap_->GetCPUDescriptorHandleForHeapStart();
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(materialDescHeap_->GetCPUDescriptorHandleForHeapStart());
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.SizeInBytes = strideBytes;
     cbvDesc.BufferLocation = gpuAddress;
@@ -638,7 +523,7 @@ bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
         // move memory offset
         mappedMaterial += strideBytes;
         gpuAddress += strideBytes;
-        heapAddress.ptr += heapSize;
+        heapAddress.Offset(1, heapSize);
         
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -655,7 +540,7 @@ bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
             &srvDesc,
             heapAddress
         );
-        heapAddress.ptr += heapSize;
+        heapAddress.Offset(1, heapSize);
 
         // Create SRV for sphere mapping texture (sph)
         srvDesc.Format = sphBuffers_[i] ? sphBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -673,7 +558,7 @@ bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
             &srvDesc,
             heapAddress
         );
-        heapAddress.ptr += heapSize;
+        heapAddress.Offset(1, heapSize);
 
         // Create SRV for toon map
         srvDesc.Format = toonBuffers_[i] ? toonBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -682,7 +567,7 @@ bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
             &srvDesc,
             heapAddress
         );
-        heapAddress.ptr += heapSize;
+        heapAddress.Offset(1, heapSize);
     }
     materialBuffer_->Unmap(0, nullptr);
 
@@ -745,18 +630,12 @@ bool Dx12Wrapper::CreatePipelineStateObject()
         errBlob.GetAddressOf());
     OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    //psoDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
-    //psoDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
     // Rasterizer
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     psoDesc.RasterizerState.FrontCounterClockwise = true;
     psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-    //psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-    //psoDesc.RasterizerState.DepthClipEnable = false;
-    //psoDesc.RasterizerState.MultisampleEnable = false;
-    //psoDesc.RasterizerState.SlopeScaledDepthBias = 0.0f;
 
     // Pixel Shader
     ComPtr<ID3DBlob> psBlob;
@@ -771,8 +650,6 @@ bool Dx12Wrapper::CreatePipelineStateObject()
         errBlob.GetAddressOf());
     OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    //psoDesc.PS.BytecodeLength = psBlob->GetBufferSize();
-    //psoDesc.PS.pShaderBytecode = psBlob->GetBufferPointer();
     psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
     // Other set up
@@ -780,10 +657,6 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     // Depth/Stencil
     psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    //psoDesc.DepthStencilState.DepthEnable = true;
-    //psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-    //psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    //psoDesc.DepthStencilState.StencilEnable = false;
 
     psoDesc.NodeMask = 0;
     psoDesc.SampleDesc.Count = 1;
@@ -794,17 +667,8 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     // Blend
-    //psoDesc.BlendState.AlphaToCoverageEnable = false;
-    //psoDesc.BlendState.IndependentBlendEnable = false;
-    //psoDesc.BlendState.RenderTarget[0].BlendEnable = false;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    //gpsDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    //gpsDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    //gpsDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-    //gpsDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-    //gpsDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
-    //gpsDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-    
+
     psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //※ color : ABGR
     
     // Root Signature
@@ -827,10 +691,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     HRESULT result = S_OK;
 
 #if defined(DEBUG) || defined(_DEBUG)
-    //ID3D12Debug* debug = nullptr;
-    //D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+    //ComPtr<ID3D12Debug> debug;
+    //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
     //debug->EnableDebugLayer();
-    //debug->Release();
 
     result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.GetAddressOf()));
 #else
@@ -844,7 +707,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
         if (FAILED(result)) {
             IDXGIAdapter4* pAdapter;
             dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
-            D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(dev_.GetAddressOf()));
+            result = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(dev_.GetAddressOf()));
             //OutputDebugString(L"Feature level not found");
             //return false;
         }
@@ -987,9 +850,9 @@ bool Dx12Wrapper::CreateDepthBuffer()
     rsDesc.SampleDesc.Quality = 0;
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-    D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = rsDesc.Format;
-    clearValue.DepthStencil.Depth = 1.0f;
+    CD3DX12_CLEAR_VALUE clearValue(rsDesc.Format    // format
+        ,1.0f                                       // depth
+        ,0);                                        // stencil
 
     auto result = dev_->CreateCommittedResource(&heapProp,
         D3D12_HEAP_FLAG_NONE,
@@ -1033,15 +896,28 @@ ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_PROPERT
     return buffer;
 }
 
+ComPtr<ID3D12Resource> Dx12Wrapper::CreateTex2DBuffer(UINT64 width, UINT height, UINT16 arraySize, D3D12_HEAP_PROPERTIES heapProp, DXGI_FORMAT texFormat)
+{
+    ComPtr<ID3D12Resource> buffer;
+    auto result = dev_->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height, arraySize),
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(buffer.GetAddressOf())
+    );
+    assert(SUCCEEDED(result));
+    return buffer;
+}
+
 bool Dx12Wrapper::Update()
 {
     static float angle = 0;
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_.Get(),pipeline_.Get());
-    //cmdList_->Reset(cmdAlloc_, nullptr);
-    //cmdList_->SetPipelineState(pipeline_);
-    angle += 0.01f;
 
+    angle += 0.01f;
     mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 
     //command list
@@ -1051,12 +927,6 @@ bool Dx12Wrapper::Update()
         backBuffers_[bbIdx].Get(),                  // resource buffer
         D3D12_RESOURCE_STATE_PRESENT,               // state before
         D3D12_RESOURCE_STATE_RENDER_TARGET);        // state after
-    //barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    //barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    //barrier.Transition.pResource = backBuffers_[bbIdx].Get();
-    //barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-    //barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    //barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     cmdList_->ResourceBarrier(1, &barrier);
 
     auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
@@ -1073,20 +943,10 @@ bool Dx12Wrapper::Update()
     
     // ビューポートと、シザーの設定
     auto wsize = Application::Instance().GetWindowSize();
-    D3D12_VIEWPORT vp = {};
-    vp.Width = wsize.width;
-    vp.Height = wsize.height;
-    vp.TopLeftX = 0;
-    vp.TopLeftY = 0;
-    vp.MaxDepth = 1.0f;
-    vp.MinDepth = 0.0f;
+    CD3DX12_VIEWPORT vp(backBuffers_[bbIdx].Get());
     cmdList_->RSSetViewports(1, &vp);
 
-    D3D12_RECT rc = {};
-    rc.left = 0;
-    rc.top = 0;
-    rc.right = wsize.width;
-    rc.bottom = wsize.height;
+    CD3DX12_RECT rc(0,0,wsize.width,wsize.height);
     cmdList_->RSSetScissorRects(1, &rc);
 
     /*-------------Set up transform-------------*/
@@ -1102,12 +962,12 @@ bool Dx12Wrapper::Update()
 
     /*-------------Set up material and texture-------------*/
     cmdList_->SetDescriptorHeaps(1, (ID3D12DescriptorHeap*const*)materialDescHeap_.GetAddressOf());
-    auto materialHeapPos = materialDescHeap_->GetGPUDescriptorHandleForHeapStart();
+    CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
     auto materialHeapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     uint32_t indexOffset = 0;
     for (auto& m : materials)
     {
-        cmdList_->SetGraphicsRootDescriptorTable(1, materialHeapPos);
+        cmdList_->SetGraphicsRootDescriptorTable(1, materialHeapHandle);
 
         cmdList_->DrawIndexedInstanced(m.indices,
             1,
@@ -1115,7 +975,7 @@ bool Dx12Wrapper::Update()
             0,
             0);
         indexOffset += m.indices;
-        materialHeapPos.ptr += material_desp_heap_count * materialHeapSize;
+        materialHeapHandle.Offset(material_desp_heap_count , materialHeapSize);
     }
     //cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
     /*-------------------------------------------*/
@@ -1125,18 +985,23 @@ bool Dx12Wrapper::Update()
     cmdList_->ResourceBarrier(1, &barrier);
 
     cmdList_->Close();
-    cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList*const*)cmdList_.GetAddressOf());
+    ExecuteAndWait();
+
+    // screen flip
+    swapchain_->Present(1, 0);
+
+    return true;
+}
+
+void Dx12Wrapper::ExecuteAndWait()
+{
+    cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList* const*)cmdList_.GetAddressOf());
     cmdQue_->Signal(fence_.Get(), ++fenceValue_);
     while (1)
     {
         if (fence_->GetCompletedValue() == fenceValue_)
             break;
     }
-
-    // screen flip
-    swapchain_->Present(1, 0);
-
-    return true;
 }
 
 void Dx12Wrapper::Terminate()
