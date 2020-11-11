@@ -55,9 +55,10 @@ private:
 	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
 	uint64_t fenceValue_ = 0;
 
-	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_PROPERTIES = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD));
+	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
-	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, UINT16 arraySize, D3D12_HEAP_PROPERTIES = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), DXGI_FORMAT texFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
+		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
 	// Vertex Buffer
 	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
@@ -103,13 +104,14 @@ private:
 	ComPtr<ID3D12RootSignature> rootSig_ ;
 	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 	bool CreatePipelineStateObject();
+
+	void ExecuteAndWait();
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12
 	// true: no problem
 	// false: error
 	bool Update();
-	void ExecuteAndWait();
 	void Terminate();
 };
 
