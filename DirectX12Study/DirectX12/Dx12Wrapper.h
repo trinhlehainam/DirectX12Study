@@ -8,6 +8,8 @@
 #include <string>
 #include <d3dx12.h>
 
+#include "../PMDLoader/PMDResouceBinder.h"
+
 class PMDModel;
 using Microsoft::WRL::ComPtr;
 
@@ -18,6 +20,7 @@ class Dx12Wrapper
 {
 private:
 	std::shared_ptr<PMDModel> pmdModel_;
+	std::shared_ptr<PMDResouceBinder> pmdResourceBinder_;
 
 	struct BasicMatrix {
 		DirectX::XMMATRIX world;
@@ -90,8 +93,8 @@ private:
 	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;
 	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;
 	// Create texture from PMD file
-	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
-	void LoadTextureToBuffer();
+	ComPtr<ID3D12Resource>& CreateTextureFromFilePath(const std::wstring& path);
+	void LoadTextureFromPMD();
 	ComPtr<ID3D12Resource> materialBuffer_;
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
 	bool CreateMaterialAndTextureBuffer();
@@ -102,10 +105,10 @@ private:
 	// Graphic pipeline
 	ComPtr<ID3D12PipelineState> pipeline_;
 	ComPtr<ID3D12RootSignature> rootSig_ ;
-	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 	bool CreatePipelineStateObject();
 
-	void ExecuteAndWait();
+	void CPUGPUSync();
+	void CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>&, D3D12_DESCRIPTOR_HEAP_TYPE, UINT, bool = false, UINT = 0);
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12

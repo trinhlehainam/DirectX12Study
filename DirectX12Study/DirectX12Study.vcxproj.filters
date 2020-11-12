@@ -30,6 +30,12 @@
     <ClCompile Include="PMDLoader\PMDModel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PMDLoader\PMDResouceBinder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\Dx12Debug.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -45,6 +51,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PMDLoader\PMDModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDLoader\PMDResouceBinder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug\Dx12Debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

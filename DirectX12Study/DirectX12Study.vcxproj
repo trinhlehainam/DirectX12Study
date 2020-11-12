@@ -142,17 +142,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Debug\Dx12Debug.cpp" />
     <ClCompile Include="Loader\BmpLoader.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDLoader\PMDModel.cpp" />
+    <ClCompile Include="PMDLoader\PMDResouceBinder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="Debug\Dx12Debug.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
     <ClInclude Include="PMDLoader\PMDModel.h" />
+    <ClInclude Include="PMDLoader\PMDResouceBinder.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\PS.hlsl">
