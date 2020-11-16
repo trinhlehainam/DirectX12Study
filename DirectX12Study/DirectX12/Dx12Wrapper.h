@@ -75,6 +75,10 @@ private:
 	ComPtr<ID3D12DescriptorHeap> transformDescHeap_;
 	bool CreateTransformBuffer();
 
+	// Bone buffer
+	ComPtr<ID3D12Resource> boneBuffer_;
+	bool CreateBoneBuffer();
+
 	// White Texture
 	ComPtr<ID3D12Resource> whiteTexture_;
 	ComPtr<ID3D12Resource> blackTexture_;
@@ -105,7 +109,8 @@ private:
 	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 	bool CreatePipelineStateObject();
 
-	void ExecuteAndWait();
+	void GPUCPUSync();
+
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12

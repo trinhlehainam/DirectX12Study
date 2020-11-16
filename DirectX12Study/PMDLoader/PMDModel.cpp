@@ -61,6 +61,16 @@ bool PMDModel::Load(const char* path)
 		DWORD face_vert_count;
 		char textureFileName[20];
 	};
+
+	struct BoneData
+	{
+		char boneName[20];
+		uint16_t parentNo;
+		uint16_t tailNo;
+		uint8_t type;
+		uint16_t ikParentNo;
+		DirectX::XMFLOAT3 pos;
+	}; // 39 bytes
 #pragma pack()
 
 	PMDHeader header;
@@ -75,6 +85,9 @@ bool PMDModel::Load(const char* path)
 		vertices_[i].pos = vertices[i].pos;
 		vertices_[i].normal = vertices[i].normal_vec;
 		vertices_[i].uv = vertices[i].uv;
+		std::copy(std::begin(vertices[i].bone_num),
+			std::end(vertices[i].bone_num), vertices_[i].boneNo);
+		vertices_[i].weight = static_cast<float>(vertices[i].bone_weight);
 	}
 	uint32_t cIndex = 0;
 	fread_s(&cIndex, sizeof(cIndex), sizeof(cIndex), 1, fp);
@@ -85,10 +98,29 @@ bool PMDModel::Load(const char* path)
 	std::vector<Material> materials(cMaterial);
 	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
 
+	
 	uint16_t boneNum = 0;
 	fread_s(&boneNum, sizeof(boneNum), sizeof(boneNum), 1, fp);
 
-	fseek(fp, boneNum * 39, SEEK_CUR);
+	// Bone
+	std::vector<BoneData> boneData(boneNum);
+	fread_s(boneData.data(), sizeof(boneData[0])* boneData.size(), sizeof(boneData[0])* boneData.size(), 1, fp);
+	bones_.resize(boneNum);
+	for (int i = 0; i < boneNum; ++i)
+	{
+		bones_[i].name = boneData[i].boneName;
+		bones_[i].pos = boneData[i].pos;
+	}
+
+	for (int i = 0; i < boneNum; ++i)
+	{
+		if (boneData[i].parentNo == 0xffff) continue;
+		auto pno = boneData[i].parentNo;
+		bones_[pno].children.push_back(i);
+#ifdef _DEBUG
+		bones_[pno].childrenName.push_back(boneData[i].boneName);
+#endif
+	}
 
 	// IK(inverse kematic)
 	uint16_t ikNum = 0;
@@ -185,4 +217,14 @@ const std::vector<std::string>& PMDModel::GetModelPaths() const
 const std::vector<std::string>& PMDModel::GetToonPaths() const
 {
 	return toonPaths_;
+}
+
+const std::vector<PMDBone>& PMDModel::GetBoneData() const
+{
+	return bones_;
+}
+
+const std::vector<DirectX::XMMATRIX>& PMDModel::GetBoneMatrix() const
+{
+	return boneMatrices_;
 }

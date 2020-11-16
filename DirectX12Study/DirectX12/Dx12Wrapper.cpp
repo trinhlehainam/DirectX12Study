@@ -5,6 +5,7 @@
 #include "../common.h"
 #include <cassert>
 #include <algorithm>
+#include <unordered_map>
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
@@ -65,9 +66,9 @@ namespace
     //const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
-    //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
+    const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
     
 }
@@ -187,6 +188,7 @@ bool Dx12Wrapper::CreateTexture()
     assert(SUCCEEDED(result));
 
     CreateTransformBuffer();
+    CreateBoneBuffer();
     LoadTextureToBuffer();
     CreateDefaultTexture();
     CreateMaterialAndTextureBuffer();
@@ -260,11 +262,11 @@ void Dx12Wrapper::CreateRootSignature()
     // transform
     range[0] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
+        2,                                      // number of descriptors
         0);                                     // base shader register
 
     // material
-    range[1] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV,1,1);
+    range[1] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV,1,2);
     
     // texture
     range[2] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,0);
@@ -356,6 +358,33 @@ bool Dx12Wrapper::CreateTransformBuffer()
     return true;
 }
 
+bool Dx12Wrapper::CreateBoneBuffer()
+{
+    std::unordered_map<std::string, uint16_t> boneTable;
+    auto& bones = pmdModel_->GetBoneData();
+    for (auto& bone : bones)
+    {
+    }
+
+    boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+    XMFLOAT4X4* mappedBones = nullptr;
+    auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBones));
+    XMFLOAT4X4 identity;
+    XMStoreFloat4x4(&identity, XMMatrixIdentity());
+    std::fill_n(mappedBones, 512, identity);
+    boneBuffer_->Unmap(0, nullptr);
+
+    auto cbDesc = boneBuffer_->GetDesc();
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = boneBuffer_->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = cbDesc.Width;
+    auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
+    heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+
+    return false;
+}
+
 void Dx12Wrapper::CreateDefaultTexture()
 {
     HRESULT result = S_OK;
@@ -413,7 +442,7 @@ void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3
 
     cmdList_->Close();
     cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
-    ExecuteAndWait();
+    GPUCPUSync();
 }
 
 bool Dx12Wrapper::CreateMaterialAndTextureBuffer()
@@ -547,6 +576,24 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     0,                                            
     D3D12_APPEND_ALIGNED_ELEMENT,                 
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   
+    0
+    },
+    {
+    "BONENO",
+    0,
+    DXGI_FORMAT_R16G16_UINT,                     
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    {
+    "WEIGHT",
+    0,
+    DXGI_FORMAT_R32_UINT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
     0
     }
     };
@@ -809,7 +856,8 @@ bool Dx12Wrapper::CreateDepthBuffer()
 ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
 {
     ComPtr<ID3D12Resource> buffer;
-    auto result = dev_->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(heapType),
+    auto result = dev_->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(heapType),
         D3D12_HEAP_FLAG_NONE,
         &CD3DX12_RESOURCE_DESC::Buffer(size),
         D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -910,7 +958,7 @@ bool Dx12Wrapper::Update()
     cmdList_->ResourceBarrier(1, &barrier);
 
     cmdList_->Close();
-    ExecuteAndWait();
+    GPUCPUSync();
 
     // screen flip
     swapchain_->Present(1, 0);
@@ -918,7 +966,7 @@ bool Dx12Wrapper::Update()
     return true;
 }
 
-void Dx12Wrapper::ExecuteAndWait()
+void Dx12Wrapper::GPUCPUSync()
 {
     cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList* const*)cmdList_.GetAddressOf());
     cmdQue_->Signal(fence_.Get(), ++fenceValue_);

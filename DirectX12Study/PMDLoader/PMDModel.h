@@ -15,6 +15,16 @@ struct PMDMaterial
 	uint32_t indices;
 };
 
+struct PMDBone
+{
+	std::string name;
+	std::vector<int> children;
+#ifdef _DEBUG
+	std::vector<std::string> childrenName;
+#endif
+	DirectX::XMFLOAT3 pos;
+};
+
 class PMDModel
 {
 private:
@@ -23,6 +33,8 @@ private:
 	std::vector<PMDMaterial> materials_;
 	std::vector<std::string> modelPaths_;
 	std::vector<std::string> toonPaths_;
+	std::vector<PMDBone> bones_;
+	std::vector<DirectX::XMMATRIX> boneMatrices_;
 public:
 	bool Load(const char* path);
 	const std::vector<Vertex>& GetVerices() const;
@@ -30,5 +42,7 @@ public:
 	const std::vector<PMDMaterial>& GetMaterials() const;
 	const std::vector<std::string>& GetModelPaths() const;
 	const std::vector<std::string>& GetToonPaths() const;
+	const std::vector<PMDBone>& GetBoneData() const;
+	const std::vector<DirectX::XMMATRIX>& GetBoneMatrix() const;
 };
 
