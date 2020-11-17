@@ -87,7 +87,7 @@ bool PMDModel::Load(const char* path)
 		vertices_[i].uv = vertices[i].uv;
 		std::copy(std::begin(vertices[i].bone_num),
 			std::end(vertices[i].bone_num), vertices_[i].boneNo);
-		vertices_[i].weight = static_cast<float>(vertices[i].bone_weight);
+		vertices_[i].weight = static_cast<float>(vertices[i].bone_weight) / 100.0f;
 	}
 	uint32_t cIndex = 0;
 	fread_s(&cIndex, sizeof(cIndex), sizeof(cIndex), 1, fp);

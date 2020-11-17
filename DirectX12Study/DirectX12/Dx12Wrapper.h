@@ -7,8 +7,8 @@
 #include <memory>
 #include <string>
 #include <d3dx12.h>
+#include "../PMDLoader/PMDModel.h"
 
-class PMDModel;
 using Microsoft::WRL::ComPtr;
 
 /// <summary>
@@ -78,6 +78,8 @@ private:
 	// Bone buffer
 	ComPtr<ID3D12Resource> boneBuffer_;
 	bool CreateBoneBuffer();
+
+	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
 
 	// White Texture
 	ComPtr<ID3D12Resource> whiteTexture_;

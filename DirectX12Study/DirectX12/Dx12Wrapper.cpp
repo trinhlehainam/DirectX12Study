@@ -1,7 +1,6 @@
 #include "Dx12Wrapper.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
-#include "../PMDLoader/PMDModel.h"
 #include "../common.h"
 #include <cassert>
 #include <algorithm>
@@ -66,9 +65,10 @@ namespace
     //const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
-    const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
+    //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
+    //const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
     
 }
@@ -332,7 +332,7 @@ bool Dx12Wrapper::CreateTransformBuffer()
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
-        { 0.0f, 10.0f, 15.0f, 1.0f },
+        { 10.0f, 10.0f, 10.0f, 1.0f },
         { 0.0f, 10.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 1.0f });
 
@@ -360,18 +360,60 @@ bool Dx12Wrapper::CreateTransformBuffer()
 
 bool Dx12Wrapper::CreateBoneBuffer()
 {
+    // take bone's name and bone's index to boneTable
+    // <bone's name, bone's index>
     std::unordered_map<std::string, uint16_t> boneTable;
-    auto& bones = pmdModel_->GetBoneData();
-    for (auto& bone : bones)
+    auto boneData = pmdModel_->GetBoneData();
+    for (int i = 0; i < boneData.size();i++)
     {
+        boneTable[boneData[i].name] = i;
     }
 
     boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
     XMFLOAT4X4* mappedBones = nullptr;
     auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBones));
-    XMFLOAT4X4 identity;
-    XMStoreFloat4x4(&identity, XMMatrixIdentity());
-    std::fill_n(mappedBones, 512, identity);
+
+    auto mats = pmdModel_->GetBoneMatrix();
+    mats.resize(boneData.size());
+    std::fill(mats.begin(), mats.end(), XMMatrixIdentity());
+
+    size_t bidx[] = { boneTable["左ひじ"], boneTable["右ひじ"], boneTable["上半身"]};
+    
+    //for (auto& index : bidx)
+    //{
+    //    auto& bpos = boneData[index].pos;
+    //
+    //    mats[index] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+    //    mats[index] *= XMMatrixRotationZ(XM_PIDIV4/2.0f);
+    //    mats[index] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+    //}
+
+    auto& bpos = boneData[bidx[0]].pos;
+
+    mats[bidx[0]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+    mats[bidx[0]] *= XMMatrixRotationZ(-XM_PIDIV4);
+    mats[bidx[0]] *= XMMatrixRotationX(XM_PIDIV4);
+    mats[bidx[0]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+
+    bpos = boneData[bidx[1]].pos;
+
+    mats[bidx[1]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+    mats[bidx[1]] *= XMMatrixRotationZ(XM_PIDIV4);
+    mats[bidx[1]] *= XMMatrixRotationX(XM_PIDIV4);
+    mats[bidx[1]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+
+    bpos = boneData[bidx[2]].pos;
+
+    mats[bidx[2]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+    mats[bidx[2]] *= XMMatrixRotationX(-XM_PIDIV4);
+    mats[bidx[2]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+
+    RecursiveCalculate(boneData, mats, 0);
+    for (int i = 0; i < mats.size(); ++i)
+    {
+        XMStoreFloat4x4(&mappedBones[i], mats[i]);
+    }
+
     boneBuffer_->Unmap(0, nullptr);
 
     auto cbDesc = boneBuffer_->GetDesc();
@@ -381,8 +423,19 @@ bool Dx12Wrapper::CreateBoneBuffer()
     auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
     heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     dev_->CreateConstantBufferView(&cbvDesc, heapPos);
-
     return false;
+}
+
+void Dx12Wrapper::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index)
+{
+    auto& bpos = bones[index].pos;
+    auto& mat = mats[index];
+
+    for (auto& childIdx : bones[index].children)
+    {
+        mats[childIdx] *= mat;
+        RecursiveCalculate(bones, mats, childIdx);
+    }
 }
 
 void Dx12Wrapper::CreateDefaultTexture()
@@ -590,7 +643,7 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     {
     "WEIGHT",
     0,
-    DXGI_FORMAT_R32_UINT,
+    DXGI_FORMAT_R32_FLOAT,
     0,
     D3D12_APPEND_ALIGNED_ELEMENT,
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
@@ -920,8 +973,6 @@ bool Dx12Wrapper::Update()
 
     CD3DX12_RECT rc(0,0,wsize.width,wsize.height);
     cmdList_->RSSetScissorRects(1, &rc);
-
-    
 
     // Set Input Assemble
     cmdList_->IASetVertexBuffers(0, 1, &vbView_);

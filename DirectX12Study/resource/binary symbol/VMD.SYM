@@ -1,0 +1,99 @@
+/*
+ * TSXBIN用マクロ for VMD
+ * .vmd
+ * Ver.1.00
+ * 2011/03
+ * 
+ * http://yun.cup.com/
+ * Nanashi-soft
+ */
+
+#include "typedef.h"
+//MMMDのモーションデータ(VMD)形式
+
+const DWORD	FILESIZE = GetFileSize();
+
+//ヘッダー構造体
+struct vmd_header{
+  char VmdHeader[30];
+  char VmdModelName[20];
+};
+//モーション構造体
+struct vmd_motion{
+  char BoneName[15];
+  DWORD FlameNo;
+  float Location[3];
+  float Rotatation[4];
+  BYTE Interpolation[64];
+};
+//表情構造体
+struct vmd_skin{
+  char SkinName[15];
+  DWORD FlameNo;
+  float Weight;
+};
+//カメラ構造体
+struct vmd_camera{
+  DWORD FlameNo;
+  float Length;
+  float Location[3];
+  float Rotation[3];
+  BYTE Interpolation[24];
+  DWORD ViewingAngle;
+  BYTE Perspective;
+};
+//照明構造体
+struct vmd_light{
+  DWORD FlameNo;
+  float RGB[3];
+  float Location[3];
+};
+//セルフシャドー構造体
+struct vmd_self_shadow{
+  DWORD FlameNo;
+  BYTE Mode;
+  float Distance;
+};
+
+
+//●解析開始！
+DWORD i;
+
+//ヘッダー読み込み
+$vmd_header header;
+
+//モーション数読み込み
+$DWORD motion_count;
+
+//モーションデータ読み込み
+$vmd_motion motion[motion_count];
+
+//表情数読み込み
+$DWORD vmd_skin_count;
+
+//表情データ読み込み
+$vmd_skin skin[vmd_skin_count];
+
+//カメラ数読み込み
+$DWORD vmd_camera_count;
+
+if(0 < vmd_camera_count){
+  //カメラデータ読み込み
+  $vmd_camera camera[vmd_camera_count];
+}
+
+//照明数読み込み
+$DWORD vmd_light_count;
+
+if(0 < vmd_light_count){
+  //照明データ読み込み
+  $vmd_light light[vmd_light_count];
+}
+
+//セルフシャドー数読み込み
+$DWORD vmd_self_shadow_count;
+
+//セルフシャドーデータ読み込み
+$vmd_self_shadow self_shadow[vmd_self_shadow_count];
+
+

@@ -22,7 +22,7 @@ struct PMDBone
 #ifdef _DEBUG
 	std::vector<std::string> childrenName;
 #endif
-	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT3 pos;			// rotation at origin matrix
 };
 
 class PMDModel

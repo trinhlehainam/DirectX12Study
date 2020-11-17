@@ -7,11 +7,14 @@
 VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL, min16uint2 boneno : BONENO, float weight : WEIGHT)
 {
 	VsOutput ret;
-	ret.pos = mul(world, mul(bones[boneno[0]], pos));
+	ret.pos = mul(world, mul(
+		bones[boneno[0]] * weight +
+		bones[boneno[1]] * (1.0f - weight),
+		pos));
 	ret.svpos = mul(viewproj, ret.pos);
 	matrix warudo = world;
 	warudo._14_24_34 = 0.0f;		// ïΩçsà⁄ìÆê¨ï™ñ≥å¯
-	ret.norm = mul(world,normal);
+	ret.norm = mul(warudo,normal);
 	ret.uv = uv;
 	ret.boneno = boneno;
 	ret.weight = weight;
