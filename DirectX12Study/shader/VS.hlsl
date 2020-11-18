@@ -8,8 +8,8 @@ VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL
 {
 	VsOutput ret;
 	ret.pos = mul(world, mul(
-		bones[boneno[0]] * weight +
-		bones[boneno[1]] * (1.0f - weight),
+		bones[boneno.x] * weight +
+		bones[boneno.y] * (1.0f - weight),
 		pos));
 	ret.svpos = mul(viewproj, ret.pos);
 	matrix warudo = world;

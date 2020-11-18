@@ -146,6 +146,7 @@
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDLoader\PMDModel.cpp" />
+    <ClCompile Include="VMDLoader\VMDMotion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -153,6 +154,7 @@
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
     <ClInclude Include="PMDLoader\PMDModel.h" />
+    <ClInclude Include="VMDLoader\VMDMotion.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\PS.hlsl">

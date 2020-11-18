@@ -30,6 +30,9 @@
     <ClCompile Include="PMDLoader\PMDModel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VMDLoader\VMDMotion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PMDLoader\PMDModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VMDLoader\VMDMotion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

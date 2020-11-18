@@ -315,7 +315,7 @@ bool Dx12Wrapper::CreateTransformBuffer()
     HRESULT result = S_OK;
 
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.NumDescriptors = 1;
+    desc.NumDescriptors = 2;
     desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     desc.NodeMask = 0;
@@ -426,15 +426,17 @@ bool Dx12Wrapper::CreateBoneBuffer()
     return false;
 }
 
-void Dx12Wrapper::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index)
+void Dx12Wrapper::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index)
+// bones : bones' data
+// matrices : matrices use for bone's Transformation
 {
-    auto& bpos = bones[index].pos;
-    auto& mat = mats[index];
+    auto& bonePos = bones[index].pos;
+    auto& mat = matrices[index];    // parent's matrix 
 
-    for (auto& childIdx : bones[index].children)
+    for (auto& childIndex : bones[index].children)
     {
-        mats[childIdx] *= mat;
-        RecursiveCalculate(bones, mats, childIdx);
+        matrices[childIndex] *= mat;
+        RecursiveCalculate(bones, matrices, childIndex);
     }
 }
 

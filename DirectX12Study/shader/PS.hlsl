@@ -11,20 +11,17 @@ SamplerState	  toonSmp:register(s1);
 // return color to texture
 float4 PS(VsOutput input) : SV_TARGET
 {
-	float3 lightPos = normalize(float3(-1,1,1));
-	// Return Object`s color
-	// Convert -1 ~ 1 -> 0 ~ 1
-	// Solution 
-	// (-1 ~ 1) + 1 -> (0 ~ 2)
-	// (0 ~ 2) / 2 -> (0 ~ 1)
+	float3 lightRay = normalize(float3(-1,1,1));
 	// calculate light with cos
-	float brightness = dot(input.norm.xyz, lightPos);
+	// use Lambert function to calculate brightness
+	float brightness = dot(input.norm.xyz, lightRay);			
+
 	float4 tn = toon.Sample(toonSmp, brightness);	// toon
-	float3 eyePos = float3(0.0f, 10.0f, 30.0f);
-	float3 eyeRay = normalize(eyePos - input.pos.xyz);
-	float3 lightRay = reflect(-lightPos, input.norm.xyz);
-	// saturate
-	float sat = saturate(pow(saturate(dot(eyeRay, lightRay)), specularity));
+	float3 eyePos = float3(10.0f, 10.0f, 30.0f);
+	float3 eyeRay = normalize(input.pos.xyz - eyePos);
+	float3 refectLight = reflect(lightRay, input.norm.xyz);
+	float sat = saturate(pow(saturate(dot(eyeRay, -refectLight)), specularity));	// saturate
+
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
 	
@@ -32,5 +29,4 @@ float4 PS(VsOutput input) : SV_TARGET
 		* tex.Sample(smp, input.uv)
 		* sph.Sample(smp, sphereUV)
 		+ spa.Sample(smp, sphereUV);
-	//return tex.Sample(smp,input.uv);
 }
