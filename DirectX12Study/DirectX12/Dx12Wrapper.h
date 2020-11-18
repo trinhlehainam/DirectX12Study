@@ -11,6 +11,8 @@
 
 using Microsoft::WRL::ComPtr;
 
+class VMDMotion;
+
 /// <summary>
 /// DirectX12 feature
 /// </summary>
@@ -18,6 +20,7 @@ class Dx12Wrapper
 {
 private:
 	std::shared_ptr<PMDModel> pmdModel_;
+	std::shared_ptr<VMDMotion> vmdMotion_;
 
 	struct BasicMatrix {
 		DirectX::XMMATRIX world;

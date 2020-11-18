@@ -110,6 +110,7 @@ bool PMDModel::Load(const char* path)
 	{
 		bones_[i].name = boneData[i].boneName;
 		bones_[i].pos = boneData[i].pos;
+		bonesTable_[boneData[i].boneName] = i;
 	}
 
 	for (int i = 0; i < boneNum; ++i)
@@ -224,7 +225,12 @@ const std::vector<PMDBone>& PMDModel::GetBoneData() const
 	return bones_;
 }
 
-const std::vector<DirectX::XMMATRIX>& PMDModel::GetBoneMatrix() const
+const std::unordered_map<std::string, uint16_t>& PMDModel::GetBonesTable() const
+{
+	return bonesTable_;
+}
+
+const std::vector<DirectX::XMMATRIX>& PMDModel::GetBoneMatrces() const
 {
 	return boneMatrices_;
 }

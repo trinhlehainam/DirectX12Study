@@ -24,7 +24,7 @@ float4 PS(VsOutput input) : SV_TARGET
 
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
-	
+
 	return float4(max(ambient,tn  * diffuse) + specular * sat , alpha)
 		* tex.Sample(smp, input.uv)
 		* sph.Sample(smp, sphereUV)

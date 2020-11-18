@@ -1,6 +1,7 @@
 #include "Dx12Wrapper.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
+#include "../VMDLoader/VMDMotion.h"
 #include "../common.h"
 #include <cassert>
 #include <algorithm>
@@ -70,6 +71,8 @@ namespace
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
     const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
+
+    const char* motion_path = "resource/VMD/charge.vmd";
     
 }
 
@@ -362,51 +365,29 @@ bool Dx12Wrapper::CreateBoneBuffer()
 {
     // take bone's name and bone's index to boneTable
     // <bone's name, bone's index>
-    std::unordered_map<std::string, uint16_t> boneTable;
     auto boneData = pmdModel_->GetBoneData();
-    for (int i = 0; i < boneData.size();i++)
-    {
-        boneTable[boneData[i].name] = i;
-    }
+    auto boneTable = pmdModel_->GetBonesTable();
+    auto motionData = vmdMotion_->GetVMDMotionData();
 
     boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
     XMFLOAT4X4* mappedBones = nullptr;
     auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBones));
 
-    auto mats = pmdModel_->GetBoneMatrix();
+    auto mats = pmdModel_->GetBoneMatrces();
     mats.resize(boneData.size());
     std::fill(mats.begin(), mats.end(), XMMatrixIdentity());
-
-    size_t bidx[] = { boneTable["左ひじ"], boneTable["右ひじ"], boneTable["上半身"]};
     
-    //for (auto& index : bidx)
-    //{
-    //    auto& bpos = boneData[index].pos;
-    //
-    //    mats[index] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-    //    mats[index] *= XMMatrixRotationZ(XM_PIDIV4/2.0f);
-    //    mats[index] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
-    //}
+    for (auto& motion : motionData)
+    {
+        auto index = boneTable[motion.first];
+        auto& bpos = boneData[index].pos;
 
-    auto& bpos = boneData[bidx[0]].pos;
-
-    mats[bidx[0]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-    mats[bidx[0]] *= XMMatrixRotationZ(-XM_PIDIV4);
-    mats[bidx[0]] *= XMMatrixRotationX(XM_PIDIV4);
-    mats[bidx[0]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
-
-    bpos = boneData[bidx[1]].pos;
-
-    mats[bidx[1]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-    mats[bidx[1]] *= XMMatrixRotationZ(XM_PIDIV4);
-    mats[bidx[1]] *= XMMatrixRotationX(XM_PIDIV4);
-    mats[bidx[1]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
-
-    bpos = boneData[bidx[2]].pos;
-
-    mats[bidx[2]] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-    mats[bidx[2]] *= XMMatrixRotationX(-XM_PIDIV4);
-    mats[bidx[2]] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+        auto rotationMat = XMMatrixRotationQuaternion(XMLoadFloat4(&motion.second));
+    
+        mats[index] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+        mats[index] *= rotationMat;
+        mats[index] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+    }
 
     RecursiveCalculate(boneData, mats, 0);
     for (int i = 0; i < mats.size(); ++i)
@@ -490,10 +471,11 @@ void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3
     cmdList_->Reset(cmdAlloc_.Get(), nullptr);
     cmdAlloc_->Reset();
     UpdateSubresources(cmdList_.Get(), texBuffer, intermediateBuffer.Get(), 0, 0, 1, &subresourcedata);
+    auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texBuffer,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList_->ResourceBarrier(1,
-        &CD3DX12_RESOURCE_BARRIER::Transition(texBuffer,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+        &resourceBarrier);
 
     cmdList_->Close();
     cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
@@ -762,6 +744,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     vertices_ = pmdModel_->GetVerices();
     indices_ = pmdModel_->GetIndices();
 
+    vmdMotion_ = std::make_shared<VMDMotion>();
+    vmdMotion_->Load(motion_path);
+
     CreateCommandFamily();
 
     dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence_.GetAddressOf()));
@@ -910,11 +895,13 @@ bool Dx12Wrapper::CreateDepthBuffer()
 
 ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
 {
+    auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
+    auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
     ComPtr<ID3D12Resource> buffer;
     auto result = dev_->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(heapType),
+        &heapProp,
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(size),
+        &rsDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf()));
@@ -925,11 +912,13 @@ ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE he
 ComPtr<ID3D12Resource> Dx12Wrapper::CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE heapType, DXGI_FORMAT texFormat,
     D3D12_RESOURCE_FLAGS flag, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE* clearValue)
 {
+    auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
+    auto rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height, 1, 0, 1, 0, flag);
     ComPtr<ID3D12Resource> buffer;
     auto result = dev_->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(heapType),
+        &heapProp,
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height,1,0,1,0,flag),
+        &rsDesc,
         state,
         clearValue,
         IID_PPV_ARGS(buffer.GetAddressOf())

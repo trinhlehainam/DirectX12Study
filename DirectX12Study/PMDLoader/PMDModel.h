@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include "../common.h"
 
 struct PMDMaterial
@@ -34,6 +35,7 @@ private:
 	std::vector<std::string> modelPaths_;
 	std::vector<std::string> toonPaths_;
 	std::vector<PMDBone> bones_;
+	std::unordered_map<std::string, uint16_t> bonesTable_;
 	std::vector<DirectX::XMMATRIX> boneMatrices_;
 public:
 	bool Load(const char* path);
@@ -43,6 +45,7 @@ public:
 	const std::vector<std::string>& GetModelPaths() const;
 	const std::vector<std::string>& GetToonPaths() const;
 	const std::vector<PMDBone>& GetBoneData() const;
-	const std::vector<DirectX::XMMATRIX>& GetBoneMatrix() const;
+	const std::unordered_map<std::string, uint16_t>& GetBonesTable() const;
+	const std::vector<DirectX::XMMATRIX>& GetBoneMatrces() const;
 };
 
