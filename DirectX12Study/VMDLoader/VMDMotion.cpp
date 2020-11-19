@@ -1,7 +1,6 @@
 #include "VMDMotion.h"
 #include <stdio.h>
 #include <windows.h>
-#include <vector>
 
 bool VMDMotion::Load(const char* path)
 {
@@ -23,11 +22,9 @@ bool VMDMotion::Load(const char* path)
 		BYTE Interpolation[64]; // [4][4][4] // •âŠ®
 	} ;
 #pragma pack()
-	
-
 	fseek(fp, sizeof(char) * 50, SEEK_CUR);
 
-	DWORD motionCount;
+	uint32_t motionCount = 0;
 	fread_s(&motionCount, sizeof(motionCount), sizeof(motionCount), 1, fp);
 
 	std::vector<VMD_MOTION> motions(motionCount);
@@ -36,7 +33,7 @@ bool VMDMotion::Load(const char* path)
 
 	for (auto& motion : motions)
 	{
-		m_vmdDatas[motion.BoneName] = motion.Rotatation;
+		m_vmdDatas[motion.BoneName].emplace_back(motion.Rotatation,motion.FrameNo);
 	}
 
 	fclose(fp);
@@ -44,7 +41,7 @@ bool VMDMotion::Load(const char* path)
 	return true;
 }
 
-const std::unordered_map<std::string, DirectX::XMFLOAT4>& VMDMotion::GetVMDMotionData() const
+const VMDData_t& VMDMotion::GetVMDMotionData() const
 {
 	return m_vmdDatas;
 }

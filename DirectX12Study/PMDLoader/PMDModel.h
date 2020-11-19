@@ -4,7 +4,16 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-#include "../common.h"
+#include <DirectXMath.h>
+
+struct PMDVertex
+{
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT3 normal;
+	DirectX::XMFLOAT2 uv;
+	uint16_t boneNo[2];
+	float weight;
+};
 
 struct PMDMaterial
 {
@@ -29,7 +38,7 @@ struct PMDBone
 class PMDModel
 {
 private:
-	std::vector<Vertex> vertices_;
+	std::vector<PMDVertex> vertices_;
 	std::vector<uint16_t> indices_;
 	std::vector<PMDMaterial> materials_;
 	std::vector<std::string> modelPaths_;
@@ -39,13 +48,13 @@ private:
 	std::vector<DirectX::XMMATRIX> boneMatrices_;
 public:
 	bool Load(const char* path);
-	const std::vector<Vertex>& GetVerices() const;
+	const std::vector<PMDVertex>& GetVerices() const;
 	const std::vector<uint16_t>& GetIndices() const;
 	const std::vector<PMDMaterial>& GetMaterials() const;
 	const std::vector<std::string>& GetModelPaths() const;
 	const std::vector<std::string>& GetToonPaths() const;
 	const std::vector<PMDBone>& GetBoneData() const;
 	const std::unordered_map<std::string, uint16_t>& GetBonesTable() const;
-	const std::vector<DirectX::XMMATRIX>& GetBoneMatrces() const;
+	const std::vector<DirectX::XMMATRIX>& GetBoneMatrices() const;
 };
 

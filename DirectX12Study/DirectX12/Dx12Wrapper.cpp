@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
+#include <algorithm>
 
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib,"d3d12.lib")
@@ -16,6 +17,15 @@
 #pragma comment(lib,"DxGuid.lib")
 
 using namespace DirectX;
+
+
+size_t frameNO = 0;
+float lastTick = 0;
+constexpr float millisecond_to_second = 1000.0f;
+constexpr float FPS = 60.0f;
+constexpr float millisecond_per_fps = millisecond_to_second / FPS;
+constexpr float animation_speed = 1.f;
+float timer = animation_speed;
 
 namespace
 {
@@ -63,8 +73,8 @@ namespace
 
     constexpr unsigned int back_buffer_count = 2;
     constexpr unsigned int material_descriptor_count = 5;
-    //const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
+    //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
     //const char* model_path = "resource/PMD/model/初音ミク.pmd";
@@ -72,12 +82,9 @@ namespace
     const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
 
-    const char* motion_path = "resource/VMD/charge.vmd";
+    const char* motion_path = "resource/VMD/swing.vmd";
     
 }
-
-std::vector<Vertex> vertices_;
-std::vector<uint16_t> indices_;
 
 unsigned int AlignedValue(unsigned int value, unsigned int align)
 {
@@ -88,17 +95,19 @@ void Dx12Wrapper::CreateVertexBuffer()
 {
     HRESULT result = S_OK;
 
-    vertexBuffer_ = CreateBuffer(sizeof(vertices_[0]) * vertices_.size());
+    const auto& vertices = pmdModel_->GetVerices();
+    vertexBuffer_ = CreateBuffer(sizeof(vertices[0]) * vertices.size());
 
-    Vertex* mappedData = nullptr;
+    auto type = vertices[0];
+    decltype(type)* mappedData = nullptr;
     result = vertexBuffer_->Map(0,nullptr,reinterpret_cast<void**>(&mappedData));
-    std::copy(std::begin(vertices_), std::end(vertices_), mappedData);
+    std::copy(std::begin(vertices), std::end(vertices), mappedData);
     assert(SUCCEEDED(result));
     vertexBuffer_->Unmap(0,nullptr);
 
     vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
-    vbView_.SizeInBytes = sizeof(vertices_[0]) * vertices_.size();
-    vbView_.StrideInBytes = sizeof(vertices_[0]);
+    vbView_.SizeInBytes = sizeof(vertices[0]) * vertices.size();
+    vbView_.StrideInBytes = sizeof(vertices[0]);
 
 }
 
@@ -106,16 +115,17 @@ void Dx12Wrapper::CreateIndexBuffer()
 {
     HRESULT result = S_OK;
 
-    indicesBuffer_ = CreateBuffer(sizeof(indices_[0]) * indices_.size());
+    const auto& indices = pmdModel_->GetIndices();
+    indicesBuffer_ = CreateBuffer(sizeof(indices[0]) * indices.size());
 
     ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
-    ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
+    ibView_.SizeInBytes = sizeof(indices[0]) * indices.size();
     ibView_.Format = DXGI_FORMAT_R16_UINT;
 
-    auto indexType = indices_[0];
+    auto indexType = indices[0];
     decltype(indexType)* mappedIdxData = nullptr;
     result = indicesBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedIdxData));
-    std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
+    std::copy(std::begin(indices), std::end(indices), mappedIdxData);
     assert(SUCCEEDED(result));
     indicesBuffer_->Unmap(0, nullptr);
 }
@@ -365,37 +375,11 @@ bool Dx12Wrapper::CreateBoneBuffer()
 {
     // take bone's name and bone's index to boneTable
     // <bone's name, bone's index>
-    auto boneData = pmdModel_->GetBoneData();
-    auto boneTable = pmdModel_->GetBonesTable();
-    auto motionData = vmdMotion_->GetVMDMotionData();
 
     boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
-    XMFLOAT4X4* mappedBones = nullptr;
-    auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBones));
-
-    auto mats = pmdModel_->GetBoneMatrces();
-    mats.resize(boneData.size());
-    std::fill(mats.begin(), mats.end(), XMMatrixIdentity());
+    auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
     
-    for (auto& motion : motionData)
-    {
-        auto index = boneTable[motion.first];
-        auto& bpos = boneData[index].pos;
-
-        auto rotationMat = XMMatrixRotationQuaternion(XMLoadFloat4(&motion.second));
-    
-        mats[index] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-        mats[index] *= rotationMat;
-        mats[index] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
-    }
-
-    RecursiveCalculate(boneData, mats, 0);
-    for (int i = 0; i < mats.size(); ++i)
-    {
-        XMStoreFloat4x4(&mappedBones[i], mats[i]);
-    }
-
-    boneBuffer_->Unmap(0, nullptr);
+    UpdateBoneTransform();
 
     auto cbDesc = boneBuffer_->GetDesc();
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -741,11 +725,10 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     // Load model vertices
     pmdModel_ = std::make_shared<PMDModel>();
     pmdModel_->Load(model_path);
-    vertices_ = pmdModel_->GetVerices();
-    indices_ = pmdModel_->GetIndices();
 
     vmdMotion_ = std::make_shared<VMDMotion>();
-    vmdMotion_->Load(motion_path);
+    vmdMotion_->Load("resource/VMD/swing.vmd");
+    //vmdMotion_->Load("resource/VMD/pose.vmd");
 
     CreateCommandFamily();
 
@@ -936,6 +919,21 @@ bool Dx12Wrapper::Update()
     angle += 0.01f;
     mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 
+    auto deltaTime = GetTickCount()/millisecond_to_second - lastTick;
+    lastTick = GetTickCount() / millisecond_to_second;
+
+    
+    /*if (timer <= 0)*/
+    {
+        frameNO++;
+        timer = animation_speed;
+    }
+    if (frameNO >= 60)
+        frameNO = 0;
+    timer -= deltaTime;
+
+    UpdateBoneTransform(frameNO);
+
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
     D3D12_RESOURCE_BARRIER barrier =
@@ -1019,7 +1017,41 @@ void Dx12Wrapper::GPUCPUSync()
     }
 }
 
+void Dx12Wrapper::UpdateBoneTransform(const size_t& frame)
+{
+    auto boneData = pmdModel_->GetBoneData();
+    auto boneTable = pmdModel_->GetBonesTable();
+    auto& motionData = vmdMotion_->GetVMDMotionData();
+    auto mats = pmdModel_->GetBoneMatrices();
+
+    for (auto& motion : motionData)
+    {
+        auto index = boneTable[motion.first];
+        auto& rotaPos = boneData[index].pos;
+        auto& keyframe = motion.second;
+        
+        auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
+            [frame](const VMDData& it) 
+            {
+            return it.frameNO <= frame;
+            });
+        if (rit != keyframe.rend())
+        {
+            auto it = rit.base();
+            auto t = static_cast<float>(frame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
+        }
+
+        auto rotaMat = XMMatrixRotationQuaternion(XMLoadFloat4(&rit->rotationMatrix));
+        mats[index] *= XMMatrixTranslation(-rotaPos.x, -rotaPos.y, -rotaPos.z);
+        mats[index] *= rotaMat;
+        mats[index] *= XMMatrixTranslation(rotaPos.x, rotaPos.y, rotaPos.z);
+    }
+
+    RecursiveCalculate(boneData, mats, 0);
+    std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
+}
+
 void Dx12Wrapper::Terminate()
 {
-
+    boneBuffer_->Unmap(0, nullptr);
 }

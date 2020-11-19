@@ -80,6 +80,7 @@ private:
 
 	// Bone buffer
 	ComPtr<ID3D12Resource> boneBuffer_;
+	DirectX::XMMATRIX* mappedBoneMatrix_ = nullptr;
 	bool CreateBoneBuffer();
 
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
@@ -115,7 +116,7 @@ private:
 	bool CreatePipelineStateObject();
 
 	void GPUCPUSync();
-
+	void UpdateBoneTransform(const size_t& keyframe = 0);
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12

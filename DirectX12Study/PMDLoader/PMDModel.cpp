@@ -1,8 +1,6 @@
 #include "PMDModel.h"
 #include <stdio.h>
 #include <Windows.h>
-#include <sstream>
-#include <iomanip>
 #include <array>
 
 namespace
@@ -98,7 +96,6 @@ bool PMDModel::Load(const char* path)
 	std::vector<Material> materials(cMaterial);
 	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
 
-	
 	uint16_t boneNum = 0;
 	fread_s(&boneNum, sizeof(boneNum), sizeof(boneNum), 1, fp);
 
@@ -112,6 +109,8 @@ bool PMDModel::Load(const char* path)
 		bones_[i].pos = boneData[i].pos;
 		bonesTable_[boneData[i].boneName] = i;
 	}
+	boneMatrices_.resize(boneNum);
+	std::fill(boneMatrices_.begin(), boneMatrices_.end(), DirectX::XMMatrixIdentity());
 
 	for (int i = 0; i < boneNum; ++i)
 	{
@@ -175,12 +174,6 @@ bool PMDModel::Load(const char* path)
 
 	for (auto& m : materials)
 	{
-		//std::ostringstream oss;
-		//oss << "toon";
-		//oss << std::setfill('0');
-		//oss << std::setw(2);
-		//oss << m.toon_index + 1;
-		//oss << ".bmp";
 		if(m.toon_index > toonNames.size() - 1)
 			toonPaths_.push_back(toonNames[0]);
 		else
@@ -195,7 +188,7 @@ bool PMDModel::Load(const char* path)
 	return true;
 }
 
-const std::vector<Vertex>& PMDModel::GetVerices() const
+const std::vector<PMDVertex>& PMDModel::GetVerices() const
 {
 	return vertices_;
 }
@@ -230,7 +223,7 @@ const std::unordered_map<std::string, uint16_t>& PMDModel::GetBonesTable() const
 	return bonesTable_;
 }
 
-const std::vector<DirectX::XMMATRIX>& PMDModel::GetBoneMatrces() const
+const std::vector<DirectX::XMMATRIX>& PMDModel::GetBoneMatrices() const
 {
 	return boneMatrices_;
 }
