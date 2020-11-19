@@ -21,10 +21,10 @@ using namespace DirectX;
 
 size_t frameNO = 0;
 float lastTick = 0;
-constexpr float millisecond_to_second = 1000.0f;
+constexpr float second_to_millisecond = 1000.0f;
 constexpr float FPS = 60.0f;
-constexpr float millisecond_per_fps = millisecond_to_second / FPS;
-constexpr float animation_speed = 1.f;
+constexpr float millisecond_per_frame = second_to_millisecond / FPS;
+constexpr float animation_speed = millisecond_per_frame / second_to_millisecond;
 float timer = animation_speed;
 
 namespace
@@ -379,7 +379,7 @@ bool Dx12Wrapper::CreateBoneBuffer()
     boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
     auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
     
-    UpdateBoneTransform();
+    UpdateMotionTransform();
 
     auto cbDesc = boneBuffer_->GetDesc();
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -919,11 +919,12 @@ bool Dx12Wrapper::Update()
     angle += 0.01f;
     mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 
-    auto deltaTime = GetTickCount()/millisecond_to_second - lastTick;
-    lastTick = GetTickCount() / millisecond_to_second;
-
+    float deltaTime = GetTickCount64()/second_to_millisecond - lastTick;
+    lastTick = GetTickCount64() / second_to_millisecond;
     
-    /*if (timer <= 0)*/
+    UpdateMotionTransform(frameNO);
+
+    if (timer <= 0.0f)
     {
         frameNO++;
         timer = animation_speed;
@@ -931,8 +932,6 @@ bool Dx12Wrapper::Update()
     if (frameNO >= 60)
         frameNO = 0;
     timer -= deltaTime;
-
-    UpdateBoneTransform(frameNO);
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -1017,7 +1016,7 @@ void Dx12Wrapper::GPUCPUSync()
     }
 }
 
-void Dx12Wrapper::UpdateBoneTransform(const size_t& frame)
+void Dx12Wrapper::UpdateMotionTransform(const size_t& frame)
 {
     auto boneData = pmdModel_->GetBoneData();
     auto boneTable = pmdModel_->GetBonesTable();
@@ -1035,15 +1034,19 @@ void Dx12Wrapper::UpdateBoneTransform(const size_t& frame)
             {
             return it.frameNO <= frame;
             });
-        if (rit != keyframe.rend())
-        {
-            auto it = rit.base();
-            auto t = static_cast<float>(frame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
-        }
+        auto it = rit.base();
+        float t = 0.0f;
+        if (rit == keyframe.rend()) continue;
 
-        auto rotaMat = XMMatrixRotationQuaternion(XMLoadFloat4(&rit->rotationMatrix));
+        auto q = XMLoadFloat4(&rit->rotationMatrix);
+        if (it != keyframe.end())
+        {
+            t = static_cast<float>(frame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
+            q = XMQuaternionSlerp(q, XMLoadFloat4(&it->rotationMatrix), t);
+        }
+        
         mats[index] *= XMMatrixTranslation(-rotaPos.x, -rotaPos.y, -rotaPos.z);
-        mats[index] *= rotaMat;
+        mats[index] *= XMMatrixRotationQuaternion(q);
         mats[index] *= XMMatrixTranslation(rotaPos.x, rotaPos.y, rotaPos.z);
     }
 

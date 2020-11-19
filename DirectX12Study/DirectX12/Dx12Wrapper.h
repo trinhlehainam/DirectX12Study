@@ -116,7 +116,7 @@ private:
 	bool CreatePipelineStateObject();
 
 	void GPUCPUSync();
-	void UpdateBoneTransform(const size_t& keyframe = 0);
+	void UpdateMotionTransform(const size_t& keyframe = 0);
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12
