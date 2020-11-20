@@ -9,6 +9,7 @@
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 #include <algorithm>
+#include <iostream>
 
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib,"d3d12.lib")
@@ -17,9 +18,6 @@
 #pragma comment(lib,"DxGuid.lib")
 
 using namespace DirectX;
-
-
-
 
 namespace
 {
@@ -71,9 +69,9 @@ namespace
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
-    const char* model_path = "resource/PMD/model/初音ミク.pmd";
+    //const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
 
     const char* motion_path = "resource/VMD/ヤゴコロダンス.vmd";
@@ -691,34 +689,57 @@ bool Dx12Wrapper::CreatePipelineStateObject()
 
 bool Dx12Wrapper::Initialize(const HWND& hwnd)
 {
-    D3D_FEATURE_LEVEL featureLevels[] = {
-        D3D_FEATURE_LEVEL_12_1,
-        D3D_FEATURE_LEVEL_12_0,
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-    };
     HRESULT result = S_OK;
 
 #if defined(DEBUG) || defined(_DEBUG)
     //ComPtr<ID3D12Debug> debug;
     //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
     //debug->EnableDebugLayer();
+    //result = CreateDXGIFactory1(IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
 
-    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.GetAddressOf()));
+    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
+    
 #else
     result = CreateDXGIFactory2(0, IID_PPV_ARGS(dxgi_.GetAddressOf()));
 #endif
     assert(SUCCEEDED(result));
 
+    D3D_FEATURE_LEVEL featureLevels[] = {
+        D3D_FEATURE_LEVEL_12_1,
+        D3D_FEATURE_LEVEL_12_0,
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+    };
+
+    // Check all adapters (Graphics cards)
+    UINT i = 0;
+    IDXGIAdapter* pAdapter = nullptr;
+    std::vector<IDXGIAdapter*> adapterList;
+    while (dxgi_->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
+    {
+        DXGI_ADAPTER_DESC desc;
+        pAdapter->GetDesc(&desc);
+        std::wstring text = L"***Graphic card: ";
+        text += desc.Description;
+        text += L"/n";
+
+        std::cout << text.c_str() << std::endl;
+        adapterList.push_back(pAdapter);
+
+        ++i;
+    }
+
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.GetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        /*-------Use strongest graphics card (adapter) GTX-------*/
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
-            IDXGIAdapter4* pAdapter;
-            dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
-            result = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(dev_.GetAddressOf()));
+            //IDXGIAdapter4* pAdapter;
+            //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
+            //result = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
             //OutputDebugString(L"Feature level not found");
-            //return false;
+            return false;
         }
     }
 
@@ -731,7 +752,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     CreateCommandFamily();
 
-    dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence_.GetAddressOf()));
+    dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence_.ReleaseAndGetAddressOf()));
     fenceValue_ = fence_->GetCompletedValue();
 
     CreateSwapChain(hwnd);

@@ -39,7 +39,7 @@ private:
 	ComPtr<ID3D12CommandAllocator> cmdAlloc_;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_;
 	ComPtr<ID3D12CommandQueue> cmdQue_;
-	ComPtr<IDXGIFactory7> dxgi_;
+	ComPtr<IDXGIFactory6> dxgi_;
 	ComPtr<IDXGISwapChain3> swapchain_;
 
 	void CreateCommandFamily();

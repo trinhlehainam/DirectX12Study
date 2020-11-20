@@ -44,6 +44,16 @@ bool VMDMotion::Load(const char* path)
 		m_vmdDatas[motion.BoneName].emplace_back(motion.FrameNo, motion.Rotatation, motion.Location, b1, b2);
 	}
 
+	for (auto& vmdData : m_vmdDatas)
+	{
+		auto& keyframe = vmdData.second;
+		std::sort(keyframe.begin(), keyframe.end(),
+			[](const VMDData& k1, const VMDData& k2)
+			{
+				return k1.frameNO < k2.frameNO;
+			});
+	}
+
 	fclose(fp);
 
 	return true;
