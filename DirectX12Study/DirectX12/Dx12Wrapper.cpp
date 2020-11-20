@@ -19,13 +19,7 @@
 using namespace DirectX;
 
 
-size_t frameNO = 0;
-float lastTick = 0;
-constexpr float second_to_millisecond = 1000.0f;
-constexpr float FPS = 60.0f;
-constexpr float millisecond_per_frame = second_to_millisecond / FPS;
-constexpr float animation_speed = millisecond_per_frame / second_to_millisecond;
-float timer = animation_speed;
+
 
 namespace
 {
@@ -77,12 +71,17 @@ namespace
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
-    //const char* model_path = "resource/PMD/model/初音ミク.pmd";
+    const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
 
-    const char* motion_path = "resource/VMD/swing.vmd";
+    const char* motion_path = "resource/VMD/ヤゴコロダンス.vmd";
+
+    size_t frameNO = 0;
+    float lastTick = 0;
+
+    float timer = animation_speed;
     
 }
 
@@ -341,7 +340,8 @@ bool Dx12Wrapper::CreateTransformBuffer()
     XMMATRIX tempMat = XMMatrixIdentity();
 
     // world coordinate
-    XMMATRIX world = XMMatrixRotationY(XM_PIDIV4);
+    auto angle = 4*XM_PI/3.0f;
+    XMMATRIX world = XMMatrixRotationY(angle);
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
@@ -727,8 +727,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     pmdModel_->Load(model_path);
 
     vmdMotion_ = std::make_shared<VMDMotion>();
-    vmdMotion_->Load("resource/VMD/swing.vmd");
-    //vmdMotion_->Load("resource/VMD/pose.vmd");
+    vmdMotion_->Load(motion_path);
 
     CreateCommandFamily();
 
@@ -916,8 +915,8 @@ bool Dx12Wrapper::Update()
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_.Get(),pipeline_.Get());
 
-    angle += 0.01f;
-    mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+    //angle += 0.01f;
+    //mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 
     float deltaTime = GetTickCount64()/second_to_millisecond - lastTick;
     lastTick = GetTickCount64() / second_to_millisecond;
@@ -929,8 +928,6 @@ bool Dx12Wrapper::Update()
         frameNO++;
         timer = animation_speed;
     }
-    if (frameNO >= 60)
-        frameNO = 0;
     timer -= deltaTime;
 
     //command list
@@ -1016,7 +1013,7 @@ void Dx12Wrapper::GPUCPUSync()
     }
 }
 
-void Dx12Wrapper::UpdateMotionTransform(const size_t& frame)
+void Dx12Wrapper::UpdateMotionTransform(const size_t& currentFrame)
 {
     auto boneData = pmdModel_->GetBoneData();
     auto boneTable = pmdModel_->GetBonesTable();
@@ -1026,32 +1023,45 @@ void Dx12Wrapper::UpdateMotionTransform(const size_t& frame)
     for (auto& motion : motionData)
     {
         auto index = boneTable[motion.first];
-        auto& rotaPos = boneData[index].pos;
+        auto& rotationOrigin = boneData[index].pos;
         auto& keyframe = motion.second;
         
         auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
-            [frame](const VMDData& it) 
+            [currentFrame](const VMDData& it) 
             {
-            return it.frameNO <= frame;
+            return it.frameNO <= currentFrame;
             });
         auto it = rit.base();
-        float t = 0.0f;
+        
         if (rit == keyframe.rend()) continue;
 
-        auto q = XMLoadFloat4(&rit->rotationMatrix);
+        float t = 0.0f;
+        auto q = XMLoadFloat4(&rit->quaternion);
+        auto move = rit->location;
+
         if (it != keyframe.end())
         {
-            t = static_cast<float>(frame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
-            q = XMQuaternionSlerp(q, XMLoadFloat4(&it->rotationMatrix), t);
+            t = static_cast<float>(currentFrame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
+            q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
+            XMStoreFloat3(&move, XMVectorLerp(XMLoadFloat3(&move), XMLoadFloat3(&it->location), t));
         }
-        
-        mats[index] *= XMMatrixTranslation(-rotaPos.x, -rotaPos.y, -rotaPos.z);
+        mats[index] *= XMMatrixTranslation(-rotationOrigin.x, -rotationOrigin.y, -rotationOrigin.z);
         mats[index] *= XMMatrixRotationQuaternion(q);
-        mats[index] *= XMMatrixTranslation(rotaPos.x, rotaPos.y, rotaPos.z);
+        mats[index] *= XMMatrixTranslation(rotationOrigin.x, rotationOrigin.y, rotationOrigin.z);
+        mats[index] *= XMMatrixTranslation(move.x, move.y, move.z);
     }
 
     RecursiveCalculate(boneData, mats, 0);
     std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
+}
+
+float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, DirectX::XMFLOAT2 bezier[2])
+{
+    // (y = x) is a straight line -> do not need to calculate
+    if(bezier[0].x == bezier[1].x && bezier[0].y == bezier[1].y)
+        return x;
+    // Bezier method
+    // ((1-t)+t))^3
 }
 
 void Dx12Wrapper::Terminate()
