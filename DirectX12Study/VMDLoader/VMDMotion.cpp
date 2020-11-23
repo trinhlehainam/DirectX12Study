@@ -37,10 +37,10 @@ bool VMDMotion::Load(const char* path)
 	for (auto& motion : motions)
 	{
 		DirectX::XMFLOAT2 b1, b2;
-		b1.x = static_cast<float>(motion.Interpolation[bezierNO[0] + offset]);
-		b1.y = static_cast<float>(motion.Interpolation[bezierNO[1] + offset]);
-		b2.x = static_cast<float>(motion.Interpolation[bezierNO[2] + offset]);
-		b2.y = static_cast<float>(motion.Interpolation[bezierNO[3] + offset]);
+		b1.x = (motion.Interpolation[bezierNO[0] + offset])/127.0f;
+		b1.y = (motion.Interpolation[bezierNO[1] + offset])/127.0f;
+		b2.x = (motion.Interpolation[bezierNO[2] + offset])/127.0f;
+		b2.y = (motion.Interpolation[bezierNO[3] + offset])/127.0f;
 		m_vmdDatas[motion.BoneName].emplace_back(motion.FrameNo, motion.Rotatation, motion.Location, b1, b2);
 	}
 

@@ -67,11 +67,10 @@ namespace
     constexpr unsigned int material_descriptor_count = 5;
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
-    //const char* model_path = "resource/PMD/model/satori/古明地さとり152Normal.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
-    //const char* model_path = "resource/PMD/model/初音ミク.pmd";
+    const char* model_path = "resource/PMD/model/初音ミク.pmd";
     //const char* model_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
 
     const char* motion_path = "resource/VMD/ヤゴコロダンス.vmd";
@@ -1082,7 +1081,21 @@ float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, DirectX::XMFLOAT2 bez
     if(bezier[0].x == bezier[1].x && bezier[0].y == bezier[1].y)
         return x;
     // Bezier method
-    // ((1-t)+t))^3
+    float t = x;
+    float k0 = 3 * bezier[0].x - 3 * bezier[1].x + 1; // t^3
+    float k1 = -6 * bezier[0].x + 3 * bezier[1].x;    // t^2
+    float k2 = 3 * bezier[0].x;                       // t
+
+    constexpr float eplison = 0.00005f;
+    for (int i = 0; i < 8; ++i)
+    {
+        auto ft = t * t * t * k0 + t * t * k1 + t * k2 - x;
+        if (ft >= -eplison || ft <= eplison) break;
+        t = -ft / 2;
+    }
+    
+    auto rt = 1 - t;
+    return t * t * t + 3 * rt * rt * t * bezier[0].y + 3 * rt * t * t * bezier[1].y;
 }
 
 void Dx12Wrapper::Terminate()

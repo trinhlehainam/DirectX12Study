@@ -118,7 +118,8 @@ private:
 	void GPUCPUSync();
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 
-	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127) respectively
+	// Root-finding algorithm ( finding ZERO or finding ROOT )
+	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127)->(1,1) respectively
 	float CalculateFromBezierByHalfSolve(float x, DirectX::XMFLOAT2 beizer[2]);
 public:
 	bool Initialize(const HWND&);
