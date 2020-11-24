@@ -54,6 +54,19 @@ bool VMDMotion::Load(const char* path)
 			});
 	}
 
+	std::vector<size_t> lastFrameNOList(m_vmdDatas.size());
+	int i = 0;
+	for (auto& vmdData : m_vmdDatas)
+	{
+		lastFrameNOList[i] = vmdData.second.rbegin()->frameNO;
+		i++;
+	}
+
+	std::sort(lastFrameNOList.begin(), lastFrameNOList.end(), [](const size_t& f1, const size_t& f2)
+		{return f1 < f2; });
+
+	m_maxFrame = *lastFrameNOList.rbegin();
+	
 	fclose(fp);
 
 	return true;
@@ -62,4 +75,9 @@ bool VMDMotion::Load(const char* path)
 const VMDData_t& VMDMotion::GetVMDMotionData() const
 {
 	return m_vmdDatas;
+}
+
+size_t VMDMotion::GetMaxFrame() const
+{
+	return m_maxFrame;
 }

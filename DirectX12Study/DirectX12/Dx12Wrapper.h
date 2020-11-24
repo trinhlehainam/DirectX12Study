@@ -120,7 +120,14 @@ private:
 
 	// Root-finding algorithm ( finding ZERO or finding ROOT )
 	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127)->(1,1) respectively
-	float CalculateFromBezierByHalfSolve(float x, DirectX::XMFLOAT2 beizer[2]);
+	float CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n = 8);
+
+	// Post effect rendering
+	ComPtr<ID3D12Resource> rtvTexture_ = nullptr;
+	ComPtr<ID3D12DescriptorHeap> rtvTexHeap_ = nullptr;
+	ComPtr<ID3D12DescriptorHeap> srvTexHeap_ = nullptr;
+	// Create first path for rendering buffer
+	void CreateRenderTargetTexture();
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12

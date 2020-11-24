@@ -73,13 +73,14 @@ namespace
     //const char* model_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
     const char* pmd_path = "resource/PMD/";
 
-    const char* motion_path = "resource/VMD/ヤゴコロダンス.vmd";
+    const char* motion_path = "resource/VMD/swing2.vmd";
 
     size_t frameNO = 0;
     float lastTick = 0;
 
+    constexpr float animation_speed = millisecond_per_frame / second_to_millisecond;
     float timer = animation_speed;
-    
+    float angle = 0;
 }
 
 unsigned int AlignedValue(unsigned int value, unsigned int align)
@@ -686,6 +687,30 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     return true;
 }
 
+void Dx12Wrapper::CreateRenderTargetTexture()
+{
+    HRESULT result = S_OK;
+    auto rsDesc = backBuffers_[0]->GetDesc();
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    rtvTexture_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, rsDesc.Flags,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
+    descHeap.NodeMask = 0;
+    descHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    descHeap.NumDescriptors = 1;
+    descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    result = dev_->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(rtvTexHeap_.ReleaseAndGetAddressOf()));
+    assert(SUCCEEDED(result));
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Format = rsDesc.Format;
+    rtvDesc.Texture2D.MipSlice = 0;
+    rtvDesc.Texture2D.PlaneSlice = 0;
+    dev_->CreateRenderTargetView(rtvTexture_.Get(), &rtvDesc, rtvTexHeap_->GetCPUDescriptorHandleForHeapStart());
+}
+
 bool Dx12Wrapper::Initialize(const HWND& hwnd)
 {
     HRESULT result = S_OK;
@@ -730,9 +755,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -756,6 +781,8 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     CreateSwapChain(hwnd);
     CreateRenderTargetViews();
+    // create rtv texture (1st path) for rendering buffer
+    CreateRenderTargetTexture();
     CreateDepthBuffer();
     CreateVertexBuffer();
     CreateIndexBuffer();
@@ -931,16 +958,9 @@ ComPtr<ID3D12Resource> Dx12Wrapper::CreateTex2DBuffer(UINT64 width, UINT height,
 
 bool Dx12Wrapper::Update()
 {
-    static float angle = 0;
-    cmdAlloc_->Reset();
-    cmdList_->Reset(cmdAlloc_.Get(),pipeline_.Get());
-
-    //angle += 0.01f;
-    //mappedBasicMatrix_->world = XMMatrixRotationY(angle);
-
-    float deltaTime = GetTickCount64()/second_to_millisecond - lastTick;
+    float deltaTime = GetTickCount64() / second_to_millisecond - lastTick;
     lastTick = GetTickCount64() / second_to_millisecond;
-    
+
     UpdateMotionTransform(frameNO);
 
     if (timer <= 0.0f)
@@ -948,7 +968,15 @@ bool Dx12Wrapper::Update()
         frameNO++;
         timer = animation_speed;
     }
+    frameNO = frameNO % vmdMotion_->GetMaxFrame();
     timer -= deltaTime;
+
+    //angle += 1*deltaTime;
+    //mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+
+    // Clear commands and open
+    cmdAlloc_->Reset();
+    cmdList_->Reset(cmdAlloc_.Get(),pipeline_.Get());
 
     //command list
     auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
@@ -970,7 +998,6 @@ bool Dx12Wrapper::Update()
 
     cmdList_->SetGraphicsRootSignature(rootSig_.Get());
    
-    
     // ビューポートと、シザーの設定
     auto wsize = Application::Instance().GetWindowSize();
     CD3DX12_VIEWPORT vp(backBuffers_[bbIdx].Get());
@@ -1017,7 +1044,7 @@ bool Dx12Wrapper::Update()
     GPUCPUSync();
 
     // screen flip
-    swapchain_->Present(1, 0);
+    swapchain_->Present(0, 0);
 
     return true;
 }
@@ -1047,7 +1074,7 @@ void Dx12Wrapper::UpdateMotionTransform(const size_t& currentFrame)
         auto& keyframe = motion.second;
         
         auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
-            [currentFrame](const VMDData& it) 
+            [currentFrame](const VMDData& it)
             {
             return it.frameNO <= currentFrame;
             });
@@ -1062,6 +1089,7 @@ void Dx12Wrapper::UpdateMotionTransform(const size_t& currentFrame)
         if (it != keyframe.end())
         {
             t = static_cast<float>(currentFrame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
+            t = CalculateFromBezierByHalfSolve(t, it->b1, it->b2);
             q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
             XMStoreFloat3(&move, XMVectorLerp(XMLoadFloat3(&move), XMLoadFloat3(&it->location), t));
         }
@@ -1075,27 +1103,35 @@ void Dx12Wrapper::UpdateMotionTransform(const size_t& currentFrame)
     std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
 }
 
-float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, DirectX::XMFLOAT2 bezier[2])
+float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)
 {
     // (y = x) is a straight line -> do not need to calculate
-    if(bezier[0].x == bezier[1].x && bezier[0].y == bezier[1].y)
+    if(p1.x == p1.y && p2.x == p2.y)
         return x;
     // Bezier method
     float t = x;
-    float k0 = 3 * bezier[0].x - 3 * bezier[1].x + 1; // t^3
-    float k1 = -6 * bezier[0].x + 3 * bezier[1].x;    // t^2
-    float k2 = 3 * bezier[0].x;                       // t
+    float k0 = 3 * p1.x - 3 * p2.x + 1;         // t^3
+    float k1 = -6 * p1.x + 3 * p2.x;            // t^2
+    float k2 = 3 * p1.x;                        // t
 
     constexpr float eplison = 0.00005f;
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < n; ++i)
     {
-        auto ft = t * t * t * k0 + t * t * k1 + t * k2 - x;
-        if (ft >= -eplison || ft <= eplison) break;
-        t = -ft / 2;
+        // f(t) = t*t*t*k0 + t*t*k1 + t*k2
+        // f = f(t) - x
+        // process [f(t) - x] to reach approximate 0
+        // => f -> ~0
+        // => |f| = ~eplison
+        auto f = t * t * t * k0 + t * t * k1 + t * k2 - x;
+        if (f >= -eplison || f <= eplison) break;
+        t -= f / 2;
     }
     
     auto rt = 1 - t;
-    return t * t * t + 3 * rt * rt * t * bezier[0].y + 3 * rt * t * t * bezier[1].y;
+    // y = f(t)
+    // t = g(x)
+    // -> y = f(g(x))
+    return t * t * t + 3 * (rt * rt) * t * p1.y + 3 * rt * (t * t) * p2.y;
 }
 
 void Dx12Wrapper::Terminate()
