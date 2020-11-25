@@ -57,8 +57,11 @@
   <ItemGroup>
     <FxCompile Include="shader\VS.hlsl" />
     <FxCompile Include="shader\PS.hlsl" />
+    <FxCompile Include="shader\boardPS.hlsl" />
+    <FxCompile Include="shader\boardVS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\common.hlsli" />
+    <None Include="shader\boardcommon.hlsli" />
   </ItemGroup>
 </Project>

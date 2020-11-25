@@ -63,6 +63,8 @@ private:
 	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
 		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
+	bool CreateDescriptorHeap(UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT nodeMask , bool shaderFlag);
+
 	// Vertex Buffer
 	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
 	D3D12_VERTEX_BUFFER_VIEW vbView_;
@@ -123,11 +125,23 @@ private:
 	float CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n = 8);
 
 	// Post effect rendering
+	void CreatePostEffectTexture();
+
 	ComPtr<ID3D12Resource> rtvTexture_ = nullptr;
 	ComPtr<ID3D12DescriptorHeap> rtvTexHeap_ = nullptr;
 	ComPtr<ID3D12DescriptorHeap> srvTexHeap_ = nullptr;
 	// Create first path for rendering buffer
 	void CreateRenderTargetTexture();
+
+	// ぺらポリ頂点
+	// TRIANGLESTRIP
+	ComPtr<ID3D12Resource> boardPolyVert_;
+	D3D12_VERTEX_BUFFER_VIEW boardVBV_;
+	void CreateBoardPolygonVertices();
+	ComPtr<ID3D12RootSignature> boardRootSig_;
+	ComPtr<ID3D12PipelineState> boardPipeline_;
+	void CreateBoardRootSignature();
+	void CreateBoardPipeline();
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12
