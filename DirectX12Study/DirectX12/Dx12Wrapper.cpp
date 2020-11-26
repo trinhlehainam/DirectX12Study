@@ -705,7 +705,7 @@ void Dx12Wrapper::CreatePostEffectView()
 
     auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     heapHandle.ptr += heapSize;
-
+    srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
     dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
 }
 
@@ -1099,9 +1099,9 @@ float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOA
 
 void Dx12Wrapper::CreatePostEffectTexture()
 {
-    CreateTextureFromFilePath(L"resource/image/textest.png", normalMapTex_);
-    CreatePostEffectView();
     CreateBoardPolygonVertices();
+    CreateTextureFromFilePath(L"resource/image/normalmap1.png", normalMapTex_);
+    CreatePostEffectView();
     CreateBoardRootSignature();
     CreateBoardPipeline();
 }
@@ -1111,10 +1111,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     HRESULT result = S_OK;
 
 #if defined(DEBUG) || defined(_DEBUG)
-    //ComPtr<ID3D12Debug> debug;
-    //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
-    //debug->EnableDebugLayer();
-    //result = CreateDXGIFactory1(IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
+    ComPtr<ID3D12Debug> debug;
+    D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
+    debug->EnableDebugLayer();
 
     result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
 
@@ -1150,9 +1149,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
