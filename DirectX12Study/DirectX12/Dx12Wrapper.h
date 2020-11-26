@@ -47,7 +47,7 @@ private:
 
 	// Renter Target View
 	std::vector<ComPtr<ID3D12Resource>> backBuffers_;
-	ComPtr<ID3D12DescriptorHeap> rtvHeap_;
+	ComPtr<ID3D12DescriptorHeap> bbRTVHeap_;
 	bool CreateRenderTargetViews();
 
 	// Depth/Stencil Buffer
@@ -63,7 +63,8 @@ private:
 	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
 		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
-	bool CreateDescriptorHeap(UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT nodeMask , bool shaderFlag);
+	bool CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap, UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
+		bool isShaderVisible = false, UINT nodeMask = 0);
 
 	// Vertex Buffer
 	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
@@ -127,21 +128,23 @@ private:
 	// Post effect rendering
 	void CreatePostEffectTexture();
 
-	ComPtr<ID3D12Resource> rtvTexture_ = nullptr;
-	ComPtr<ID3D12DescriptorHeap> rtvTexHeap_ = nullptr;
-	ComPtr<ID3D12DescriptorHeap> srvTexHeap_ = nullptr;
-	// Create first path for rendering buffer
-	void CreateRenderTargetTexture();
+	ComPtr<ID3D12Resource> postEffectBuffer_ = nullptr;
+	ComPtr<ID3D12DescriptorHeap> passRTVHeap_ = nullptr;
+	ComPtr<ID3D12DescriptorHeap> passSRVHeap_ = nullptr;
+	void CreatePostEffectView();
 
 	// ぺらポリ頂点
 	// TRIANGLESTRIP
 	ComPtr<ID3D12Resource> boardPolyVert_;
 	D3D12_VERTEX_BUFFER_VIEW boardVBV_;
 	void CreateBoardPolygonVertices();
+
 	ComPtr<ID3D12RootSignature> boardRootSig_;
 	ComPtr<ID3D12PipelineState> boardPipeline_;
 	void CreateBoardRootSignature();
 	void CreateBoardPipeline();
+
+	ComPtr<ID3D12Resource> normalMapTex_;
 public:
 	bool Initialize(const HWND&);
 	// Update Direct3D12
