@@ -18,6 +18,13 @@ class VMDMotion;
 /// </summary>
 class Dx12Wrapper
 {
+public:
+	bool Initialize(const HWND&);
+	// Update Direct3D12
+	// true: no problem
+	// false: error
+	bool Update();
+	void Terminate();
 private:
 	std::shared_ptr<PMDModel> pmdModel_;
 	std::shared_ptr<VMDMotion> vmdMotion_;
@@ -128,10 +135,10 @@ private:
 	// Post effect rendering
 	void CreatePostEffectTexture();
 
-	ComPtr<ID3D12Resource> postEffectBuffer_ = nullptr;
+	ComPtr<ID3D12Resource> rtTexture_ = nullptr;
 	ComPtr<ID3D12DescriptorHeap> passRTVHeap_ = nullptr;
 	ComPtr<ID3D12DescriptorHeap> passSRVHeap_ = nullptr;
-	void CreatePostEffectView();
+	void CreateViewForRenderTargetTexture();
 
 	// ‚Ø‚çƒ|ƒŠ’¸“_
 	// TRIANGLESTRIP
@@ -145,12 +152,10 @@ private:
 	void CreateBoardPipeline();
 
 	ComPtr<ID3D12Resource> normalMapTex_;
-public:
-	bool Initialize(const HWND&);
-	// Update Direct3D12
-	// true: no problem
-	// false: error
-	bool Update();
-	void Terminate();
+	void CreateNormalMapTexture();
+
+	float* time_ = nullptr;
+	ComPtr<ID3D12Resource> timeBuffer_;
+	void CreateTimeBuffer();
 };
 

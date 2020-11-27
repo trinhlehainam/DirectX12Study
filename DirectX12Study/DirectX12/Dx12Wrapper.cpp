@@ -81,6 +81,8 @@ namespace
     constexpr float animation_speed = millisecond_per_frame / second_to_millisecond;
     float timer = animation_speed;
     float angle = 0;
+    float scalar = 0.1;
+    constexpr float scale_speed = 1;
 }
 
 unsigned int AlignedValue(unsigned int value, unsigned int align)
@@ -670,14 +672,14 @@ bool Dx12Wrapper::CreatePipelineStateObject()
     return true;
 }
 
-void Dx12Wrapper::CreatePostEffectView()
+void Dx12Wrapper::CreateViewForRenderTargetTexture()
 {
     HRESULT result = S_OK;
     auto rsDesc = backBuffers_[0]->GetDesc();
     rsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
     float color[] = { 0.6f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    postEffectBuffer_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, rsDesc.Flags,
+    rtTexture_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, rsDesc.Flags,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
     CreateDescriptorHeap(passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -687,10 +689,10 @@ void Dx12Wrapper::CreatePostEffectView()
     rtvDesc.Format = rsDesc.Format;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
-    dev_->CreateRenderTargetView(postEffectBuffer_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
+    dev_->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
 
     // SRV
-    CreateDescriptorHeap(passSRVHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    CreateDescriptorHeap(passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -701,19 +703,15 @@ void Dx12Wrapper::CreatePostEffectView()
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
     srvDesc.Format = rsDesc.Format;
     auto heapHandle = passSRVHeap_->GetCPUDescriptorHandleForHeapStart();
-    dev_->CreateShaderResourceView(postEffectBuffer_.Get(), &srvDesc, heapHandle);
+    dev_->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, heapHandle);
 
-    auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    heapHandle.ptr += heapSize;
-    srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
-    dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
 }
 
 void Dx12Wrapper::CreateBoardPolygonVertices()
 {
     XMFLOAT3 vert[] = { {-1.0f,-1.0f,0},                // bottom left
-                        {-1.0f,1.0f,0},                 // bottom right
-                        {1.0f,-1.0f,0},                 // top left
+                        {1.0f,-1.0f,0},                 // bottom right
+                        {-1.0f,1.0f,0},                 // top left
                         {1.0f,1.0f,0} };                // top right
     boardPolyVert_ = CreateBuffer(sizeof(vert));
 
@@ -809,28 +807,75 @@ void Dx12Wrapper::CreateBoardPipeline()
 
 }
 
+void Dx12Wrapper::CreateNormalMapTexture()
+{
+    CreateTextureFromFilePath(L"resource/image/normalmap3.png", normalMapTex_);
+
+    HRESULT result = S_OK;
+    auto rsDesc = backBuffers_[0]->GetDesc();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
+    srvDesc.Format = rsDesc.Format;
+    auto heapHandle = passSRVHeap_->GetCPUDescriptorHandleForHeapStart();
+
+    auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    heapHandle.ptr += heapSize;
+    srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
+    dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
+}
+
+void Dx12Wrapper::CreateTimeBuffer()
+{
+    auto strideBytes = AlignedValue(sizeof(float), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    timeBuffer_ = CreateBuffer(strideBytes);
+
+    timeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&time_));
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = timeBuffer_->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = strideBytes;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+    heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    dev_->CreateConstantBufferView(&cbvDesc, heapHandle);
+}
+
 void Dx12Wrapper::CreateBoardRootSignature()
 {
     HRESULT result = S_OK;
     D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
+    D3D12_DESCRIPTOR_RANGE range[2] = {};
 
     range[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
-    D3D12_ROOT_PARAMETER parameter[1] = {};
+    range[1] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    D3D12_ROOT_PARAMETER parameter[2] = {};
     CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
 
     rtSigDesc.NumParameters = _countof(parameter);
     rtSigDesc.pParameters = parameter;
 
     //サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
     //動きyや、UVをもとに色をとってくるときのルールを指定するもの
-    D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+    D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
     //WRAPは繰り返しを表す。
     CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
         0,                                  // shader register location
         D3D12_FILTER_MIN_MAG_MIP_LINEAR);    // Filter    
+
+    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[1],
+        1,
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+    samplerDesc[1].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 
     rtSigDesc.pStaticSamplers = samplerDesc;
     rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
@@ -1100,8 +1145,9 @@ float Dx12Wrapper::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOA
 void Dx12Wrapper::CreatePostEffectTexture()
 {
     CreateBoardPolygonVertices();
-    CreateTextureFromFilePath(L"resource/image/normalmap1.png", normalMapTex_);
-    CreatePostEffectView();
+    CreateViewForRenderTargetTexture();
+    CreateNormalMapTexture();
+    CreateTimeBuffer();
     CreateBoardRootSignature();
     CreateBoardPipeline();
 }
@@ -1111,9 +1157,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     HRESULT result = S_OK;
 
 #if defined(DEBUG) || defined(_DEBUG)
-    ComPtr<ID3D12Debug> debug;
-    D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
-    debug->EnableDebugLayer();
+    //ComPtr<ID3D12Debug> debug;
+    //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
+    //debug->EnableDebugLayer();
 
     result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
 
@@ -1149,9 +1195,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1199,9 +1245,14 @@ bool Dx12Wrapper::Update()
     {
         frameNO++;
         timer = animation_speed;
+        scalar += 0.05;
     }
     frameNO = frameNO % vmdMotion_->GetMaxFrame();
     timer -= deltaTime;
+
+    scalar = scalar > 5 ? 0.1 : scalar;
+    auto test = *time_;
+    *time_ = scalar;
 
     //angle += 1*deltaTime;
     //mappedBasicMatrix_->world = XMMatrixRotationY(angle);
@@ -1275,7 +1326,7 @@ bool Dx12Wrapper::Update()
 
     // Set resource state of postEffectTexture from RTV -> SRV
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        postEffectBuffer_.Get(),
+        rtTexture_.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList_->ResourceBarrier(1, &barrier);
@@ -1287,7 +1338,13 @@ bool Dx12Wrapper::Update()
     cmdList_->SetPipelineState(boardPipeline_.Get());
     cmdList_->SetGraphicsRootSignature(boardRootSig_.Get());
     cmdList_->SetDescriptorHeaps(1, reinterpret_cast<ID3D12DescriptorHeap* const*>(passSRVHeap_.GetAddressOf()));
-    cmdList_->SetGraphicsRootDescriptorTable(0, passSRVHeap_->GetGPUDescriptorHandleForHeapStart());
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(passSRVHeap_->GetGPUDescriptorHandleForHeapStart());
+    cmdList_->SetGraphicsRootDescriptorTable(0, shaderHeap);
+    // Set TimeBuffer For Shader
+    shaderHeap.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    cmdList_->SetGraphicsRootDescriptorTable(1, shaderHeap);
+
     cmdList_->IASetVertexBuffers(0, 1, &boardVBV_);
     cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     cmdList_->DrawInstanced(4, 1, 0, 0);
@@ -1300,7 +1357,7 @@ bool Dx12Wrapper::Update()
     cmdList_->ResourceBarrier(1, &barrier);
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        postEffectBuffer_.Get(),
+        rtTexture_.Get(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmdList_->ResourceBarrier(1, &barrier);
@@ -1318,4 +1375,5 @@ bool Dx12Wrapper::Update()
 void Dx12Wrapper::Terminate()
 {
     boneBuffer_->Unmap(0, nullptr);
+    timeBuffer_->Unmap(0, nullptr);
 }
