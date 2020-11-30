@@ -35,7 +35,7 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	float4 color = renderTargetTex.Sample(smpWrap, input.uv);
 
 	if (color.a > 0.0f)
-		return float4(0.6,0.6,0.6,1);
+		return color;
 	else
 	{
 		float div = 100.0f;

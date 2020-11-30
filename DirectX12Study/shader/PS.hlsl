@@ -11,7 +11,7 @@ SamplerState	  toonSmp:register(s1);
 // return color to texture
 float4 PS(VsOutput input) : SV_TARGET
 {
-	float3 lightRay = normalize(float3(-1,1,1));
+	float3 lightRay = normalize(lightPos);
 	// calculate light with cos
 	// use Lambert function to calculate brightness
 	float brightness = dot(input.norm.xyz, lightRay);			
