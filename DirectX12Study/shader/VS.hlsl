@@ -8,9 +8,10 @@ VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL
 {
 	VsOutput ret;
 	matrix transMat = bones[boneno.x] * weight + bones[boneno.y] * (1.0f - weight);
-	ret.pos = mul(world, mul(transMat,pos));
+	matrix warudo = mul(world, shadow);
+	ret.pos = mul(warudo, mul(transMat,pos));
 	ret.svpos = mul(viewproj, ret.pos);
-	matrix warudo = world;
+	warudo = world;
 	warudo._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	transMat._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	ret.norm = mul(warudo,mul(transMat,normal));

@@ -107,7 +107,6 @@ void Dx12Wrapper::CreateVertexBuffer()
     vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
     vbView_.SizeInBytes = sizeof(vertices[0]) * vertices.size();
     vbView_.StrideInBytes = sizeof(vertices[0]);
-
 }
 
 void Dx12Wrapper::CreateIndexBuffer()
@@ -348,8 +347,13 @@ bool Dx12Wrapper::CreateTransformBuffer()
     result = transformBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBasicMatrix_));
     assert(SUCCEEDED(result));
 
+
     mappedBasicMatrix_->viewproj = viewproj;
     mappedBasicMatrix_->world = world;
+    XMVECTOR plane = { 0,1,0,0 };
+    XMVECTOR light = { -1,1,1,0 };
+    mappedBasicMatrix_->lightPos = light;
+    mappedBasicMatrix_->shadow = XMMatrixShadow(plane, light);
     transformBuffer_->Unmap(0, nullptr);
 
     auto cbDesc = transformBuffer_->GetDesc();
@@ -1254,9 +1258,9 @@ bool Dx12Wrapper::Update()
     auto test = *time_;
     *time_ = scalar;
 
-    //angle += 1*deltaTime;
-    //mappedBasicMatrix_->world = XMMatrixRotationY(angle);
-
+    angle += 1 * deltaTime;
+    mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+    
     // Clear commands and open
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_.Get(), pipeline_.Get());
@@ -1279,10 +1283,10 @@ bool Dx12Wrapper::Update()
     auto dsvHeap = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
     const auto rtvIncreSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     bbRTVHeap.Offset(bbIdx, rtvIncreSize);
-    float bbDefaultColor[4] = { 1.0f,0.0f,0.0f,1.0f };
+    float peDefaultColor[4] = { 1.0f,0.0f,0.0f,0.0f };
     cmdList_->OMSetRenderTargets(1, &postEffectHeap, false, &dsvHeap);
     cmdList_->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    cmdList_->ClearRenderTargetView(postEffectHeap, bbDefaultColor, 0, nullptr);
+    cmdList_->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
     cmdList_->SetGraphicsRootSignature(rootSig_.Get());
 
@@ -1332,9 +1336,9 @@ bool Dx12Wrapper::Update()
     cmdList_->ResourceBarrier(1, &barrier);
 
     // ”Âƒ|ƒŠ
-    float peDefaultValue[] = { 0.0f,0.0f,0.0f,1.f };
+    float bbDefaultColor[] = { 0.0f,0.0f,0.0f,0.f };
     cmdList_->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
-    cmdList_->ClearRenderTargetView(bbRTVHeap, peDefaultValue, 0, nullptr);
+    cmdList_->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
     cmdList_->SetPipelineState(boardPipeline_.Get());
     cmdList_->SetGraphicsRootSignature(boardRootSig_.Get());
     cmdList_->SetDescriptorHeaps(1, reinterpret_cast<ID3D12DescriptorHeap* const*>(passSRVHeap_.GetAddressOf()));

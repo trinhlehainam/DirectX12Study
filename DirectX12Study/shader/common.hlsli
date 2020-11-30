@@ -2,6 +2,8 @@ cbuffer Matrix:register (b0)
 {
 	matrix world;
 	matrix viewproj;
+	vector lightPos;
+	matrix shadow;
 }
 
 cbuffer Bones:register (b1)
@@ -26,6 +28,6 @@ struct VsOutput
 	float4 pos:POSITION;
 	float4 norm:NORMAL;
 	float2 uv:TEXCOORD;
-	min16uint2 boneno:BONENOl;
+	min16uint2 boneno:BONENO;
 	float weight:WEIGHT;
 };

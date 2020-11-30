@@ -31,7 +31,15 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	renderTargetTex.GetDimensions(0, w, h, level);
 	float2 dt = float2(1.f / w, 1.f / h);
 	float2 offset = ((nmCol.xy * 2) - 1) * nmCol.a;
-	float4 color = renderTargetTex.Sample(smpWrap, input.uv + offset*0.03f);
+	//float4 color = renderTargetTex.Sample(smpWrap, input.uv + offset*0.03f);
+	float4 color = renderTargetTex.Sample(smpWrap, input.uv);
 
-	return color;
+	if (color.a > 0.0f)
+		return float4(0.6,0.6,0.6,1);
+	else
+	{
+		float div = 100.0f;
+		return float4(fmod(input.uv, 1.0f / div) * div,1, 1);
+	}
+		
 }

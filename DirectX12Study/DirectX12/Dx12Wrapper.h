@@ -32,6 +32,8 @@ private:
 	struct BasicMatrix {
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
+		DirectX::XMVECTOR lightPos;
+		DirectX::XMMATRIX shadow;
 	};
 	struct BasicMaterial {
 		DirectX::XMFLOAT3 diffuse;
