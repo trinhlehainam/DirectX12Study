@@ -79,12 +79,12 @@ bool Application::Initialize()
 		return false;
 	}
 
+	ShowWindow(wndHandle, SW_SHOW);
+	UpdateWindow(wndHandle);
+
 	dxWrapper_ = std::make_unique<Dx12Wrapper>();
 	if (!dxWrapper_->Initialize(wndHandle))
 		return false;
-
-	ShowWindow(wndHandle, SW_SHOW);
-	UpdateWindow(wndHandle);
 
 	return true;
 }
@@ -92,6 +92,9 @@ bool Application::Initialize()
 void Application::Run()
 {
 	MSG msg = {};
+
+	timer_.Reset();
+
 	while (isRunning_)
 	{
 		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -107,8 +110,8 @@ void Application::Run()
 		}
 		if (!isRunning_)
 			break;
-
-		dxWrapper_->Update();
+		timer_.Tick();
+		dxWrapper_->Update(timer_.DeltaTime());
 	}
 }
 

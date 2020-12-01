@@ -23,7 +23,7 @@ public:
 	// Update Direct3D12
 	// true: no problem
 	// false: error
-	bool Update();
+	bool Update(const float& deltaTime);
 	void Terminate();
 private:
 	std::vector<std::shared_ptr<PMDModel>> pmdModelList_;

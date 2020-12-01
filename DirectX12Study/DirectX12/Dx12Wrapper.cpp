@@ -951,11 +951,8 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     return true;
 }
 
-bool Dx12Wrapper::Update()
+bool Dx12Wrapper::Update(const float& deltaTime)
 {
-    float deltaTime = GetTickCount64() / second_to_millisecond - lastTick;
-    lastTick = GetTickCount64() / second_to_millisecond;
-
     if (timer <= 0.0f)
     {
         frameNO++;
