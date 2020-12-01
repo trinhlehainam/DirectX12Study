@@ -217,10 +217,11 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
 {
     HRESULT result = S_OK;
     auto rsDesc = backBuffers_[0]->GetDesc();
-    rsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    float color[] = { 0.6f,0.0f,0.0f,1.0f };
+    float color[] = { 1.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, rsDesc.Flags,
+    rtTexture_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, 
+        D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, 
+        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
     CreateDescriptorHeap(passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -428,7 +429,8 @@ void Dx12Wrapper::CreateBoardRootSignature()
         &errBlob);
     OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(boardRootSig_.GetAddressOf()));
+    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
+        IID_PPV_ARGS(boardRootSig_.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
@@ -550,7 +552,7 @@ bool Dx12Wrapper::CreateDepthBuffer()
     return true;
 }
 
-void Dx12Wrapper::CreateShadowDepthEffect()
+void Dx12Wrapper::CreateShadowMapping()
 {
     CreateShadowDepthBuffer();
     CreateShadowRootSignature();
@@ -570,13 +572,12 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
 
     shadowDepthBuffer_ = CreateTex2DBuffer(rtvDesc.Width, rtvDesc.Height,
         D3D12_HEAP_TYPE_DEFAULT,
-        depth_resource_format,
+        DXGI_FORMAT_R32_TYPELESS,
         D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
     CreateDescriptorHeap(shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-    
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
@@ -587,7 +588,6 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
 
     CreateDescriptorHeap(shadowSRVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
@@ -595,7 +595,7 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
-    srvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
     dev_->CreateShaderResourceView(
         shadowDepthBuffer_.Get(),
         &srvDesc, 
@@ -622,7 +622,7 @@ void Dx12Wrapper::CreateShadowRootSignature()
     range[1] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
         1,                                      // number of descriptors
-        0);
+        0);                                     // bas
 
     D3D12_ROOT_PARAMETER rootParam[2] = {};
     CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0],D3D12_SHADER_VISIBILITY_VERTEX);
@@ -630,6 +630,12 @@ void Dx12Wrapper::CreateShadowRootSignature()
 
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
+
+    D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0, D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR);
+
+    rtSigDesc.pStaticSamplers = samplerDesc;
+    rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
 
     ComPtr<ID3DBlob> rootSigBlob;
     ComPtr<ID3DBlob> errBlob;
@@ -669,34 +675,34 @@ void Dx12Wrapper::CreateShadowPipelineState()
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
     0
     },
-        // UV layout
-        {
-        "TEXCOORD",
-        0,
-        DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        },
-        {
-        "BONENO",
-        0,
-        DXGI_FORMAT_R16G16_UINT,
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        },
-        {
-        "WEIGHT",
-        0,
-        DXGI_FORMAT_R32_FLOAT,
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        }
+    // UV layout
+    {
+    "TEXCOORD",
+    0,
+    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    {
+    "BONENO",
+    0,
+    DXGI_FORMAT_R16G16_UINT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    {
+    "WEIGHT",
+    0,
+    DXGI_FORMAT_R32_FLOAT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    }
     };
 
 
@@ -745,6 +751,7 @@ void Dx12Wrapper::CreateShadowPipelineState()
     // Depth/Stencil
     psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState.DepthEnable = false;
 
     psoDesc.NodeMask = 0;
     psoDesc.SampleDesc.Count = 1;
@@ -757,8 +764,6 @@ void Dx12Wrapper::CreateShadowPipelineState()
     // Blend
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-    psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
-
     // Root Signature
     psoDesc.pRootSignature = shadowRootSig_.Get();
 
@@ -770,15 +775,16 @@ void Dx12Wrapper::CreateShadowPipelineState()
 void Dx12Wrapper::DrawShadow()
 {
     cmdList_->SetPipelineState(shadowPipeline_.Get());
-    XMVECTOR camPos = { -10,10,10,1 };
+    XMVECTOR camPos = { -10,30,30,1 };
     XMVECTOR targetPos = { 10,0,0,1 };
     auto screenSize = Application::Instance().GetWindowSize();
+    float aspect = static_cast<float>(screenSize.width) / screenSize.height;
 
     for (auto& model : pmdModelList_)
     {
         auto mappedMatrix = model->GetMappedMatrix();
         mappedMatrix->viewproj = XMMatrixLookAtRH(camPos, targetPos, { 0,1,0,0 }) *
-            XMMatrixOrthographicRH(screenSize.width, screenSize.height, 0.1f, 300.f);
+            XMMatrixPerspectiveFovRH(XM_PIDIV2, aspect, 0.1f, 300.f);
     }
 }
 
@@ -893,9 +899,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -919,7 +925,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     CreateRenderTargetViews();
     CreateDepthBuffer();  
     CreatePostEffectTexture();
-    CreateShadowDepthEffect();
+    CreateShadowMapping();
     CreateDefaultTexture();
 
     pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));

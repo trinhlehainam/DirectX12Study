@@ -1,9 +1,9 @@
 cbuffer Matrix:register (b0)
 {
-	matrix world;
-	matrix viewproj;
+	matrix world;			// transform to world space matrix
+	matrix viewproj;		// projecting object to window space matrix
 	vector lightPos;
-	matrix shadow;
+	matrix shadow;			
 }
 
 cbuffer Bones:register (b1)

@@ -51,9 +51,8 @@ private:
 	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
 	bool CreateDepthBuffer();
 
-
 	// Depth Buffer for Shadow Map
-	void CreateShadowDepthEffect();
+	void CreateShadowMapping();
 
 	ComPtr<ID3D12Resource> shadowDepthBuffer_;
 	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
@@ -66,7 +65,6 @@ private:
 	void CreateShadowPipelineState();
 
 	void DrawShadow();
-
 
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
