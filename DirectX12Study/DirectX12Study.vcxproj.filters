@@ -59,6 +59,8 @@
     <FxCompile Include="shader\PS.hlsl" />
     <FxCompile Include="shader\boardPS.hlsl" />
     <FxCompile Include="shader\boardVS.hlsl" />
+    <FxCompile Include="shader\ShadowVS.hlsl" />
+    <FxCompile Include="shader\ShadowPS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\common.hlsli" />

@@ -9,6 +9,8 @@
 #include <d3dx12.h>
 #include <memory>
 
+#include "../common.h"
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
@@ -23,27 +25,16 @@ public:
 		ComPtr<ID3D12Resource>& blackTexture,
 		ComPtr<ID3D12Resource>& gradTexture);
 	void CreateModel();
-	void TransformModel(const DirectX::XMMATRIX& transformMatrix);
+	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
 	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
+
+	BasicMatrix* GetMappedMatrix();
 
 	PMDModel(ComPtr<ID3D12Device> device);
 	~PMDModel();
 private:
-	struct BasicMatrix {
-		DirectX::XMMATRIX world;
-		DirectX::XMMATRIX viewproj;
-		DirectX::XMVECTOR lightPos;
-		DirectX::XMMATRIX shadow;
-	};
-
-	struct BasicMaterial {
-		DirectX::XMFLOAT3 diffuse;
-		float alpha;
-		DirectX::XMFLOAT3 specular;
-		float specularity;
-		DirectX::XMFLOAT3 ambient;
-	};
+	
 	
 	struct PMDVertex
 	{

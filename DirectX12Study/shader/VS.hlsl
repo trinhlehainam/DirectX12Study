@@ -4,12 +4,13 @@
 ///基本頂点シェーダ
 /// @param pos 頂点座標
 /// @return システム頂点座標
-VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL, min16uint2 boneno : BONENO, float weight : WEIGHT)
+VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL, min16uint2 boneno : BONENO, float weight : WEIGHT,
+	uint instanceID : SV_InstanceID)
 {
 	VsOutput ret;
 	matrix skinMat = bones[boneno.x] * weight + bones[boneno.y] * (1.0f - weight);
-	matrix warudo = mul(world, shadow);
-	ret.pos = mul(world, mul(skinMat,pos));
+	matrix warudo = instanceID == 0 ? world : mul(shadow, world);
+	ret.pos = mul(warudo, mul(skinMat,pos));
 	//ret.pos = mul(world,pos);
 	ret.svpos = mul(viewproj, ret.pos);
 	warudo = world;
@@ -20,5 +21,6 @@ VsOutput VS( float4 pos : POSITION, float2 uv : TEXCOORD, float4 normal : NORMAL
 	ret.uv = uv;
 	ret.boneno = boneno;
 	ret.weight = weight;
+	ret.instanceID = instanceID;
 	return ret;
 }

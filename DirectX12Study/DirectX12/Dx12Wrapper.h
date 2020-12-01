@@ -26,7 +26,7 @@ public:
 	bool Update();
 	void Terminate();
 private:
-	std::vector<std::shared_ptr<PMDModel>> pmdModel_;
+	std::vector<std::shared_ptr<PMDModel>> pmdModelList_;
 
 	ComPtr<ID3D12Device> dev_;
 	ComPtr<ID3D12CommandAllocator> cmdAlloc_;
@@ -34,6 +34,9 @@ private:
 	ComPtr<ID3D12CommandQueue> cmdQue_;
 	ComPtr<IDXGIFactory6> dxgi_;
 	ComPtr<IDXGISwapChain3> swapchain_;
+
+	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
+	uint64_t fenceValue_ = 0;
 
 	void CreateCommandFamily();
 	void CreateSwapChain(const HWND& hwnd);
@@ -48,8 +51,22 @@ private:
 	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
 	bool CreateDepthBuffer();
 
-	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
-	uint64_t fenceValue_ = 0;
+
+	// Depth Buffer for Shadow Map
+	void CreateShadowDepthEffect();
+
+	ComPtr<ID3D12Resource> shadowDepthBuffer_;
+	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
+	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
+	bool CreateShadowDepthBuffer();
+
+	ComPtr<ID3D12PipelineState> shadowPipeline_;
+	ComPtr<ID3D12RootSignature> shadowRootSig_;
+	void CreateShadowRootSignature();
+	void CreateShadowPipelineState();
+
+	void DrawShadow();
+
 
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 

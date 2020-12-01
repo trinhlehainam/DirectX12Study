@@ -35,10 +35,13 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	float4 color = renderTargetTex.Sample(smpWrap, input.uv);
 
 	if (color.a > 0.0f)
+	{
 		return color;
+	}	
 	else
 	{
 		float div = 100.0f;
+		return float4(1, 0, 0, 1);
 		return float4(fmod(input.uv, 1.0f / div) * div,1, 1);
 	}
 		

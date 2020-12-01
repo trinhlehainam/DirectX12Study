@@ -30,4 +30,5 @@ struct VsOutput
 	float2 uv:TEXCOORD;
 	min16uint2 boneno:BONENO;
 	float weight:WEIGHT;
+	uint instanceID:SV_InstanceID;
 };

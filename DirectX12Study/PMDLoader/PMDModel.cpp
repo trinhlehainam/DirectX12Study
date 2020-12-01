@@ -70,31 +70,33 @@ void PMDModel::CreateModel()
 	CreateModelPipeline();
 }
 
-void PMDModel::TransformModel(const DirectX::XMMATRIX& transformMatrix)
+void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 {
-	// Transform model position
-	// Transform normal vector WHEN rotation
-	for (auto& vertex : vertices_)
-	{
-		auto& pos = vertex.pos;
-		auto& normal = vertex.normal;
-		auto vecPos = XMLoadFloat3(&pos);
-		auto vecNormal = XMLoadFloat3(&normal);
-		vecPos = XMVector3Transform(vecPos, transformMatrix);
-		vecNormal = XMVector4Transform(vecNormal, transformMatrix);
-		XMStoreFloat3(&pos, vecPos);
-		XMStoreFloat3(&normal, vecNormal);
-	}
-	std::copy(vertices_.begin(), vertices_.end(), mappedVertex_);
+	//// Transform model position
+	//// Transform normal vector WHEN rotation
+	//for (auto& vertex : vertices_)
+	//{
+	//	auto& pos = vertex.pos;
+	//	auto& normal = vertex.normal;
+	//	auto vecPos = XMLoadFloat3(&pos);
+	//	auto vecNormal = XMLoadFloat3(&normal);
+	//	vecPos = XMVector3Transform(vecPos, transformMatrix);
+	//	vecNormal = XMVector4Transform(vecNormal, transformMatrix);
+	//	XMStoreFloat3(&pos, vecPos);
+	//	XMStoreFloat3(&normal, vecNormal);
+	//}
+	//std::copy(vertices_.begin(), vertices_.end(), mappedVertex_);
 
-	// Transform origin rotation position of skinning matrix
-	for (auto& bone : bones_)
-	{
-		auto& rotationPos = bone.pos;
-		auto vec = XMLoadFloat3(&rotationPos);
-		vec = XMVector3Transform(vec, transformMatrix);
-		XMStoreFloat3(&rotationPos, vec);
-	}
+	//// Transform origin rotation position of skinning matrix
+	//for (auto& bone : bones_)
+	//{
+	//	auto& rotationPos = bone.pos;
+	//	auto vec = XMLoadFloat3(&rotationPos);
+	//	vec = XMVector3Transform(vec, transformMatrix);
+	//	XMStoreFloat3(&rotationPos, vec);
+	//}
+
+	mappedBasicMatrix_->world *= transformMatrix;
 }
 
 void PMDModel::LoadMotion(const char* path)
@@ -129,7 +131,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 		cmdList->SetGraphicsRootDescriptorTable(1, materialHeapHandle);
 
 		cmdList->DrawIndexedInstanced(m.indices,
-			1,
+			2,
 			indexOffset,
 			0,
 			0);
@@ -137,6 +139,11 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);
 	}
 	/*-------------------------------------------*/
+}
+
+BasicMatrix* PMDModel::GetMappedMatrix()
+{
+	return mappedBasicMatrix_;
 }
 
 void PMDModel::GetDefaultTexture(ComPtr<ID3D12Resource>& whiteTexture, ComPtr<ID3D12Resource>& blackTexture, ComPtr<ID3D12Resource>& gradTexture)

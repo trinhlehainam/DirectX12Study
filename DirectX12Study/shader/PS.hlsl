@@ -17,7 +17,7 @@ float4 PS(VsOutput input) : SV_TARGET
 	float brightness = dot(input.norm.xyz, lightRay);			
 
 	float4 tn = toon.Sample(toonSmp, brightness);	// toon
-	float3 eyePos = float3(10.0f, 10.0f, 30.0f);
+	float3 eyePos = float3(10.0f, 10.0f, 10.0f);
 	float3 eyeRay = normalize(input.pos.xyz - eyePos);
 	float3 refectLight = reflect(lightRay, input.norm.xyz);
 	float sat = saturate(pow(saturate(dot(eyeRay, -refectLight)), specularity));	// saturate
@@ -25,8 +25,11 @@ float4 PS(VsOutput input) : SV_TARGET
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
 
-	return float4(max(ambient,tn  * diffuse) + specular * sat , alpha)
+	if (input.instanceID == 0)
+		return float4(max(ambient, tn * diffuse) + specular * sat, alpha)
 		* tex.Sample(smp, input.uv)
 		* sph.Sample(smp, sphereUV)
 		+ spa.Sample(smp, sphereUV);
+	else
+		return float4(0.3, 0.3, 0.3, 1);
 }

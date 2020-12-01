@@ -550,6 +550,238 @@ bool Dx12Wrapper::CreateDepthBuffer()
     return true;
 }
 
+void Dx12Wrapper::CreateShadowDepthEffect()
+{
+    CreateShadowDepthBuffer();
+    CreateShadowRootSignature();
+    CreateShadowPipelineState();
+}
+
+bool Dx12Wrapper::CreateShadowDepthBuffer()
+{
+    HRESULT result = S_OK;
+    auto rtvDesc = backBuffers_[0]->GetDesc();
+    const auto depth_resource_format = DXGI_FORMAT_D32_FLOAT;
+
+    CD3DX12_CLEAR_VALUE clearValue(
+        depth_resource_format                       // format
+        , 1.0f                                       // depth
+        , 0);                                        // stencil
+
+    shadowDepthBuffer_ = CreateTex2DBuffer(rtvDesc.Width, rtvDesc.Height,
+        D3D12_HEAP_TYPE_DEFAULT,
+        depth_resource_format,
+        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue);
+
+    CreateDescriptorHeap(shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dev_->CreateDepthStencilView(
+        shadowDepthBuffer_.Get(),
+        &dsvDesc,
+        shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
+
+    CreateDescriptorHeap(shadowSRVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
+    srvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dev_->CreateShaderResourceView(
+        shadowDepthBuffer_.Get(),
+        &srvDesc, 
+        shadowSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+
+    return true;
+}
+
+void Dx12Wrapper::CreateShadowRootSignature()
+{
+    HRESULT result = S_OK;
+    //Root Signature
+    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
+    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    // Descriptor table
+    D3D12_DESCRIPTOR_RANGE range[2] = {};
+    // transform and bone
+    range[0] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
+        2,                                      // number of descriptors
+        0);                                     // base shader register
+
+    range[1] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
+        1,                                      // number of descriptors
+        0);
+
+    D3D12_ROOT_PARAMETER rootParam[2] = {};
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0],D3D12_SHADER_VISIBILITY_VERTEX);
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[1],D3D12_SHADER_VISIBILITY_PIXEL);
+
+    rtSigDesc.pParameters = rootParam;
+    rtSigDesc.NumParameters = _countof(rootParam);
+
+    ComPtr<ID3DBlob> rootSigBlob;
+    ComPtr<ID3DBlob> errBlob;
+    result = D3D12SerializeRootSignature(&rtSigDesc,
+        D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
+        &rootSigBlob,
+        &errBlob);
+    OutputFromErrorBlob(errBlob);
+    assert(SUCCEEDED(result));
+    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
+        IID_PPV_ARGS(shadowRootSig_.GetAddressOf()));
+    assert(SUCCEEDED(result));
+}
+
+void Dx12Wrapper::CreateShadowPipelineState()
+{
+    HRESULT result = S_OK;
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    //IA(Input-Assembler...つまり頂点入力)
+    //まず入力レイアウト（ちょうてんのフォーマット）
+
+    D3D12_INPUT_ELEMENT_DESC layout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    {
+    "NORMAL",
+    0,
+    DXGI_FORMAT_R32G32B32_FLOAT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+        // UV layout
+        {
+        "TEXCOORD",
+        0,
+        DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
+        0,
+        D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        0
+        },
+        {
+        "BONENO",
+        0,
+        DXGI_FORMAT_R16G16_UINT,
+        0,
+        D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        0
+        },
+        {
+        "WEIGHT",
+        0,
+        DXGI_FORMAT_R32_FLOAT,
+        0,
+        D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        0
+        }
+    };
+
+
+    // Input Assembler
+    psoDesc.InputLayout.NumElements = _countof(layout);
+    psoDesc.InputLayout.pInputElementDescs = layout;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    // Vertex Shader
+    ComPtr<ID3DBlob> errBlob;
+    ComPtr<ID3DBlob> vsBlob;
+    result = D3DCompileFromFile(
+        L"shader/ShadowVS.hlsl",                                  // path to shader file
+        nullptr,                                            // define marcro object 
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
+        "ShadowVS",                                               // entry name
+        "vs_5_1",                                           // shader version
+        0, 0,                                               // Flag1, Flag2 (unknown)
+        vsBlob.GetAddressOf(),
+        errBlob.GetAddressOf());
+    OutputFromErrorBlob(errBlob);
+    assert(SUCCEEDED(result));
+    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
+
+    // Rasterizer
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+    // Pixel Shader
+    ComPtr<ID3DBlob> psBlob;
+    result = D3DCompileFromFile(
+        L"shader/ShadowPS.hlsl",                              // path to shader file
+        nullptr,                                        // define marcro object 
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
+        "ShadowPS",                                           // entry name
+        "ps_5_1",                                       // shader version
+        0, 0,                                           // Flag1, Flag2 (unknown)
+        psBlob.GetAddressOf(),
+        errBlob.GetAddressOf());
+    OutputFromErrorBlob(errBlob);
+    assert(SUCCEEDED(result));
+    psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+
+    // Other set up
+
+    // Depth/Stencil
+    psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
+    psoDesc.NodeMask = 0;
+    psoDesc.SampleDesc.Count = 1;
+    psoDesc.SampleDesc.Quality = 0;
+    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+    // Output set up
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    // Blend
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+    psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //※ color : ABGR
+
+    // Root Signature
+    psoDesc.pRootSignature = shadowRootSig_.Get();
+
+    result = dev_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(shadowPipeline_.GetAddressOf()));
+    assert(SUCCEEDED(result));
+
+}
+
+void Dx12Wrapper::DrawShadow()
+{
+    cmdList_->SetPipelineState(shadowPipeline_.Get());
+    XMVECTOR camPos = { -10,10,10,1 };
+    XMVECTOR targetPos = { 10,0,0,1 };
+    auto screenSize = Application::Instance().GetWindowSize();
+
+    for (auto& model : pmdModelList_)
+    {
+        auto mappedMatrix = model->GetMappedMatrix();
+        mappedMatrix->viewproj = XMMatrixLookAtRH(camPos, targetPos, { 0,1,0,0 }) *
+            XMMatrixOrthographicRH(screenSize.width, screenSize.height, 0.1f, 300.f);
+    }
+}
+
 ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
@@ -661,9 +893,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -686,32 +918,29 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     CreateSwapChain(hwnd);
     CreateRenderTargetViews();
     CreateDepthBuffer();  
-
     CreatePostEffectTexture();
-    
+    CreateShadowDepthEffect();
     CreateDefaultTexture();
 
-    
+    pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
+    pmdModelList_[0]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
+    pmdModelList_[0]->LoadPMD(model1_path);
+    pmdModelList_[0]->CreateModel();
+    pmdModelList_[0]->LoadMotion(motion1_path);
 
-    pmdModel_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModel_[0]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModel_[0]->LoadPMD(model1_path);
-    pmdModel_[0]->CreateModel();
-    pmdModel_[0]->LoadMotion(motion1_path);
+    pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
+    pmdModelList_[1]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
+    pmdModelList_[1]->LoadPMD(model2_path);
+    pmdModelList_[1]->CreateModel();
+    pmdModelList_[1]->LoadMotion(motion2_path);
+    pmdModelList_[1]->Transform(XMMatrixTranslation(10, 0, -10));
 
-    pmdModel_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModel_[1]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModel_[1]->LoadPMD(model2_path);
-    pmdModel_[1]->CreateModel();
-    pmdModel_[1]->LoadMotion(motion2_path);
-    pmdModel_[1]->TransformModel(XMMatrixTranslation(10, 0, 5));
-
-    pmdModel_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModel_[2]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModel_[2]->LoadPMD(model3_path);
-    pmdModel_[2]->CreateModel();
-    pmdModel_[2]->LoadMotion(motion2_path);
-    pmdModel_[2]->TransformModel(XMMatrixTranslation(-15, 0, 5));
+    pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
+    pmdModelList_[2]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
+    pmdModelList_[2]->LoadPMD(model3_path);
+    pmdModelList_[2]->CreateModel();
+    pmdModelList_[2]->LoadMotion(motion2_path);
+    pmdModelList_[2]->Transform(XMMatrixTranslation(-15, 0, 5));
     
     return true;
 }
@@ -726,6 +955,7 @@ bool Dx12Wrapper::Update()
         frameNO++;
         timer = animation_speed;
         scalar += 0.05;
+        angle = 0.01f;
     }
     timer -= deltaTime;
 
@@ -734,6 +964,7 @@ bool Dx12Wrapper::Update()
     *time_ = scalar;
 
     
+
     // Clear commands and open
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_.Get(), nullptr);
@@ -769,10 +1000,13 @@ bool Dx12Wrapper::Update()
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     cmdList_->RSSetScissorRects(1, &rc);
 
-    for (const auto& model : pmdModel_)
+    DrawShadow();
+
+    for (const auto& model : pmdModelList_)
     {
         model->Render(cmdList_, frameNO);
     }
+    
     
     /*-------------------------------------------*/
 
