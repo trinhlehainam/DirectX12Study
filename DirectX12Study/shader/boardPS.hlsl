@@ -19,8 +19,6 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	//		renderTargetTex.Sample(smpWrap, input.uv + float2(dt.x, 0)) +							// right
 	//		renderTargetTex.Sample(smpWrap, input.uv + float2(-dt.x, 0)));						// left
 
-
-
 	float2 nmUV = input.uv -0.5;
 	nmUV /= time;
 	nmUV += 0.5;

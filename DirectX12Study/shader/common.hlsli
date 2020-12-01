@@ -28,7 +28,15 @@ struct VsOutput
 	float4 pos:POSITION;
 	float4 norm:NORMAL;
 	float2 uv:TEXCOORD;
-	min16uint2 boneno:BONENO;
-	float weight:WEIGHT;
+	uint instanceID:SV_InstanceID;
+};
+
+struct VsInput
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD;
+	float4 normal : NORMAL;
+	min16uint2 boneno : BONENO;
+	float weight : WEIGHT;
 	uint instanceID:SV_InstanceID;
 };
