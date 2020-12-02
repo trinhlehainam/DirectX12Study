@@ -12,7 +12,7 @@ namespace
 
 Application::Application()
 {
-
+	SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 }
 
 Application::~Application() = default;
@@ -153,5 +153,16 @@ void Application::Terminate()
 
 Size Application::GetWindowSize() const
 {
-	return { WINDOW_WIDTH,WINDOW_HEIGHT };
+	return { clientWidth_,clientHeight_ };
+}
+
+float Application::GetAspectRatio() const
+{
+	return static_cast<float>(clientWidth_)/clientHeight_;
+}
+
+void Application::SetWindowSize(const size_t& width, const size_t& height)
+{
+	clientHeight_ = height;
+	clientWidth_ = width;
 }

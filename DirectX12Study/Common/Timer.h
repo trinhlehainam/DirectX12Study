@@ -1,8 +1,8 @@
 #pragma once
-class GameTimer
+class Timer
 {
 public:
-	GameTimer();
+	Timer();
 
 	float GameTime() const; // in seconds
 	float DeltaTime() const; // in seconds

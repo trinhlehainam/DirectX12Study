@@ -1,7 +1,7 @@
-#include "GameTimer.h"
+#include "Timer.h"
 #include <windows.h>
 
-GameTimer::GameTimer():mSecondsPerCount(0.0),mDeltaTime(-1.0),
+Timer::Timer():mSecondsPerCount(0.0),mDeltaTime(-1.0),
 mBaseTime(0),mPausedTime(0),mStopTime(0),mPrevTime(0),mCurrTime(0)
 {
 	__int64 countsPerSecond = 0;
@@ -9,17 +9,17 @@ mBaseTime(0),mPausedTime(0),mStopTime(0),mPrevTime(0),mCurrTime(0)
 	mSecondsPerCount = 1.0 / static_cast<double>(countsPerSecond);
 }
 
-float GameTimer::GameTime() const
+float Timer::GameTime() const
 {
 	return 0.0f;
 }
 
-float GameTimer::DeltaTime() const
+float Timer::DeltaTime() const
 {
 	return static_cast<float>(mDeltaTime);
 }
 
-void GameTimer::Reset()
+void Timer::Reset()
 {
 	QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&mCurrTime));
 
@@ -29,7 +29,7 @@ void GameTimer::Reset()
 	mIsStopped = false;
 }
 
-void GameTimer::Start()
+void Timer::Start()
 {
 	// -------------||------------|>--------------->
 	// Base		  Stop<---------->Start		    Current
@@ -51,7 +51,7 @@ void GameTimer::Start()
 	}
 }
 
-void GameTimer::Stop()
+void Timer::Stop()
 {
 	// When it's already stopped (mIsStopped = true), DO NOT THING
 	// Else
@@ -62,7 +62,7 @@ void GameTimer::Stop()
 	}
 }
 
-void GameTimer::Tick()
+void Timer::Tick()
 {
 	if (mIsStopped)
 	{
@@ -79,7 +79,7 @@ void GameTimer::Tick()
 	if (mDeltaTime < 0.0) mDeltaTime = 0.0;
 }
 
-float GameTimer::TotalTime() const
+float Timer::TotalTime() const
 {
 	// when the timer is stopped, DO NOT COUNT the time has passed since timer stopped
 

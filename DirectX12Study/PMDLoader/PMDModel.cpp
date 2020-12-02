@@ -1,6 +1,7 @@
 #include "PMDModel.h"
 #include "../Application.h"
 #include "../VMDLoader/VMDMotion.h"
+#include "../DirectX12/Dx12Helper.h"
 #include <stdio.h>
 #include <Windows.h>
 #include <array>
@@ -342,58 +343,11 @@ bool PMDModel::LoadPMD(const char* path)
 	return true;
 }
 
-ComPtr<ID3D12Resource> PMDModel::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
-{
-	auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-	auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-	ComPtr<ID3D12Resource> buffer;
-	auto result = dev_->CreateCommittedResource(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&rsDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf()));
-	assert(SUCCEEDED(result));
-	return buffer;
-}
-
-ComPtr<ID3D12Resource> PMDModel::CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE heapType, DXGI_FORMAT texFormat,
-	D3D12_RESOURCE_FLAGS flag, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE* clearValue)
-{
-	auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-	auto rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height, 1, 0, 1, 0, flag);
-	ComPtr<ID3D12Resource> buffer;
-	auto result = dev_->CreateCommittedResource(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&rsDesc,
-		state,
-		clearValue,
-		IID_PPV_ARGS(buffer.GetAddressOf())
-	);
-	assert(SUCCEEDED(result));
-	return buffer;
-}
-
-bool PMDModel::CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap, UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType,
-	bool isShaderVisible, UINT nodeMask)
-{
-	D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
-	descHeap.NodeMask = 0;
-	descHeap.Flags = isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	descHeap.NumDescriptors = numDesciprtor;
-	descHeap.Type = heapType;
-	auto result = dev_->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf()));
-	assert(SUCCEEDED(result));
-	return false;
-}
-
 void PMDModel::CreateVertexBuffer()
 {
 	HRESULT result = S_OK;
 
-	vertexBuffer_ = CreateBuffer(sizeof(vertices_[0]) * vertices_.size());
+	vertexBuffer_ = Dx12Helper::CreateBuffer(dev_, sizeof(vertices_[0]) * vertices_.size());
 
 	result = vertexBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertex_));
 	std::copy(std::begin(vertices_), std::end(vertices_), mappedVertex_);
@@ -408,7 +362,7 @@ void PMDModel::CreateIndexBuffer()
 {
 	HRESULT result = S_OK;
 
-	indicesBuffer_ = CreateBuffer(sizeof(indices_[0]) * indices_.size());
+	indicesBuffer_ = Dx12Helper::CreateBuffer(dev_, sizeof(indices_[0]) * indices_.size());
 
 	ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
 	ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
@@ -425,9 +379,9 @@ bool PMDModel::CreateTransformBuffer()
 {
 	HRESULT result = S_OK;
 
-	CreateDescriptorHeap(transformDescHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12Helper::CreateDescriptorHeap(dev_, transformDescHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-	transformBuffer_ = CreateBuffer(AlignedValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	transformBuffer_ = Dx12Helper::CreateBuffer(dev_, AlignedValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 
 	auto wSize = Application::Instance().GetWindowSize();
 	XMMATRIX tempMat = XMMatrixIdentity();
@@ -482,7 +436,7 @@ bool PMDModel::CreateBoneBuffer()
 	// take bone's name and bone's index to boneTable
 	// <bone's name, bone's index>
 
-	boneBuffer_ = CreateBuffer(AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	boneBuffer_ = Dx12Helper::CreateBuffer(dev_, AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
 
 	UpdateMotionTransform();
@@ -518,9 +472,9 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 	auto strideBytes = AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
-	materialBuffer_ = CreateBuffer(materials_.size() * strideBytes);
+	materialBuffer_ = Dx12Helper::CreateBuffer(dev_, materials_.size() * strideBytes);
 
-	CreateDescriptorHeap(materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12Helper::CreateDescriptorHeap(dev_, materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
 	auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -672,7 +626,7 @@ bool PMDModel::CreatePipelineStateObject()
 		0, 0,                                               // Flag1, Flag2 (unknown)
 		vsBlob.GetAddressOf(),
 		errBlob.GetAddressOf());
-	OutputFromErrorBlob(errBlob);
+	Dx12Helper::OutputFromErrorBlob(errBlob);
 	assert(SUCCEEDED(result));
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
@@ -692,7 +646,7 @@ bool PMDModel::CreatePipelineStateObject()
 		0, 0,                                           // Flag1, Flag2 (unknown)
 		psBlob.GetAddressOf(),
 		errBlob.GetAddressOf());
-	OutputFromErrorBlob(errBlob);
+	Dx12Helper::OutputFromErrorBlob(errBlob);
 	assert(SUCCEEDED(result));
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
@@ -880,7 +834,7 @@ void PMDModel::CreateRootSignature()
 		D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
 		&rootSigBlob,
 		&errBlob);
-	OutputFromErrorBlob(errBlob);
+	Dx12Helper::OutputFromErrorBlob(errBlob);
 	assert(SUCCEEDED(result));
 	result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(rootSig_.GetAddressOf()));
 	assert(SUCCEEDED(result));
@@ -902,18 +856,6 @@ void PMDModel::CreateModelPipeline()
 {
 	CreateRootSignature();
 	CreatePipelineStateObject();
-}
-
-void PMDModel::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
-{
-	if (errBlob != nullptr)
-	{
-		std::string errStr = "";
-		auto errSize = errBlob->GetBufferSize();
-		errStr.resize(errSize);
-		std::copy_n((char*)errBlob->GetBufferPointer(), errSize, errStr.begin());
-		OutputDebugStringA(errStr.c_str());
-	}
 }
 
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)

@@ -51,15 +51,6 @@ private:
 	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
 	bool CreateDepthBuffer();
 
-
-	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
-
-	ComPtr<ID3D12Resource> CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
-		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
-
-	bool CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap, UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
-		bool isShaderVisible = false, UINT nodeMask = 0);
-
 	// White Texture
 	ComPtr<ID3D12Resource> whiteTexture_;
 	ComPtr<ID3D12Resource> blackTexture_;

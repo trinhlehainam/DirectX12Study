@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "common.h"
-#include "Common/GameTimer.h"
+#include "Common/Timer.h"
 
 class Dx12Wrapper;
 
@@ -18,13 +18,19 @@ public:
 	bool Initialize();
 	void Run();
 	void Terminate();
+
 	Size GetWindowSize() const;
+	float GetAspectRatio() const;
+	void SetWindowSize(const size_t& width, const size_t& height);
 private:
 	HINSTANCE inst_;
 	HWND wndHandle_;
 	std::unique_ptr<Dx12Wrapper> dxWrapper_;
 	bool isRunning_;
-	GameTimer timer_;
+	Timer timer_;
+
+	size_t clientWidth_ = 800;
+	size_t clientHeight_ = 600;
 
 	Application();
 	Application(const Application&) = delete;

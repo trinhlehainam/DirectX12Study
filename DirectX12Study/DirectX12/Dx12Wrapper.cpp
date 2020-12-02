@@ -2,6 +2,7 @@
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../VMDLoader/VMDMotion.h"
+#include "Dx12Helper.h"
 #include <cassert>
 #include <algorithm>
 #include <unordered_map>
@@ -157,9 +158,9 @@ void Dx12Wrapper::CreateDefaultTexture()
     HRESULT result = S_OK;
 
     // ì]ëóêÊ
-    whiteTexture_ = CreateTex2DBuffer(4, 4);
-    blackTexture_ = CreateTex2DBuffer(4, 4);
-    gradTexture_ = CreateTex2DBuffer(4, 4);
+    whiteTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
+    blackTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
+    gradTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
 
     struct Color
     {
@@ -194,7 +195,7 @@ void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3
 {
 
     auto uploadBufferSize = GetRequiredIntermediateSize(texBuffer, 0, 1);
-    ComPtr<ID3D12Resource> intermediateBuffer = CreateBuffer(uploadBufferSize);
+    ComPtr<ID3D12Resource> intermediateBuffer = Dx12Helper::CreateBuffer(dev_,uploadBufferSize);
 
     auto dst = CD3DX12_TEXTURE_COPY_LOCATION(texBuffer);
     // íÜÇ≈cmdList->CopyTextureRegionÇ™ëñÇ¡ÇƒÇ¢ÇÈÇΩÇﬂ
@@ -219,12 +220,12 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     auto rsDesc = backBuffers_[0]->GetDesc();
     float color[] = { 1.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = CreateTex2DBuffer(rsDesc.Width, rsDesc.Height, 
+    rtTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,rsDesc.Width, rsDesc.Height, 
         D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, 
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    CreateDescriptorHeap(passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(dev_,passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -234,7 +235,7 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     dev_->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
 
     // SRV
-    CreateDescriptorHeap(passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(dev_,passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -254,7 +255,7 @@ void Dx12Wrapper::CreateBoardPolygonVertices()
                         {1.0f,-1.0f,0},                 // bottom right
                         {-1.0f,1.0f,0},                 // top left
                         {1.0f,1.0f,0} };                // top right
-    boardPolyVert_ = CreateBuffer(sizeof(vert));
+    boardPolyVert_ = Dx12Helper::CreateBuffer(dev_,sizeof(vert));
 
     XMFLOAT3* mappedData = nullptr;
     auto result = boardPolyVert_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
@@ -395,7 +396,7 @@ void Dx12Wrapper::CreateShadowMapView()
 void Dx12Wrapper::CreateTimeBuffer()
 {
     auto strideBytes = AlignedValue(sizeof(float), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-    timeBuffer_ = CreateBuffer(strideBytes);
+    timeBuffer_ = Dx12Helper::CreateBuffer(dev_,strideBytes);
 
     timeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&time_));
 
@@ -520,7 +521,7 @@ bool Dx12Wrapper::CreateRenderTargetViews()
     DXGI_SWAP_CHAIN_DESC1 swDesc = {};
     swapchain_->GetDesc1(&swDesc);
     
-    CreateDescriptorHeap(bbRTVHeap_, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(dev_, bbRTVHeap_, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     backBuffers_.resize(back_buffer_count);
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -552,14 +553,14 @@ bool Dx12Wrapper::CreateDepthBuffer()
         ,1.0f                                       // depth
         ,0);                                        // stencil
 
-    depthBuffer_ = CreateTex2DBuffer(rtvDesc.Width, rtvDesc.Height,
+    depthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_, rtvDesc.Width, rtvDesc.Height,
         D3D12_HEAP_TYPE_DEFAULT, 
         depth_resource_format,
         D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, 
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    CreateDescriptorHeap(dsvHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(dev_, dsvHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -591,14 +592,14 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    shadowDepthBuffer_ = CreateTex2DBuffer(rtvDesc.Width, rtvDesc.Height,
+    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_, rtvDesc.Width, rtvDesc.Height,
         D3D12_HEAP_TYPE_DEFAULT,
         DXGI_FORMAT_R32_TYPELESS,
         D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    CreateDescriptorHeap(shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(dev_, shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
@@ -608,7 +609,7 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         &dsvDesc,
         shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
 
-    CreateDescriptorHeap(shadowSRVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(dev_, shadowSRVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
@@ -802,53 +803,6 @@ void Dx12Wrapper::DrawShadow()
     CD3DX12_GPU_DESCRIPTOR_HANDLE heapHandle(shadowSRVHeap_->GetGPUDescriptorHandleForHeapStart());
     cmdList_->SetGraphicsRootDescriptorTable(0, heapHandle);
 
-}
-
-ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
-{
-    auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-    auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    ComPtr<ID3D12Resource> buffer;
-    auto result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf()));
-    assert(SUCCEEDED(result));
-    return buffer;
-}
-
-ComPtr<ID3D12Resource> Dx12Wrapper::CreateTex2DBuffer(UINT64 width, UINT height, D3D12_HEAP_TYPE heapType, DXGI_FORMAT texFormat,
-    D3D12_RESOURCE_FLAGS flag, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE* clearValue)
-{
-    auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-    auto rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height, 1, 0, 1, 0, flag);
-    ComPtr<ID3D12Resource> buffer;
-    auto result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        state,
-        clearValue,
-        IID_PPV_ARGS(buffer.GetAddressOf())
-    );
-    assert(SUCCEEDED(result));
-    return buffer;
-}
-
-bool Dx12Wrapper::CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap, UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
-    bool isShaderVisible, UINT nodeMask)
-{
-    D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
-    descHeap.NodeMask = 0;
-    descHeap.Flags = isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    descHeap.NumDescriptors = numDesciprtor;
-    descHeap.Type = heapType;
-    auto result = dev_->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf()));
-    assert(SUCCEEDED(result));
-	return false;
 }
 
 void Dx12Wrapper::FlushCommandQueue()

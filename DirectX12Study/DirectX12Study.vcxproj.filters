@@ -33,7 +33,10 @@
     <ClCompile Include="VMDLoader\VMDMotion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\GameTimer.cpp">
+    <ClCompile Include="Common\Timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\Dx12Helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -56,7 +59,10 @@
     <ClInclude Include="VMDLoader\VMDMotion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\GameTimer.h">
+    <ClInclude Include="Common\Timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\Dx12Helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
