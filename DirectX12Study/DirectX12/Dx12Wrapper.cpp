@@ -84,11 +84,6 @@ namespace
     constexpr float scale_speed = 1;
 }
 
-unsigned int AlignedValue(unsigned int value, unsigned int align)
-{
-    return value + (align - (value % align)) % align;
-}
-
 void Dx12Wrapper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
 {
     if (errBlob != nullptr)
@@ -395,7 +390,7 @@ void Dx12Wrapper::CreateShadowMapView()
 
 void Dx12Wrapper::CreateTimeBuffer()
 {
-    auto strideBytes = AlignedValue(sizeof(float), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    auto strideBytes = Dx12Helper::AlignedConstantBufferMemory(sizeof(float));
     timeBuffer_ = Dx12Helper::CreateBuffer(dev_,strideBytes);
 
     timeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&time_));

@@ -60,3 +60,29 @@ void Dx12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
         OutputDebugStringA(errStr.c_str());
     }
 }
+
+uint16_t Dx12Helper::AlignedValue(uint16_t value, uint16_t align)
+{
+    return (value + align - 1) & ~(align - 1);
+    return value + (align - (value % align)) % align;
+}
+
+uint16_t Dx12Helper::AlignedConstantBufferMemory(uint16_t byteSize)
+{
+    return AlignedValue(byteSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+}
+
+void Dx12Helper::ThrowIfFailed(HRESULT hr)
+{
+    if (FAILED(hr))
+        throw HrException(hr);
+}
+
+HrException::HrException(HRESULT hr):std::runtime_error(HrToString(hr)),m_hr(hr)
+{
+}
+
+HRESULT HrException::Error() const
+{
+    return m_hr;
+}

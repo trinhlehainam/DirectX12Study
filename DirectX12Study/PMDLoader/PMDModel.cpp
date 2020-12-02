@@ -21,11 +21,6 @@ namespace
 
 namespace
 {
-	unsigned int AlignedValue(unsigned int value, unsigned int align)
-	{
-		return value + (align - (value % align)) % align;
-	}
-
 	std::wstring ConvertStringToWideString(const std::string& str)
 	{
 		std::wstring ret;
@@ -401,7 +396,7 @@ bool PMDModel::CreateTransformBuffer()
 
 	Dx12Helper::CreateDescriptorHeap(dev_, transformDescHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-	transformBuffer_ = Dx12Helper::CreateBuffer(dev_, AlignedValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	transformBuffer_ = Dx12Helper::CreateBuffer(dev_, Dx12Helper::AlignedConstantBufferMemory(sizeof(BasicMatrix)));
 
 	auto wSize = Application::Instance().GetWindowSize();
 	XMMATRIX tempMat = XMMatrixIdentity();
@@ -456,7 +451,7 @@ bool PMDModel::CreateBoneBuffer()
 	// take bone's name and bone's index to boneTable
 	// <bone's name, bone's index>
 
-	boneBuffer_ = Dx12Helper::CreateBuffer(dev_, AlignedValue(sizeof(XMMATRIX) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	boneBuffer_ = Dx12Helper::CreateBuffer(dev_, Dx12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
 	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
 
 	UpdateMotionTransform();
@@ -490,7 +485,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 {
 	HRESULT result = S_OK;
 
-	auto strideBytes = AlignedValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	auto strideBytes = Dx12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
 
 	materialBuffer_ = Dx12Helper::CreateBuffer(dev_, materials_.size() * strideBytes);
 

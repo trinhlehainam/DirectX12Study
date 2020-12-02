@@ -1,4 +1,5 @@
 #include <d3dx12.h>
+#include <stdexcept>
 
 using Microsoft::WRL::ComPtr;
 
@@ -14,4 +15,26 @@ public:
 		UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool isShaderVisible = false, UINT nodeMask = 0);
 
 	static void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
+
+	static uint16_t AlignedValue(uint16_t value, uint16_t align);
+	
+	static uint16_t AlignedConstantBufferMemory(uint16_t byzeSize);
+
+	static void ThrowIfFailed(HRESULT result);
+};
+
+inline std::string HrToString(HRESULT hr)
+{
+	char s_str[64] = {};
+	sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
+	return std::string(s_str);
+}
+
+class HrException : public std::runtime_error
+{
+public:
+	HrException(HRESULT hr);
+	HRESULT Error() const;
+private:
+	HRESULT m_hr;
 };
