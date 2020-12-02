@@ -12,6 +12,7 @@ struct BasicMatrix {
 	DirectX::XMMATRIX viewproj;
 	DirectX::XMVECTOR lightPos;
 	DirectX::XMMATRIX shadow;
+	DirectX::XMMATRIX lightViewProj;
 };
 
 struct BasicMaterial {

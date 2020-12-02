@@ -371,6 +371,27 @@ void Dx12Wrapper::CreateNormalMapTexture()
     dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
 }
 
+void Dx12Wrapper::CreateShadowMapView()
+{
+    HRESULT result = S_OK;
+    auto rsDesc = backBuffers_[0]->GetDesc();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+    heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
+    srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
+    dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
+}
+
 void Dx12Wrapper::CreateTimeBuffer()
 {
     auto strideBytes = AlignedValue(sizeof(float), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
@@ -382,7 +403,7 @@ void Dx12Wrapper::CreateTimeBuffer()
     cbvDesc.BufferLocation = timeBuffer_->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = strideBytes;
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
-    heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    heapHandle.Offset(3, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
     dev_->CreateConstantBufferView(&cbvDesc, heapHandle);
 }
 
@@ -394,7 +415,7 @@ void Dx12Wrapper::CreateBoardRootSignature()
 
     D3D12_DESCRIPTOR_RANGE range[2] = {};
 
-    range[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
+    range[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
     range[1] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
     D3D12_ROOT_PARAMETER parameter[2] = {};
     CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
@@ -632,7 +653,7 @@ void Dx12Wrapper::CreateShadowRootSignature()
     rtSigDesc.NumParameters = _countof(rootParam);
 
     D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0, D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR);
+    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
 
     rtSigDesc.pStaticSamplers = samplerDesc;
     rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
@@ -759,8 +780,6 @@ void Dx12Wrapper::CreateShadowPipelineState()
     psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
     // Output set up
-    psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     // Blend
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
@@ -775,17 +794,14 @@ void Dx12Wrapper::CreateShadowPipelineState()
 void Dx12Wrapper::DrawShadow()
 {
     cmdList_->SetPipelineState(shadowPipeline_.Get());
-    XMVECTOR camPos = { -10,30,30,1 };
-    XMVECTOR targetPos = { 10,0,0,1 };
-    auto screenSize = Application::Instance().GetWindowSize();
-    float aspect = static_cast<float>(screenSize.width) / screenSize.height;
+    cmdList_->SetGraphicsRootSignature(shadowRootSig_.Get());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
+    cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
 
-    for (auto& model : pmdModelList_)
-    {
-        auto mappedMatrix = model->GetMappedMatrix();
-        mappedMatrix->viewproj = XMMatrixLookAtRH(camPos, targetPos, { 0,1,0,0 }) *
-            XMMatrixPerspectiveFovRH(XM_PIDIV2, aspect, 0.1f, 300.f);
-    }
+    cmdList_->SetDescriptorHeaps(1, shadowSRVHeap_.GetAddressOf());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE heapHandle(shadowSRVHeap_->GetGPUDescriptorHandleForHeapStart());
+    cmdList_->SetGraphicsRootDescriptorTable(0, heapHandle);
+
 }
 
 ComPtr<ID3D12Resource> Dx12Wrapper::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType)
@@ -851,6 +867,7 @@ void Dx12Wrapper::CreatePostEffectTexture()
     CreateBoardPolygonVertices();
     CreateViewForRenderTargetTexture();
     CreateNormalMapTexture();
+    CreateShadowMapView();
     CreateTimeBuffer();
     CreateBoardRootSignature();
     CreateBoardPipeline();
@@ -899,9 +916,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -966,8 +983,6 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     auto test = *time_;
     *time_ = scalar;
 
-    
-
     // Clear commands and open
     cmdAlloc_->Reset();
     cmdList_->Reset(cmdAlloc_.Get(), nullptr);
@@ -1003,12 +1018,13 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     cmdList_->RSSetScissorRects(1, &rc);
 
-    DrawShadow();
+    
 
     for (const auto& model : pmdModelList_)
     {
         model->Render(cmdList_, frameNO);
     }
+    DrawShadow();
     
     
     /*-------------------------------------------*/

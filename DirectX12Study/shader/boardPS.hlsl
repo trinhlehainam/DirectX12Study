@@ -2,6 +2,7 @@
 
 Texture2D<float4> renderTargetTex:register (t0);
 Texture2D<float4> normalMapTex:register (t1);
+Texture2D<float> shadowMapDepth:register (t2);
 SamplerState smpWrap:register(s0);
 SamplerState smpClamp:register(s1);
 

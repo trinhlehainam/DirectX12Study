@@ -51,20 +51,6 @@ private:
 	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
 	bool CreateDepthBuffer();
 
-	// Depth Buffer for Shadow Map
-	void CreateShadowMapping();
-
-	ComPtr<ID3D12Resource> shadowDepthBuffer_;
-	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
-	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
-	bool CreateShadowDepthBuffer();
-
-	ComPtr<ID3D12PipelineState> shadowPipeline_;
-	ComPtr<ID3D12RootSignature> shadowRootSig_;
-	void CreateShadowRootSignature();
-	void CreateShadowPipelineState();
-
-	void DrawShadow();
 
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
@@ -112,6 +98,23 @@ private:
 
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
+
+	void CreateShadowMapView();
+
+	// ShadowMapping
+	void CreateShadowMapping();
+
+	ComPtr<ID3D12Resource> shadowDepthBuffer_;
+	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
+	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
+	bool CreateShadowDepthBuffer();
+
+	ComPtr<ID3D12PipelineState> shadowPipeline_;
+	ComPtr<ID3D12RootSignature> shadowRootSig_;
+	void CreateShadowRootSignature();
+	void CreateShadowPipelineState();
+
+	void DrawShadow();
 
 	float* time_ = nullptr;
 	ComPtr<ID3D12Resource> timeBuffer_;

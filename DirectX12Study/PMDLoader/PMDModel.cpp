@@ -427,7 +427,7 @@ bool PMDModel::CreateTransformBuffer()
 
 	CreateDescriptorHeap(transformDescHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-	transformBuffer_ = CreateBuffer(AlignedValue(sizeof(PMDVertex), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	transformBuffer_ = CreateBuffer(AlignedValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 
 	auto wSize = Application::Instance().GetWindowSize();
 	XMMATRIX tempMat = XMMatrixIdentity();
@@ -453,9 +453,17 @@ bool PMDModel::CreateTransformBuffer()
 	mappedBasicMatrix_->viewproj = viewproj;
 	mappedBasicMatrix_->world = world;
 	XMVECTOR plane = { 0,1,0,0 };
-	XMVECTOR light = { -1,1,1,0 };
+	XMVECTOR light = { -1,1,-1,0 };
 	mappedBasicMatrix_->lightPos = light;
 	mappedBasicMatrix_->shadow = XMMatrixShadow(plane, light);
+
+	XMVECTOR lightPos = { -10,30,30,1 };
+	XMVECTOR targetPos = { 10,0,0,1 };
+	auto screenSize = Application::Instance().GetWindowSize();
+	float aspect = static_cast<float>(screenSize.width) / screenSize.height;
+	mappedBasicMatrix_->lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
+		XMMatrixOrthographicRH(100.f, 100.f, 0.1f, 300.f);
+
 	transformBuffer_->Unmap(0, nullptr);
 
 	auto cbDesc = transformBuffer_->GetDesc();
