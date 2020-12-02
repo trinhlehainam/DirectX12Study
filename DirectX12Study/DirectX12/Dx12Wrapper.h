@@ -73,7 +73,7 @@ private:
 	// Create texture from PMD file
 	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
 
-	void GPUCPUSync();
+	void FlushCommandQueue();
 
 	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 

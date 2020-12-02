@@ -210,7 +210,7 @@ void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3
 
     cmdList_->Close();
     cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
-    GPUCPUSync();
+    FlushCommandQueue();
 }
 
 void Dx12Wrapper::CreateViewForRenderTargetTexture()
@@ -851,7 +851,7 @@ bool Dx12Wrapper::CreateDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorH
 	return false;
 }
 
-void Dx12Wrapper::GPUCPUSync()
+void Dx12Wrapper::FlushCommandQueue()
 {
     cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList* const*)cmdList_.GetAddressOf());
     cmdQue_->Signal(fence_.Get(), ++fenceValue_);
@@ -916,9 +916,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1069,7 +1069,7 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     /*-----------------------------------------------------------*/
 
     cmdList_->Close();
-    GPUCPUSync();
+    FlushCommandQueue();
 
     // screen flip
     swapchain_->Present(0, 0);

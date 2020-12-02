@@ -1,9 +1,11 @@
 #include "Application.h"
 #include "DirectX12/Dx12Wrapper.h"
+#include <string>
 
 namespace
 {
 	const auto className = L"DX12Study";
+	const auto window_caption = L"DirectX12Study";
 	constexpr int WINDOW_WIDTH = 1280;
 	constexpr int WINDOW_HEIGHT = 720;
 }
@@ -14,6 +16,33 @@ Application::Application()
 }
 
 Application::~Application() = default;
+
+void Application::CalculatePerformance()
+{
+	// Compute average frames per seconds, and also average time( milliseconds ) it takes to render one frame
+	// The information of theses values are written in window caption bar (window title)
+
+	static int frameCnt = 0;
+	static float elapsedTime = 0.0f;
+	++frameCnt;
+
+	if (timer_.TotalTime() - elapsedTime >= 1.0f)
+	{
+		float fps = static_cast<float>(frameCnt);
+		float mspf = second_to_millisecond / fps;
+
+		std::wstring fpsStr = L"    fps: " + std::to_wstring(fps);
+		std::wstring mspfStr = L"    mspf: " + std::to_wstring(mspf);
+
+		std::wstring windowTitle = window_caption + fpsStr + mspfStr;
+
+		SetWindowText(wndHandle_, windowTitle.c_str());
+
+		frameCnt = 0;
+		elapsedTime += 1.0f;
+	}
+	
+}
 
 LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -49,9 +78,9 @@ bool Application::Initialize()
 	auto regCls = RegisterClassEx(&wc);
 	RECT rc = { 0,0,WINDOW_WIDTH, WINDOW_HEIGHT };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
-	auto wndHandle = CreateWindow(
+	wndHandle_ = CreateWindow(
 		className,					// 上で登録した身分証のクラス名
-		L"DirectX12Study",			// ウインドウ実体の名前
+		window_caption,			// ウインドウ実体の名前
 		WS_OVERLAPPEDWINDOW,		// 普通のウインドウ
 		CW_USEDEFAULT,				// X座標デフォルト
 		CW_USEDEFAULT,				// Y座標デフォルト
@@ -62,7 +91,7 @@ bool Application::Initialize()
 		inst_,						// このアプリケーションのインスタント
 		nullptr);					// lparam
 
-	if (wndHandle == 0)
+	if (wndHandle_ == 0)
 	{
 		LPVOID messageBuffer = nullptr;
 		FormatMessage(
@@ -79,11 +108,11 @@ bool Application::Initialize()
 		return false;
 	}
 
-	ShowWindow(wndHandle, SW_SHOW);
-	UpdateWindow(wndHandle);
+	ShowWindow(wndHandle_, SW_SHOW);
+	UpdateWindow(wndHandle_);
 
 	dxWrapper_ = std::make_unique<Dx12Wrapper>();
-	if (!dxWrapper_->Initialize(wndHandle))
+	if (!dxWrapper_->Initialize(wndHandle_))
 		return false;
 
 	return true;
@@ -111,6 +140,7 @@ void Application::Run()
 		if (!isRunning_)
 			break;
 		timer_.Tick();
+		CalculatePerformance();
 		dxWrapper_->Update(timer_.DeltaTime());
 	}
 }
