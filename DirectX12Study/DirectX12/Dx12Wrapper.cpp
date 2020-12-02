@@ -211,7 +211,7 @@ void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3
 
     cmdList_->Close();
     cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
-    FlushCommandQueue();
+    WaitForGPU();
 }
 
 void Dx12Wrapper::CreateViewForRenderTargetTexture()
@@ -364,10 +364,10 @@ void Dx12Wrapper::CreateNormalMapTexture()
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
     srvDesc.Format = rsDesc.Format;
-    auto heapHandle = passSRVHeap_->GetCPUDescriptorHandleForHeapStart();
 
-    auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    heapHandle.ptr += heapSize;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+    heapHandle.Offset(1, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
     srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
     dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
 }
@@ -403,8 +403,10 @@ void Dx12Wrapper::CreateTimeBuffer()
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = timeBuffer_->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = strideBytes;
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(3, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
     dev_->CreateConstantBufferView(&cbvDesc, heapHandle);
 }
 
@@ -796,16 +798,31 @@ void Dx12Wrapper::DrawShadow()
 {
     cmdList_->SetPipelineState(shadowPipeline_.Get());
     cmdList_->SetGraphicsRootSignature(shadowRootSig_.Get());
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
-    cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
+    //cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
+    //cmdList_->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     cmdList_->SetDescriptorHeaps(1, shadowSRVHeap_.GetAddressOf());
     CD3DX12_GPU_DESCRIPTOR_HANDLE heapHandle(shadowSRVHeap_->GetGPUDescriptorHandleForHeapStart());
     cmdList_->SetGraphicsRootDescriptorTable(0, heapHandle);
 
+    auto wsize = Application::Instance().GetWindowSize();
+    auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
+    CD3DX12_VIEWPORT vp(backBuffers_[bbIdx].Get());
+    cmdList_->RSSetViewports(1, &vp);
+
+    CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
+    cmdList_->RSSetScissorRects(1, &rc);
+
+    for (auto& model : pmdModelList_)
+    {
+        model->SetInputAssembler(cmdList_);
+        cmdList_->DrawIndexedInstanced(model->GetIndices(), 1, 0, 0, 0);
+    }
 }
 
-void Dx12Wrapper::FlushCommandQueue()
+void Dx12Wrapper::WaitForGPU()
 {
     cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList* const*)cmdList_.GetAddressOf());
     cmdQue_->Signal(fence_.Get(), ++fenceValue_);
@@ -972,14 +989,11 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     cmdList_->RSSetScissorRects(1, &rc);
 
-    
-
     for (const auto& model : pmdModelList_)
     {
         model->Render(cmdList_, frameNO);
     }
-    DrawShadow();
-    
+    //DrawShadow();
     
     /*-------------------------------------------*/
 
@@ -1023,7 +1037,7 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     /*-----------------------------------------------------------*/
 
     cmdList_->Close();
-    FlushCommandQueue();
+    WaitForGPU();
 
     // screen flip
     swapchain_->Present(0, 0);

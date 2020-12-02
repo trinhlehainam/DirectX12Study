@@ -64,7 +64,7 @@ private:
 	// Create texture from PMD file
 	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
 
-	void FlushCommandQueue();
+	void WaitForGPU();
 
 	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 
@@ -82,15 +82,19 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW boardVBV_;
 	void CreateBoardPolygonVertices();
 
-	ComPtr<ID3D12RootSignature> boardRootSig_;
-	ComPtr<ID3D12PipelineState> boardPipeline_;
-	void CreateBoardRootSignature();
-	void CreateBoardPipeline();
-
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
 
 	void CreateShadowMapView();
+
+	float* time_ = nullptr;
+	ComPtr<ID3D12Resource> timeBuffer_;
+	void CreateTimeBuffer();
+
+	ComPtr<ID3D12RootSignature> boardRootSig_;
+	ComPtr<ID3D12PipelineState> boardPipeline_;
+	void CreateBoardRootSignature();
+	void CreateBoardPipeline();
 
 	// ShadowMapping
 	void CreateShadowMapping();
@@ -106,9 +110,5 @@ private:
 	void CreateShadowPipelineState();
 
 	void DrawShadow();
-
-	float* time_ = nullptr;
-	ComPtr<ID3D12Resource> timeBuffer_;
-	void CreateTimeBuffer();
 };
 

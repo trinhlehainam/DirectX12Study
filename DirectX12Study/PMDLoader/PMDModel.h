@@ -27,6 +27,12 @@ public:
 	void CreateModel();
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
+	uint16_t GetIndices() const;
+
+	void SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdList);
+
+	void SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList);
+
 	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
 
 	BasicMatrix* GetMappedMatrix();

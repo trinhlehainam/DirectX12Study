@@ -100,6 +100,16 @@ void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 	mappedBasicMatrix_->world *= transformMatrix;
 }
 
+uint16_t PMDModel::GetIndices() const
+{
+	uint16_t ret = 0;
+	for (const auto& index : indices_)
+	{
+		ret += index;
+	}
+	return ret;
+}
+
 void PMDModel::LoadMotion(const char* path)
 {
 	vmdMotion_->Load(path);
@@ -110,12 +120,9 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	auto frame = frameNO % vmdMotion_->GetMaxFrame();
 	UpdateMotionTransform(frame);
 
-	cmdList->SetPipelineState(pipeline_.Get());
-	cmdList->SetGraphicsRootSignature(rootSig_.Get());
+	SetGraphicPinelineState(cmdList);
 	// Set Input Assemble
-	cmdList->IASetVertexBuffers(0, 1, &vbView_);
-	cmdList->IASetIndexBuffer(&ibView_);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	SetInputAssembler(cmdList);
 
 	/*-------------Set up transform-------------*/
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)transformDescHeap_.GetAddressOf());
@@ -140,6 +147,19 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);
 	}
 	/*-------------------------------------------*/
+}
+
+void PMDModel::SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList)
+{
+	cmdList->IASetVertexBuffers(0, 1, &vbView_);
+	cmdList->IASetIndexBuffer(&ibView_);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void PMDModel::SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdList)
+{
+	cmdList->SetPipelineState(pipeline_.Get());
+	cmdList->SetGraphicsRootSignature(rootSig_.Get());
 }
 
 BasicMatrix* PMDModel::GetMappedMatrix()

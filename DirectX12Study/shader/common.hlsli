@@ -3,23 +3,13 @@ cbuffer Matrix:register (b0)
 	matrix world;			// transform to world space matrix
 	matrix viewproj;		// projecting object to window space matrix
 	vector lightPos;
-	matrix shadow;	
+	matrix shadow;
 	matrix lightViewProj;
 }
 
 cbuffer Bones:register (b1)
 {
 	matrix bones[512];
-}
-
-// Only Pixel Shader can see it
-cbuffer Material:register (b2)
-{
-	float3 diffuse;
-	float alpha;
-	float3 specular;
-	float specularity;
-	float3 ambient;
 }
 
 ///頂点シェーダ出力

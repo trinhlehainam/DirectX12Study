@@ -7,6 +7,16 @@ Texture2D<float4> toon:register(t3);
 SamplerState	  smp:register(s0);
 SamplerState	  toonSmp:register(s1);
 
+// Only Pixel Shader can see it
+cbuffer Material:register (b2)
+{
+	float3 diffuse;
+	float alpha;
+	float3 specular;
+	float specularity;
+	float3 ambient;
+}
+
 // Pixel Shader
 // return color to texture
 float4 PS(VsOutput input) : SV_TARGET
