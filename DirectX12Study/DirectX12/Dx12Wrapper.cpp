@@ -436,7 +436,6 @@ void Dx12Wrapper::CreateNormalMapTexture()
 void Dx12Wrapper::CreateShadowMapView()
 {
     HRESULT result = S_OK;
-    auto rsDesc = backBuffers_[0]->GetDesc();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -1117,9 +1116,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1157,7 +1156,10 @@ void Dx12Wrapper::CreatePMDModel()
     pmdModelList_[0]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
     pmdModelList_[0]->LoadPMD(model1_path);
     pmdModelList_[0]->CreateModel();
+    pmdModelList_[0]->CreateShadowDepthView(shadowDepthBuffer_);
     pmdModelList_[0]->LoadMotion(motion1_path);
+
+    
 
     /*pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
     pmdModelList_[1]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);

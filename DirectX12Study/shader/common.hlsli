@@ -20,6 +20,7 @@ struct VsOutput
 	float4 norm:NORMAL;
 	float2 uv:TEXCOORD;
 	uint instanceID:SV_InstanceID;
+	float4 lvpos : POSITION1;
 };
 
 struct VsInput

@@ -12,6 +12,8 @@ VsOutput VS( VsInput input )
 	ret.pos = mul(world, mul(skinMat,input.pos));
 	ret.svpos = mul(viewproj, ret.pos);
 
+	ret.lvpos = mul(lightViewProj, ret.pos);
+
 	skinMat._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	ret.norm = mul(world,mul(skinMat,input.normal));		// normal vector DOESN'T TRANSLATE position
 

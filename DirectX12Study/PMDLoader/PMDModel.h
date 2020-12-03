@@ -37,6 +37,8 @@ public:
 
 	void SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList);
 
+	bool CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_);
+
 	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
 
 	BasicMatrix* GetMappedMatrix();
@@ -124,6 +126,8 @@ private:
 	ComPtr<ID3D12Resource> materialBuffer_;
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
 	bool CreateMaterialAndTextureBuffer();
+
+	ComPtr<ID3D12DescriptorHeap> shadowDepthHeap_;
 
 	void CreateRootSignature();
 	bool CreateTexture(void);

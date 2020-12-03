@@ -118,6 +118,9 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	SetTransformDescriptorTable(cmdList);
 	/*-------------------------------------------*/
 
+	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)shadowDepthHeap_.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(2, shadowDepthHeap_->GetGPUDescriptorHandleForHeapStart());
+
 	/*-------------Set up material and texture-------------*/
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)materialDescHeap_.GetAddressOf());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
@@ -797,6 +800,26 @@ void PMDModel::LoadTextureToBuffer()
 
 }
 
+
+bool PMDModel::CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_)
+{
+	Dx12Helper::CreateDescriptorHeap(dev_, shadowDepthHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(shadowDepthHeap_->GetCPUDescriptorHandleForHeapStart());
+	dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
+
+	return false;
+}
+
 void PMDModel::CreateRootSignature()
 {
 	HRESULT result = S_OK;
@@ -804,10 +827,10 @@ void PMDModel::CreateRootSignature()
 	D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	D3D12_ROOT_PARAMETER rootParam[2] = {};
+	D3D12_ROOT_PARAMETER rootParam[3] = {};
 
 	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[3] = {};
+	D3D12_DESCRIPTOR_RANGE range[4] = {};
 
 	// transform
 	range[0] = CD3DX12_DESCRIPTOR_RANGE(
@@ -821,6 +844,8 @@ void PMDModel::CreateRootSignature()
 	// texture
 	range[2] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
+	range[3] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0]);
 
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1],
@@ -828,12 +853,17 @@ void PMDModel::CreateRootSignature()
 		&range[1],                                  // pointer to descritpor range
 		D3D12_SHADER_VISIBILITY_PIXEL);             // shader visibility
 
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[2],
+		1,                                          // number of descriptor range
+		&range[3],                                  // pointer to descritpor range
+		D3D12_SHADER_VISIBILITY_PIXEL);             // shader visibility
+
 	rtSigDesc.pParameters = rootParam;
 	rtSigDesc.NumParameters = _countof(rootParam);
 
 	//サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
 	//動きyや、UVをもとに色をとってくるときのルールを指定するもの
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
 	//WRAPは繰り返しを表す。
 	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
 		0,                                  // shader register location
@@ -844,6 +874,12 @@ void PMDModel::CreateRootSignature()
 	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].ShaderRegister = 1;
+
+	samplerDesc[2] = samplerDesc[0];
+	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].ShaderRegister = 2;
 
 	rtSigDesc.pStaticSamplers = samplerDesc;
 	rtSigDesc.NumStaticSamplers = _countof(samplerDesc);

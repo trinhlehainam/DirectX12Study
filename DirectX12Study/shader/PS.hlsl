@@ -4,8 +4,10 @@ Texture2D<float4> tex:register(t0);			// main texture
 Texture2D<float4> sph:register(t1);			// sphere mapping texture
 Texture2D<float4> spa:register(t2);
 Texture2D<float4> toon:register(t3);
+Texture2D<float> shadowTex:register(t4);
 SamplerState	  smp:register(s0);
 SamplerState	  toonSmp:register(s1);
+SamplerState	  smpBorder:register(s2);
 
 // Only Pixel Shader can see it
 cbuffer Material:register (b2)
@@ -34,6 +36,12 @@ float4 PS(VsOutput input) : SV_TARGET
 
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
+
+	float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
+	if (input.lvpos.z - 0.02f > shadowTex.Sample(smpBorder, uv))
+	{
+		return float4(0.1, 0.1, 0.1, 1);
+	}
 
 	if (input.instanceID == 0)
 		return float4(max(ambient, tn * diffuse) + specular * sat, alpha)
