@@ -37,17 +37,19 @@ float4 PS(VsOutput input) : SV_TARGET
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
 
+	const float bias = 0.005f;
+	float shadowValue = 1.f;
 	float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
-	if (input.lvpos.z - 0.02f > shadowTex.Sample(smpBorder, uv))
+	if (input.lvpos.z - bias > shadowTex.Sample(smpBorder, uv))
 	{
-		return float4(0.1, 0.1, 0.1, 1);
+		shadowValue = 0.5f;
 	}
 
-	if (input.instanceID == 0)
-		return float4(max(ambient, tn * diffuse) + specular * sat, alpha)
-		* tex.Sample(smp, input.uv)
-		* sph.Sample(smp, sphereUV)
-		+ spa.Sample(smp, sphereUV);
-	else
-		return float4(0.3, 0.3, 0.3, 1);
+	float4 bright = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
+	bright *= shadowValue;
+	
+	return bright
+	* tex.Sample(smp, input.uv)
+	* sph.Sample(smp, sphereUV)
+	+ spa.Sample(smp, sphereUV);
 }
