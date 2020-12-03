@@ -20,10 +20,12 @@ class Dx12Wrapper
 {
 public:
 	bool Initialize(const HWND&);
+	
 	// Update Direct3D12
 	// true: no problem
 	// false: error
 	bool Update(const float& deltaTime);
+	bool Render();
 	void Terminate();
 private:
 	std::vector<std::shared_ptr<PMDModel>> pmdModelList_;
@@ -34,6 +36,7 @@ private:
 	ComPtr<ID3D12CommandQueue> cmdQue_;
 	ComPtr<IDXGIFactory6> dxgi_;
 	ComPtr<IDXGISwapChain3> swapchain_;
+	uint16_t currentBackBuffer_;
 
 	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
 	uint64_t fenceValue_ = 0;
@@ -44,7 +47,7 @@ private:
 	// Renter Target View
 	std::vector<ComPtr<ID3D12Resource>> backBuffers_;
 	ComPtr<ID3D12DescriptorHeap> bbRTVHeap_;
-	bool CreateRenderTargetViews();
+	bool CreateBackBufferView();
 
 	// Depth/Stencil Buffer
 	ComPtr<ID3D12Resource> depthBuffer_;
@@ -66,7 +69,7 @@ private:
 
 	void WaitForGPU();
 
-	void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
+	void CreatePMDModel();
 
 	// Post effect rendering
 	void CreatePostEffectTexture();
@@ -109,6 +112,25 @@ private:
 	void CreateShadowRootSignature();
 	void CreateShadowPipelineState();
 
-	void DrawShadow();
+	ComPtr<ID3D12Resource> planeVB_;
+	D3D12_VERTEX_BUFFER_VIEW planeVBV_;
+	ComPtr<ID3D12PipelineState> planePipeline_;
+	ComPtr<ID3D12RootSignature> planeRootSig_;
+	
+	void CreatePlane();
+	void CreatePlaneBuffer();
+	void CreatePlaneRootSignature();
+	void CreatePlanePipeLine();
+	
+	ComPtr<ID3D12DescriptorHeap> primitiveHeap_;
+	void CreateDescriptorForPrimitive();
+
+	// Function for Render
+	void RenderToShadowBuffer();
+	void RenderToPostEffectBuffer();
+	void RenderToBackBuffer();
+	void RenderPrimitive();
+	void SetResourceStateForNextFrame();
+	void SetBackBufferIndexForNextFrame();
 };
 

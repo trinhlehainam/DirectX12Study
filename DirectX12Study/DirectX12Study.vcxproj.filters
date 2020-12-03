@@ -72,7 +72,8 @@
     <FxCompile Include="shader\boardPS.hlsl" />
     <FxCompile Include="shader\boardVS.hlsl" />
     <FxCompile Include="shader\ShadowVS.hlsl" />
-    <FxCompile Include="shader\ShadowPS.hlsl" />
+    <FxCompile Include="shader\primitiveVS.hlsl" />
+    <FxCompile Include="shader\primitivePS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\common.hlsli" />

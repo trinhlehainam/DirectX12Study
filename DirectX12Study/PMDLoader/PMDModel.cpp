@@ -95,14 +95,9 @@ void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 	mappedBasicMatrix_->world *= transformMatrix;
 }
 
-uint16_t PMDModel::GetIndices() const
+uint16_t PMDModel::GetIndicesSize() const
 {
-	uint16_t ret = 0;
-	for (const auto& index : indices_)
-	{
-		ret += index;
-	}
-	return ret;
+	return indices_.size();
 }
 
 void PMDModel::LoadMotion(const char* path)
@@ -120,8 +115,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	SetInputAssembler(cmdList);
 
 	/*-------------Set up transform-------------*/
-	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)transformDescHeap_.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(0, transformDescHeap_->GetGPUDescriptorHandleForHeapStart());
+	SetTransformDescriptorTable(cmdList);
 	/*-------------------------------------------*/
 
 	/*-------------Set up material and texture-------------*/
@@ -134,7 +128,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 		cmdList->SetGraphicsRootDescriptorTable(1, materialHeapHandle);
 
 		cmdList->DrawIndexedInstanced(m.indices,
-			2,
+			1,
 			indexOffset,
 			0,
 			0);
@@ -149,6 +143,17 @@ void PMDModel::SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 	cmdList->IASetVertexBuffers(0, 1, &vbView_);
 	cmdList->IASetIndexBuffer(&ibView_);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+ComPtr<ID3D12Resource> PMDModel::GetTransformBuffer()
+{
+	return transformBuffer_;
+}
+
+void PMDModel::SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList)
+{
+	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)transformDescHeap_.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(0, transformDescHeap_->GetGPUDescriptorHandleForHeapStart());
 }
 
 void PMDModel::SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdList)

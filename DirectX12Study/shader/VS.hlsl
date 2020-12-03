@@ -8,13 +8,12 @@ VsOutput VS( VsInput input )
 {
 	VsOutput ret;
 	matrix skinMat = bones[input.boneno.x] * input.weight + bones[input.boneno.y] * (1.0f - input.weight);
-	matrix warudo = input.instanceID == 0 ? world : mul(shadow, world);
-	ret.pos = mul(warudo, mul(skinMat,input.pos));
+
+	ret.pos = mul(world, mul(skinMat,input.pos));
 	ret.svpos = mul(viewproj, ret.pos);
 
-	warudo._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	skinMat._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
-	ret.norm = mul(warudo,mul(skinMat,input.normal));		// normal vector DOESN'T TRANSLATE position
+	ret.norm = mul(world,mul(skinMat,input.normal));		// normal vector DOESN'T TRANSLATE position
 
 	ret.uv = input.uv;
 	ret.instanceID = input.instanceID;

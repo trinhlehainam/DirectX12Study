@@ -142,6 +142,7 @@ void Application::Run()
 		timer_.Tick();
 		CalculatePerformance();
 		dxWrapper_->Update(timer_.DeltaTime());
+		dxWrapper_->Render();
 	}
 }
 
