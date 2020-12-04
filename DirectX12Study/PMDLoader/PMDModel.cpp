@@ -17,10 +17,7 @@ namespace
 
 		return ret.substr(0, idx) + texturePath;
 	}
-}
 
-namespace
-{
 	std::wstring ConvertStringToWideString(const std::string& str)
 	{
 		std::wstring ret;
@@ -68,30 +65,6 @@ void PMDModel::CreateModel()
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 {
-	//// Transform model position
-	//// Transform normal vector WHEN rotation
-	//for (auto& vertex : vertices_)
-	//{
-	//	auto& pos = vertex.pos;
-	//	auto& normal = vertex.normal;
-	//	auto vecPos = XMLoadFloat3(&pos);
-	//	auto vecNormal = XMLoadFloat3(&normal);
-	//	vecPos = XMVector3Transform(vecPos, transformMatrix);
-	//	vecNormal = XMVector4Transform(vecNormal, transformMatrix);
-	//	XMStoreFloat3(&pos, vecPos);
-	//	XMStoreFloat3(&normal, vecNormal);
-	//}
-	//std::copy(vertices_.begin(), vertices_.end(), mappedVertex_);
-
-	//// Transform origin rotation position of skinning matrix
-	//for (auto& bone : bones_)
-	//{
-	//	auto& rotationPos = bone.pos;
-	//	auto vec = XMLoadFloat3(&rotationPos);
-	//	vec = XMVector3Transform(vec, transformMatrix);
-	//	XMStoreFloat3(&rotationPos, vec);
-	//}
-
 	mappedBasicMatrix_->world *= transformMatrix;
 }
 
@@ -115,7 +88,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	SetInputAssembler(cmdList);
 
 	/*-------------Set up transform-------------*/
-	SetTransformDescriptorTable(cmdList);
+	SetTransformGraphicPipeline(cmdList);
 	/*-------------------------------------------*/
 
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)shadowDepthHeap_.GetAddressOf());
@@ -153,7 +126,7 @@ ComPtr<ID3D12Resource> PMDModel::GetTransformBuffer()
 	return transformBuffer_;
 }
 
-void PMDModel::SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList)
+void PMDModel::SetTransformGraphicPipeline(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 {
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)transformDescHeap_.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(0, transformDescHeap_->GetGPUDescriptorHandleForHeapStart());
@@ -439,7 +412,8 @@ bool PMDModel::CreateTransformBuffer()
 	auto screenSize = Application::Instance().GetWindowSize();
 	float aspect = static_cast<float>(screenSize.width) / screenSize.height;
 	mappedBasicMatrix_->lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
-		XMMatrixOrthographicRH(100.f, 100.f, 0.1f, 300.f);
+		XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
+
 
 	transformBuffer_->Unmap(0, nullptr);
 
@@ -876,10 +850,10 @@ void PMDModel::CreateRootSignature()
 	samplerDesc[1].ShaderRegister = 1;
 
 	samplerDesc[2] = samplerDesc[0];
-	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc[2].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
 	samplerDesc[2].ShaderRegister = 2;
+	samplerDesc[2].MaxAnisotropy = 1;
+	samplerDesc[2].MipLODBias = 0.0f;
 
 	rtSigDesc.pStaticSamplers = samplerDesc;
 	rtSigDesc.NumStaticSamplers = _countof(samplerDesc);

@@ -10,10 +10,12 @@ struct PrimitiveOut
 
 float4 primitivePS(PrimitiveOut input) : SV_TARGET
 {
+	float4 color = float4(1,1,1,1);
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
-	if (input.lvpos.z > shadowTex.Sample(smpBorder, uv))
+	const float bias = 0.005f;
+	if (input.lvpos.z - bias > shadowTex.Sample(smpBorder, uv))
 	{
-		return float4(0.3, 0.3, 0.3, 1);
+		return float4(color.rgb*0.3, 1);
 	}
-	return float4(1,1,1,1);
+	return color;
 }

@@ -7,7 +7,7 @@ Texture2D<float4> toon:register(t3);
 Texture2D<float> shadowTex:register(t4);
 SamplerState	  smp:register(s0);
 SamplerState	  toonSmp:register(s1);
-SamplerState	  smpBorder:register(s2);
+SamplerComparisonState	  shadowCmpSmp:register(s2);
 
 // Only Pixel Shader can see it
 cbuffer Material:register (b2)
@@ -40,10 +40,16 @@ float4 PS(VsOutput input) : SV_TARGET
 	const float bias = 0.005f;
 	float shadowValue = 1.f;
 	float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
-	if (input.lvpos.z - bias > shadowTex.Sample(smpBorder, uv))
-	{
-		shadowValue = 0.5f;
-	}
+
+	// PCF (percentage closest filtering)
+	shadowValue = shadowTex.SampleCmpLevelZero(shadowCmpSmp,uv, input.lvpos.z - bias);
+	shadowValue = lerp(0.5f, 1.0f, shadowValue);
+
+	// Shadow Depth Offset
+	//if (input.lvpos.z - bias > shadowTex.SampleCmp(shadowCmpSmp, uv))
+	//{
+	//	shadowValue = 0.5f;
+	//}
 
 	float4 bright = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
 	bright *= shadowValue;

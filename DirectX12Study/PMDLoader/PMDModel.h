@@ -35,7 +35,7 @@ public:
 
 	ComPtr<ID3D12Resource> GetTransformBuffer();
 
-	void SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList);
+	void SetTransformGraphicPipeline(ComPtr<ID3D12GraphicsCommandList>& cmdList);
 
 	bool CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_);
 

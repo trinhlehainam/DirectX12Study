@@ -88,7 +88,7 @@ private:
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
 
-	void CreateShadowMapView();
+	void CreateShadowResourceForPostEffect();
 
 	float* time_ = nullptr;
 	ComPtr<ID3D12Resource> timeBuffer_;
@@ -126,7 +126,7 @@ private:
 	void CreateDescriptorForPrimitive();
 
 	// Function for Render
-	void RenderToShadowBuffer();
+	void RenderToShadowDepthBuffer();
 	void RenderToPostEffectBuffer();
 	void RenderToBackBuffer();
 	void RenderPrimitive();

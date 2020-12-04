@@ -6,6 +6,11 @@ Texture2D<float> shadowMapDepth:register (t2);
 SamplerState smpWrap:register(s0);
 SamplerState smpBorder:register(s1);
 
+cbuffer Time:register (b0)
+{
+	float time;
+}
+
 float4 boardPS(BoardOutput input) : SV_TARGET
 {
 
@@ -34,13 +39,6 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	//float4 color = renderTargetTex.Sample(smpWrap, input.uv + offset*0.03f);
 	float4 color = renderTargetTex.Sample(smpWrap, input.uv);
 
-
-	//if (input.uv.x < 0.5f && input.uv.y < 0.5f)
-	//{
-	//	float4 shadowColor = shadowMapDepth.Sample(smpBorder, input.uv * 2);
-	//	return shadowColor;
-	//}
-
 	if (color.a > 0.0f)
 	{
 		return color;
@@ -50,6 +48,5 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 		float div = 100.0f;
 		return float4(0.7, 1, 1, 1);
 		return float4(fmod(input.uv, 1.0f / div) * div,1, 1);
-	}
-		
+	}	
 }
