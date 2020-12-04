@@ -88,8 +88,6 @@ private:
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
 
-	void CreateShadowResourceForPostEffect();
-
 	float* time_ = nullptr;
 	ComPtr<ID3D12Resource> timeBuffer_;
 	void CreateTimeBuffer();

@@ -39,10 +39,10 @@ float4 PS(VsOutput input) : SV_TARGET
 
 	const float bias = 0.005f;
 	float shadowValue = 1.f;
-	float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
+	float2 shadowUV = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
 
 	// PCF (percentage closest filtering)
-	shadowValue = shadowTex.SampleCmpLevelZero(shadowCmpSmp,uv, input.lvpos.z - bias);
+	shadowValue = shadowTex.SampleCmpLevelZero(shadowCmpSmp, shadowUV, input.lvpos.z - bias);
 	shadowValue = lerp(0.5f, 1.0f, shadowValue);
 
 	// Shadow Depth Offset
@@ -54,6 +54,7 @@ float4 PS(VsOutput input) : SV_TARGET
 	float4 bright = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
 	bright *= shadowValue;
 	
+
 	return bright
 	* tex.Sample(smp, input.uv)
 	* sph.Sample(smp, sphereUV)
