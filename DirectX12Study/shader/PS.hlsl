@@ -25,7 +25,7 @@ float4 PS(VsOutput input) : SV_TARGET
 {
 	float3 lightRay = normalize(lightPos);
 	// calculate light with cos
-	// use Lambert function to calculate brightness
+	/* use Phong method to calculate per-pixel lighting */
 	float brightness = dot(input.norm.xyz, lightRay);			
 
 	float4 tn = toon.Sample(toonSmp, brightness);	// toon
@@ -36,6 +36,7 @@ float4 PS(VsOutput input) : SV_TARGET
 
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
+	float4 color = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
 
 	const float bias = 0.005f;
 	float shadowValue = 1.f;
@@ -51,11 +52,9 @@ float4 PS(VsOutput input) : SV_TARGET
 	//	shadowValue = 0.5f;
 	//}
 
-	float4 bright = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
-	bright *= shadowValue;
+	color *= shadowValue;
 	
-
-	return bright
+	return color
 	* tex.Sample(smp, input.uv)
 	* sph.Sample(smp, sphereUV)
 	+ spa.Sample(smp, sphereUV);
