@@ -8,7 +8,7 @@ class Dx12Helper
 public:
 	static ComPtr<ID3D12Resource> CreateBuffer(ComPtr<ID3D12Device>& device, size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
-	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) is D3D12_RESOURCE_DESC
+	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) -> D3D12_RESOURCE_DESC
 	static ComPtr<ID3D12Resource> CreateTex2DBuffer(ComPtr<ID3D12Device>& device, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
 		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
@@ -29,21 +29,21 @@ public:
 	// ->Return shader's bytecode
 	static ComPtr<ID3DBlob> CompileShader(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
 
+	// Return nullptr if FAILED to load texture from file
 	static ComPtr<ID3D12Resource> CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path);
-};
 
-inline std::string HrToString(HRESULT hr)
-{
-	char s_str[64] = {};
-	sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
-	return std::string(s_str);
-}
-
-class HrException : public std::runtime_error
-{
-public:
-	HrException(HRESULT hr);
-	HRESULT Error() const;
 private:
-	HRESULT m_hr;
+	class HrException : public std::runtime_error
+	{
+	public:
+		HrException(HRESULT hr);
+		HRESULT Error() const;
+	private:
+		HRESULT m_hr;
+	};
+
+	static std::string HrToString(HRESULT hr);
 };
+
+
+

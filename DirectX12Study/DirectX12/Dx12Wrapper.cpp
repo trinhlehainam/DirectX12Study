@@ -349,7 +349,7 @@ void Dx12Wrapper::SetBackBufferIndexForNextFrame()
 
 void Dx12Wrapper::CreateNormalMapTexture()
 {
-    CreateTextureFromFilePath(L"resource/image/normalmap3.png", normalMapTex_);
+    normalMapTex_ = Dx12Helper::CreateTextureFromFilePath(dev_, L"resource/image/normalmap3.png");
 
     HRESULT result = S_OK;
     auto rsDesc = backBuffers_[0]->GetDesc();
@@ -1033,9 +1033,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));

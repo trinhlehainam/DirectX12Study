@@ -2,6 +2,8 @@
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
+using namespace DirectX;
+
 ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ComPtr<ID3D12Device>& device ,size_t size, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
@@ -72,7 +74,7 @@ uint16_t Dx12Helper::AlignedConstantBufferMemory(uint16_t byteSize)
 void Dx12Helper::ThrowIfFailed(HRESULT hr)
 {
     if (FAILED(hr))
-        throw HrException(hr);
+        throw Dx12Helper::HrException(hr);
 }
 
 ComPtr<ID3DBlob> Dx12Helper::CompileShader(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
@@ -99,18 +101,20 @@ ComPtr<ID3DBlob> Dx12Helper::CompileShader(const wchar_t* filePath, const char* 
 ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path)
 {
     HRESULT result = S_OK;
-    ComPtr<ID3D12Resource> buffer = nullptr;
-
+    
+    /*-----------------LOAD TEXTURE-----------------*/
+    // Load texture from file path using varaible and method DirectXTex library
     TexMetadata metadata;
     ScratchImage scratch;
-    ThrowIfFailed(DirectX::LoadFromWICFile(
+    result = LoadFromWICFile(
         path.c_str(),
         WIC_FLAGS_IGNORE_SRGB,
         &metadata,
-        scratch));
-    //return SUCCEEDED(result);
+        scratch);
+    if (FAILED(result)) return nullptr;
     
-    // Create buffer
+    /*-----------------CREATE BUFFER-----------------*/
+    // Use loaded texture to create buffer
     D3D12_HEAP_PROPERTIES heapProp = {};
     heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
     heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
@@ -127,6 +131,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device
     rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+    ComPtr<ID3D12Resource> buffer = nullptr;
     ThrowIfFailed(device->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
@@ -146,11 +151,18 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device
     return buffer;
 }
 
-HrException::HrException(HRESULT hr):std::runtime_error(HrToString(hr)),m_hr(hr)
+std::string Dx12Helper::HrToString(HRESULT hr)
+{
+    char s_str[64] = {};
+    sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
+    return std::string(s_str);
+}
+
+Dx12Helper::HrException::HrException(HRESULT hr):std::runtime_error(Dx12Helper::HrToString(hr)),m_hr(hr)
 {
 }
 
-HRESULT HrException::Error() const
+HRESULT Dx12Helper::HrException::Error() const
 {
     return m_hr;
 }
