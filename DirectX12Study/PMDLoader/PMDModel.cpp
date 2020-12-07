@@ -6,7 +6,6 @@
 #include <Windows.h>
 #include <array>
 #include <d3dcompiler.h>
-#include <DirectXTex.h>
 
 namespace
 {
@@ -612,19 +611,7 @@ bool PMDModel::CreatePipelineStateObject()
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 	// Vertex Shader
-	ComPtr<ID3DBlob> errBlob;
-	ComPtr<ID3DBlob> vsBlob;
-	result = D3DCompileFromFile(
-		L"shader/vs.hlsl",                                  // path to shader file
-		nullptr,                                            // define marcro object 
-		D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
-		"VS",                                               // entry name
-		"vs_5_1",                                           // shader version
-		0, 0,                                               // Flag1, Flag2 (unknown)
-		vsBlob.GetAddressOf(),
-		errBlob.GetAddressOf());
-	Dx12Helper::OutputFromErrorBlob(errBlob);
-	assert(SUCCEEDED(result));
+	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShader(L"shader/vs.hlsl", "VS", "vs_5_1");
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
 	// Rasterizer
@@ -633,18 +620,7 @@ bool PMDModel::CreatePipelineStateObject()
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob;
-	result = D3DCompileFromFile(
-		L"shader/ps.hlsl",                              // path to shader file
-		nullptr,                                        // define marcro object 
-		D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
-		"PS",                                           // entry name
-		"ps_5_1",                                       // shader version
-		0, 0,                                           // Flag1, Flag2 (unknown)
-		psBlob.GetAddressOf(),
-		errBlob.GetAddressOf());
-	Dx12Helper::OutputFromErrorBlob(errBlob);
-	assert(SUCCEEDED(result));
+	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShader(L"shader/ps.hlsl", "PS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
 	// Other set up
@@ -675,58 +651,6 @@ bool PMDModel::CreatePipelineStateObject()
 	return true;
 }
 
-bool PMDModel::CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer)
-{
-	HRESULT result = S_OK;
-
-	TexMetadata metadata;
-	ScratchImage scratch;
-	result = DirectX::LoadFromWICFile(
-		path.c_str(),
-		WIC_FLAGS_IGNORE_SRGB,
-		&metadata,
-		scratch);
-	//return SUCCEEDED(result);
-	if (FAILED(result)) return false;
-
-	// Create buffer
-	D3D12_HEAP_PROPERTIES heapProp = {};
-	heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-
-	D3D12_RESOURCE_DESC rsDesc = {};
-	rsDesc.Format = metadata.format;
-	rsDesc.Width = metadata.width;
-	rsDesc.Height = metadata.height;
-	rsDesc.DepthOrArraySize = metadata.arraySize;
-	rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	rsDesc.MipLevels = metadata.mipLevels;
-	rsDesc.SampleDesc.Count = 1;
-	rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	result = dev_->CreateCommittedResource(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&rsDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(buffer.GetAddressOf())
-	);
-	assert(SUCCEEDED(result));
-
-	auto image = scratch.GetImage(0, 0, 0);
-	result = buffer->WriteToSubresource(0,
-		nullptr,
-		image->pixels,
-		image->rowPitch,
-		image->slicePitch);
-	assert(SUCCEEDED(result));
-
-	return true;
-}
-
 void PMDModel::LoadTextureToBuffer()
 {
 	textureBuffers_.resize(modelPaths_.size());
@@ -739,12 +663,13 @@ void PMDModel::LoadTextureToBuffer()
 		if (!toonPaths_[i].empty())
 		{
 			std::string toonPath;
-
+			
 			toonPath = GetTexturePathFromModelPath(pmdPath_, toonPaths_[i].c_str());
-			if (!CreateTextureFromFilePath(ConvertStringToWideString(toonPath), toonBuffers_[i]))
+			toonBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_, ConvertStringToWideString(toonPath));
+			if (!toonBuffers_[i])
 			{
 				toonPath = std::string(pmd_path) + "toon/" + toonPaths_[i];
-				CreateTextureFromFilePath(ConvertStringToWideString(toonPath), toonBuffers_[i]);
+				toonBuffers_[i]= Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(toonPath));
 			}
 		}
 		if (!modelPaths_[i].empty())
@@ -756,17 +681,17 @@ void PMDModel::LoadTextureToBuffer()
 				if (ext == "sph")
 				{
 					auto sphPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					CreateTextureFromFilePath(ConvertStringToWideString(sphPath), sphBuffers_[i]);
+					sphBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
 					auto spaPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					CreateTextureFromFilePath(ConvertStringToWideString(spaPath), spaBuffers_[i]);
+					spaBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(spaPath));
 				}
 				else
 				{
 					auto texPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					CreateTextureFromFilePath(ConvertStringToWideString(texPath), textureBuffers_[i]);
+					textureBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_, ConvertStringToWideString(texPath));
 				}
 			}
 		}

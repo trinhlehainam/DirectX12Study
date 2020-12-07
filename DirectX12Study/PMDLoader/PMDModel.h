@@ -121,7 +121,6 @@ private:
 	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;
 	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;
 	// Create texture from PMD file
-	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
 	void LoadTextureToBuffer();
 	ComPtr<ID3D12Resource> materialBuffer_;
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;

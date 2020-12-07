@@ -84,58 +84,6 @@ namespace
     constexpr float scale_speed = 1;
 }
 
-bool Dx12Wrapper::CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer)
-{
-    HRESULT result = S_OK;
-
-    TexMetadata metadata;
-    ScratchImage scratch;
-    result = DirectX::LoadFromWICFile(
-        path.c_str(),
-        WIC_FLAGS_IGNORE_SRGB,
-        &metadata,
-        scratch);
-    //return SUCCEEDED(result);
-    if (FAILED(result)) return false;
-
-    // Create buffer
-    D3D12_HEAP_PROPERTIES heapProp = {};
-    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-
-    D3D12_RESOURCE_DESC rsDesc = {};
-    rsDesc.Format = metadata.format;
-    rsDesc.Width = metadata.width;
-    rsDesc.Height = metadata.height;
-    rsDesc.DepthOrArraySize = metadata.arraySize;
-    rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-    rsDesc.MipLevels = metadata.mipLevels;
-    rsDesc.SampleDesc.Count = 1;
-    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    result = dev_->CreateCommittedResource(
-        &heapProp,
-        D3D12_HEAP_FLAG_NONE,
-        &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(buffer.GetAddressOf())
-    );
-    assert(SUCCEEDED(result));
-
-    auto image = scratch.GetImage(0, 0, 0);
-    result = buffer->WriteToSubresource(0,
-        nullptr,
-        image->pixels,
-        image->rowPitch,
-        image->slicePitch);
-    assert(SUCCEEDED(result));
-
-    return true;
-}
-
 void Dx12Wrapper::CreateDefaultTexture()
 {
     HRESULT result = S_OK;
@@ -202,9 +150,9 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     auto rsDesc = backBuffers_[0]->GetDesc();
     float color[] = { 0.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,rsDesc.Width, rsDesc.Height, 
-        D3D12_HEAP_TYPE_DEFAULT, rsDesc.Format, 
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+    rtTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,
+        rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+        D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
     Dx12Helper::CreateDescriptorHeap(dev_,passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -583,10 +531,9 @@ bool Dx12Wrapper::CreateDepthBuffer()
         ,1.0f                                       // depth
         ,0);                                        // stencil
 
-    depthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_, rtvDesc.Width, rtvDesc.Height,
-        D3D12_HEAP_TYPE_DEFAULT, 
-        depth_resource_format,
-        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, 
+    depthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_,
+        rtvDesc.Width, rtvDesc.Height, depth_resource_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+        D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
@@ -622,10 +569,9 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_, 1024, 1024,
+    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_,
+        1024, 1024, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
-        DXGI_FORMAT_R32_TYPELESS,
-        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
@@ -657,7 +603,6 @@ void Dx12Wrapper::CreateShadowRootSignature()
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
         2,                                      // number of descriptors
         0);                                     // base shader register
-
 
     D3D12_ROOT_PARAMETER rootParam[1] = {};
     CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0],D3D12_SHADER_VISIBILITY_VERTEX);
@@ -1088,9 +1033,9 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));

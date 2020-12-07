@@ -64,9 +64,6 @@ private:
 	// Send resouce from uploader(intermediate) buffer to GPU reading buffer
 	void UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata);
 
-	// Create texture from PMD file
-	bool CreateTextureFromFilePath(const std::wstring& path, ComPtr<ID3D12Resource>& buffer);
-
 	void WaitForGPU();
 
 	void CreatePMDModel();

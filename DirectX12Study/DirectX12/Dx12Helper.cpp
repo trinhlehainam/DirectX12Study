@@ -1,10 +1,12 @@
 #include "Dx12Helper.h"
+#include <d3dcompiler.h>
+#include <DirectXTex.h>
 
 ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ComPtr<ID3D12Device>& device ,size_t size, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
     auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    ComPtr<ID3D12Resource> buffer;
+    ComPtr<ID3D12Resource> buffer = nullptr;
     ThrowIfFailed(device->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
@@ -16,12 +18,15 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ComPtr<ID3D12Device>& device ,si
 }
 
 ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ComPtr<ID3D12Device>& device, UINT64 width, UINT height, 
-    D3D12_HEAP_TYPE heapType, DXGI_FORMAT texFormat, D3D12_RESOURCE_FLAGS flag, D3D12_RESOURCE_STATES state, 
+     DXGI_FORMAT texFormat, D3D12_RESOURCE_FLAGS flag, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES state,
     const D3D12_CLEAR_VALUE* clearValue)
 {
+    auto rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height);
+    rsDesc.Flags = flag;
+
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-    auto rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(texFormat, width, height, 1, 0, 1, 0, flag);
-    ComPtr<ID3D12Resource> buffer;
+
+    ComPtr<ID3D12Resource> buffer = nullptr;
     ThrowIfFailed(device->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
@@ -49,11 +54,7 @@ void Dx12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
 {
     if (errBlob != nullptr)
     {
-        std::string errStr = "";
-        auto errSize = errBlob->GetBufferSize();
-        errStr.resize(errSize);
-        std::copy_n((char*)errBlob->GetBufferPointer(), errSize, errStr.begin());
-        OutputDebugStringA(errStr.c_str());
+        OutputDebugStringA((char*)errBlob->GetBufferPointer());
     }
 }
 
@@ -72,6 +73,77 @@ void Dx12Helper::ThrowIfFailed(HRESULT hr)
 {
     if (FAILED(hr))
         throw HrException(hr);
+}
+
+ComPtr<ID3DBlob> Dx12Helper::CompileShader(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
+{
+    UINT compileFlag1 = 0;
+#if defined (_DEBUG) || defined(DEBUG)
+    compileFlag1 = D3DCOMPILE_DEBUG || D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    ComPtr<ID3DBlob> byteCode = nullptr;
+    ComPtr<ID3DBlob> errorMsg = nullptr;
+    ThrowIfFailed(D3DCompileFromFile(
+        filePath,
+        defines,
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,
+        entryName,
+        targetVersion,
+        compileFlag1, 0,
+        byteCode.GetAddressOf(),
+        errorMsg.GetAddressOf()));
+    OutputFromErrorBlob(errorMsg);
+    return byteCode;
+}
+
+ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path)
+{
+    HRESULT result = S_OK;
+    ComPtr<ID3D12Resource> buffer = nullptr;
+
+    TexMetadata metadata;
+    ScratchImage scratch;
+    ThrowIfFailed(DirectX::LoadFromWICFile(
+        path.c_str(),
+        WIC_FLAGS_IGNORE_SRGB,
+        &metadata,
+        scratch));
+    //return SUCCEEDED(result);
+    
+    // Create buffer
+    D3D12_HEAP_PROPERTIES heapProp = {};
+    heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+    heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+
+    D3D12_RESOURCE_DESC rsDesc = {};
+    rsDesc.Format = metadata.format;
+    rsDesc.Width = metadata.width;
+    rsDesc.Height = metadata.height;
+    rsDesc.DepthOrArraySize = metadata.arraySize;
+    rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
+    rsDesc.MipLevels = metadata.mipLevels;
+    rsDesc.SampleDesc.Count = 1;
+    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    ThrowIfFailed(device->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(buffer.GetAddressOf())
+    ));
+
+    auto image = scratch.GetImage(0, 0, 0);
+    ThrowIfFailed(buffer->WriteToSubresource(0,
+        nullptr,
+        image->pixels,
+        image->rowPitch,
+        image->slicePitch));
+
+    return buffer;
 }
 
 HrException::HrException(HRESULT hr):std::runtime_error(HrToString(hr)),m_hr(hr)
