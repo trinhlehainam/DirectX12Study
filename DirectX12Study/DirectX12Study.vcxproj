@@ -146,6 +146,8 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Common\Timer.cpp" />
     <ClCompile Include="DirectX12\Dx12Helper.cpp" />
+    <ClCompile Include="Input\Keyboard.cpp" />
+    <ClCompile Include="Input\Mouse.cpp" />
     <ClCompile Include="Loader\BmpLoader.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
@@ -157,6 +159,8 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="Common\Timer.h" />
     <ClInclude Include="DirectX12\Dx12Helper.h" />
+    <ClInclude Include="Input\Keyboard.h" />
+    <ClInclude Include="Input\Mouse.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
     <ClInclude Include="PMDLoader\PMDModel.h" />

@@ -8,6 +8,8 @@
 #include <string>
 #include <d3dx12.h>
 #include "../PMDLoader/PMDModel.h"
+#include "../Input/Keyboard.h"
+#include "../Input/Mouse.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -27,6 +29,20 @@ public:
 	bool Update(const float& deltaTime);
 	bool Render();
 	void Terminate();
+public:
+	// function to receive keyboard input from Windows system
+	void ClearKeyState();
+	void OnKeyDown(uint8_t keycode);
+	void OnKeyUp(uint8_t keycode);
+public:
+	void OnMouseMove(int x, int y);
+	void OnMouseRightDown(int x, int y);
+	void OnMouseRightUp(int x, int y);
+	void OnMouseLeftDown(int x, int y);
+	void OnMouseLeftUp(int x, int y);
+private:
+	Keyboard m_keyboard;
+	Mouse m_mouse;
 private:
 	std::vector<std::shared_ptr<PMDModel>> pmdModelList_;
 
@@ -60,6 +76,7 @@ private:
 	ComPtr<ID3D12Resource> gradTexture_ ;
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
+private:
 
 	// Send resouce from uploader(intermediate) buffer to GPU reading buffer
 	void UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata);

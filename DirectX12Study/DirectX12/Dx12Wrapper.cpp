@@ -3,6 +3,7 @@
 #include "../Loader/BmpLoader.h"
 #include "../VMDLoader/VMDMotion.h"
 #include "Dx12Helper.h"
+
 #include <cassert>
 #include <algorithm>
 #include <unordered_map>
@@ -1093,15 +1094,28 @@ void Dx12Wrapper::CreatePMDModel()
 
 bool Dx12Wrapper::Update(const float& deltaTime)
 {
+    angle = 0;
+    if(m_keyboard.IsPressed(VK_LEFT))
+        angle = 0.1f;
+    if (m_keyboard.IsPressed(VK_RIGHT))
+        angle = -0.1f;
+
+    static float scale = 0;
+    scale = 1;
+    if (m_mouse.IsLeftPressed())
+        scale += 0.2f;
+    if (m_mouse.IsRightPressed())
+        scale -= 0.2f;
+        
     if (timer <= 0.0f)
     {
         frameNO++;
         timer = animation_speed;
         scalar += 0.05;
-        angle = 0.01f;
         for (auto& model : pmdModelList_)
         {
             model->Transform(XMMatrixRotationY(angle));
+            model->Transform(XMMatrixScaling(scale, scale, scale));
         }
     }
     timer -= deltaTime;
@@ -1159,4 +1173,44 @@ void Dx12Wrapper::Terminate()
 {
     //boneBuffer_->Unmap(0, nullptr);
     timeBuffer_->Unmap(0, nullptr);
+}
+
+void Dx12Wrapper::ClearKeyState()
+{
+    m_keyboard.Reset();
+}
+
+void Dx12Wrapper::OnKeyDown(uint8_t keycode)
+{
+    m_keyboard.OnKeyDown(keycode);
+}
+
+void Dx12Wrapper::OnKeyUp(uint8_t keycode)
+{
+    m_keyboard.OnKeyUp(keycode);
+}
+
+void Dx12Wrapper::OnMouseMove(int x, int y)
+{
+    m_mouse.OnMove(x, y);
+}
+
+void Dx12Wrapper::OnMouseRightDown(int x, int y)
+{
+    m_mouse.OnRightDown(x, y);
+}
+
+void Dx12Wrapper::OnMouseRightUp(int x, int y)
+{
+    m_mouse.OnRightUp(x, y);
+}
+
+void Dx12Wrapper::OnMouseLeftDown(int x, int y)
+{
+    m_mouse.OnLeftDown(x, y);
+}
+
+void Dx12Wrapper::OnMouseLeftUp(int x, int y)
+{
+    m_mouse.OnLeftUp(x, y);
 }

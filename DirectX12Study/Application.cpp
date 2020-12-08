@@ -44,16 +44,86 @@ void Application::CalculatePerformance()
 	
 }
 
-LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK Application::WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	switch(msg)
+	auto& app = Application::Instance();
+	return app.ProcessMessage(hwnd, msg, wparam, lparam);
+}
+
+LRESULT Application::ProcessMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (Msg)
 	{
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
-	default:
-		return DefWindowProc(hwnd, msg, wparam, lparam);
+
+		/*******************KEY BOARD*******************/
+	case WM_KILLFOCUS:
+		dxWrapper_->ClearKeyState();
+		break;
+	case WM_KEYDOWN:
+	case WM_SYSKEYDOWN:
+		
+		dxWrapper_->OnKeyDown(static_cast<uint8_t>(wParam));
+
+		// Bitwise with 30th bit of lParam to find previous key state
+		if (lParam & 0x40000000)
+		{
+			
+		}
+
+		break;
+	case WM_KEYUP:
+	case WM_SYSKEYUP:
+		dxWrapper_->OnKeyUp(static_cast<uint8_t>(wParam));
+		
+		break;
+		/**************************************************/
+
+		/*******************MOUSE INPUT********************/
+	case WM_MOUSEMOVE:
+	{
+		const POINTS p = MAKEPOINTS(lParam);
+		dxWrapper_->OnMouseMove(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
+	break;
+	case WM_LBUTTONDOWN:
+	{
+		const POINTS p = MAKEPOINTS(lParam);
+		dxWrapper_->OnMouseLeftDown(static_cast<int>(p.x), static_cast<int>(p.y));
+	}
+	break;
+	case WM_RBUTTONDOWN:
+	{
+		const POINTS p = MAKEPOINTS(lParam);
+		dxWrapper_->OnMouseRightDown(static_cast<int>(p.x), static_cast<int>(p.y));
+	}
+	break;
+	case WM_LBUTTONUP:
+	{
+		const POINTS p = MAKEPOINTS(lParam);
+		dxWrapper_->OnMouseLeftUp(static_cast<int>(p.x), static_cast<int>(p.y));
+	}
+	break;
+	case WM_RBUTTONUP:
+	{
+		const POINTS p = MAKEPOINTS(lParam);
+		dxWrapper_->OnMouseRightUp(static_cast<int>(p.x), static_cast<int>(p.y));
+	}
+	break;
+	case WM_MBUTTONDOWN:
+		break;
+	case WM_MBUTTONUP:
+		break;
+	case WM_MOUSEWHEEL:
+		break;
+		/**************************************************/
+
+	default:
+		return DefWindowProc(hWnd, Msg, wParam, lParam);
+	}
+
 	return 0;
 }
 
