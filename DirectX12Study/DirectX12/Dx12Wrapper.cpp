@@ -371,11 +371,11 @@ void Dx12Wrapper::CreateNormalMapTexture()
 
 void Dx12Wrapper::CreateTimeBuffer()
 {
-    m_timeBuffer = std::make_unique<UploadBuffer<float>>(dev_,1,true);
+    m_timeBuffer.Create(dev_,1,true);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = m_timeBuffer->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_timeBuffer->GetBufferSize();
+    cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = m_timeBuffer.Size();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -1117,7 +1117,7 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     timer -= deltaTime;
 
     scalar = scalar > 5 ? 0.1 : scalar;
-    m_timeBuffer->GetData() = scalar;
+    m_timeBuffer.CopyData(scalar);
 
     return true;
 }

@@ -102,7 +102,7 @@ private:
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
 
-	std::unique_ptr<UploadBuffer<float>> m_timeBuffer;
+	UploadBuffer<float> m_timeBuffer;
 	void CreateTimeBuffer();
 
 	ComPtr<ID3D12RootSignature> boardRootSig_;

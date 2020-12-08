@@ -60,13 +60,13 @@ void Dx12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
     }
 }
 
-uint16_t Dx12Helper::AlignedValue(uint16_t value, uint16_t align)
+size_t Dx12Helper::AlignedValue(size_t value, size_t align)
 {
     return (value + align - 1) & ~(align - 1);
     return value + (align - (value % align)) % align;
 }
 
-uint16_t Dx12Helper::AlignedConstantBufferMemory(uint16_t byteSize)
+size_t Dx12Helper::AlignedConstantBufferMemory(size_t byteSize)
 {
     return AlignedValue(byteSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 }

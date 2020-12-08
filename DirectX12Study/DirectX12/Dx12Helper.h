@@ -19,11 +19,11 @@ public:
 
 	static void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
 
-	static uint16_t AlignedValue(uint16_t value, uint16_t align);
+	static size_t AlignedValue(size_t value, size_t align);
 	
 	// Minimum memory block of constant buffer that hardware allows is 256 bits
 	// Multiple constant buffers must be multiple memory blocks of 256 bits
-	static uint16_t AlignedConstantBufferMemory(uint16_t byzeSize);
+	static size_t AlignedConstantBufferMemory(size_t byzeSize);
 
 	static void ThrowIfFailed(HRESULT result);
 

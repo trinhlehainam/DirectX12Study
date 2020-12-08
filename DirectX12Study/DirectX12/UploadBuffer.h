@@ -4,9 +4,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-// ComPtr<ID3D12Device>&	device
-// uint16_t					elementCount
-// bool						isConstantBuffer
+// Manage resource type upload and its data
 template<typename T>
 class UploadBuffer
 {
@@ -18,17 +16,26 @@ public:
 	bool Create(ComPtr<ID3D12Device>& device, uint16_t elementCount = 1, bool isConstantBuffer = false);
 	ID3D12Resource* GetBuffer();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
-	size_t GetBufferSize() const;
+
+	size_t Size() const;
+	size_t ElementSize() const;
 
 	// If buffer has MULTIPLE elements of data, get data of input index
-	// But buffer has only one element , index is set to default (0)
+	// If buffer has only one element , index is automatically set to default (0)
 	T& GetData(uint16_t index = 0);
 
-	// return false if copy process is failed
-	bool CopyData(uint16_t index, const T& data);
-	// return false if copy process is failed
-	bool CopyArrayData(const std::vector<T>& arrayData);
+	// If buffer has MULTIPLE elements, copy data to specific index
+	// return false if index is invalid (index is larger than number of element)
+	bool CopyData(const T& data, uint16_t index = 0);
 
+	// Copy an array data to buffer
+	// return false if elementCount is zero (0) 
+	// or different with number of element
+	bool CopyData(const T* pArrayData, size_t elementCount = 1);
+
+	// return false if the size of array is empty 
+	// or different with number of element
+	bool CopyData(const std::vector<T>& arrayData);
 private:
 	UploadBuffer(const UploadBuffer&) = delete;
 	UploadBuffer& operator = (const UploadBuffer&) = delete;
@@ -40,7 +47,6 @@ private:
 	bool m_isConstantBuffer = false;
 };
 
-
 template<typename T>
 inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint16_t elementCount, bool isConstantBuffer)
 {
@@ -51,7 +57,6 @@ inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint16_t elem
 	bufferSize *= m_elementCount;
 
 	m_buffer = Dx12Helper::CreateBuffer(device, bufferSize);
-
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 }
 
@@ -69,7 +74,7 @@ inline bool UploadBuffer<T>::Create(ComPtr<ID3D12Device>& device, uint16_t eleme
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 
-	m_buffer = Dx12Helper::CreateBuffer(device, GetBufferSize());
+	m_buffer = Dx12Helper::CreateBuffer(device, Size());
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 
 	return false;
@@ -88,37 +93,57 @@ inline D3D12_GPU_VIRTUAL_ADDRESS UploadBuffer<T>::GetGPUVirtualAddress()
 }
 
 template<typename T>
-inline size_t UploadBuffer<T>::GetBufferSize() const
+inline size_t UploadBuffer<T>::Size() const
 {
-	return m_isConstantBuffer ? 
-		Dx12Helper::AlignedConstantBufferMemory(sizeof(T)) * m_elementCount
-		: sizeof(T) * m_elementCount;
+	return ElementSize() * m_elementCount;
+}
+
+template<typename T>
+inline size_t UploadBuffer<T>::ElementSize() const
+{
+	return m_isConstantBuffer ?
+		Dx12Helper::AlignedConstantBufferMemory(sizeof(T))
+		: sizeof(T);
 }
 
 template<typename T>
 inline T& UploadBuffer<T>::GetData(uint16_t index)
 {
 	if (index > m_elementCount)
-		return *m_mappedData;
+		index = 0;
 	return m_mappedData[index];
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::CopyData(uint16_t index, const T& data)
+inline bool UploadBuffer<T>::CopyData(const T& data, uint16_t index)
 {
 	if (index >= m_elementCount) 
 		return false;
 
-	std::copy(std::begin(data), std::end(data), m_mappedData[index]);
+	m_mappedData[index] = data;
 	return true;
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::CopyArrayData(const std::vector<T>& arrayData)
+inline bool UploadBuffer<T>::CopyData(const T* pArrayData, size_t elementCount)
 {
-	if (arrayData.size() == 0)
+	if (elementCount == 0 || elementCount != m_elementCount)
+		return false;
+
+	for (uint16_t i = 0; i < m_elementCount; ++i)
+		m_mappedData[i] = pArrayData[i];
+	return true;
+}
+
+template<typename T>
+inline bool UploadBuffer<T>::CopyData(const std::vector<T>& arrayData)
+{
+	size_t arraySize = arrayData.size();
+	if (arraySize == 0 || arraySize != m_elementCount)
 		return false;
 
 	std::copy(arrayData.begin(), arrayData.end(), m_mappedData);
 	return true;
 }
+
+
