@@ -2,7 +2,6 @@
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../VMDLoader/VMDMotion.h"
-#include "Dx12Helper.h"
 
 #include <cassert>
 #include <algorithm>
@@ -372,14 +371,11 @@ void Dx12Wrapper::CreateNormalMapTexture()
 
 void Dx12Wrapper::CreateTimeBuffer()
 {
-    auto strideBytes = Dx12Helper::AlignedConstantBufferMemory(sizeof(float));
-    timeBuffer_ = Dx12Helper::CreateBuffer(dev_,strideBytes);
-
-    timeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&time_));
+    m_timeBuffer = std::make_unique<UploadBuffer<float>>(dev_,1,true);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = timeBuffer_->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = strideBytes;
+    cbvDesc.BufferLocation = m_timeBuffer->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = m_timeBuffer->GetBufferSize();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -1121,8 +1117,7 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     timer -= deltaTime;
 
     scalar = scalar > 5 ? 0.1 : scalar;
-    auto test = *time_;
-    *time_ = scalar;
+    m_timeBuffer->GetData() = scalar;
 
     return true;
 }
@@ -1171,8 +1166,7 @@ bool Dx12Wrapper::Render()
 
 void Dx12Wrapper::Terminate()
 {
-    //boneBuffer_->Unmap(0, nullptr);
-    timeBuffer_->Unmap(0, nullptr);
+    
 }
 
 void Dx12Wrapper::ClearKeyState()

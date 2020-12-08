@@ -6,14 +6,14 @@
 #include <DirectXmath.h>
 #include <memory>
 #include <string>
-#include <d3dx12.h>
+
 #include "../PMDLoader/PMDModel.h"
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
+#include "Dx12Helper.h"
+#include "UploadBuffer.h"
 
 using Microsoft::WRL::ComPtr;
-
-class VMDMotion;
 
 /// <summary>
 /// DirectX12 feature
@@ -102,8 +102,7 @@ private:
 	ComPtr<ID3D12Resource> normalMapTex_;
 	void CreateNormalMapTexture();
 
-	float* time_ = nullptr;
-	ComPtr<ID3D12Resource> timeBuffer_;
+	std::unique_ptr<UploadBuffer<float>> m_timeBuffer;
 	void CreateTimeBuffer();
 
 	ComPtr<ID3D12RootSignature> boardRootSig_;
