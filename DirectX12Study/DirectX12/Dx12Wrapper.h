@@ -44,45 +44,51 @@ private:
 	Keyboard m_keyboard;
 	Mouse m_mouse;
 private:
-	std::vector<std::shared_ptr<PMDModel>> pmdModelList_;
 
-	ComPtr<ID3D12Device> dev_;
-	ComPtr<ID3D12CommandAllocator> cmdAlloc_;
-	ComPtr<ID3D12GraphicsCommandList> cmdList_;
-	ComPtr<ID3D12CommandQueue> cmdQue_;
-	ComPtr<IDXGIFactory6> dxgi_;
-	ComPtr<IDXGISwapChain3> swapchain_;
-	uint16_t currentBackBuffer_;
+	ComPtr<ID3D12Device> m_device;
+	ComPtr<ID3D12CommandAllocator> m_cmdAlloc;
+	ComPtr<ID3D12GraphicsCommandList> m_cmdList;
+	ComPtr<ID3D12CommandQueue> m_cmdQue;
+	ComPtr<IDXGIFactory6> m_dxgi;
+	ComPtr<IDXGISwapChain3> m_swapchain;
+	
+	// Object helps CPU keep track of GPU process
+	ComPtr<ID3D12Fence1> m_fence;	
 
-	ComPtr<ID3D12Fence1> fence_;				// fence object ( necessary for cooperation between CPU and GPU )
-	uint64_t fenceValue_ = 0;
+	// Current GPU target fence value use to check GPU is processing
+	// If value of fence object haven't reach this target value
+	// -> GPU is processing
+	uint64_t m_targetFenceValue = 0;
 
 	void CreateCommandFamily();
 	void CreateSwapChain(const HWND& hwnd);
 
 	// Renter Target View
-	std::vector<ComPtr<ID3D12Resource>> backBuffers_;
-	ComPtr<ID3D12DescriptorHeap> bbRTVHeap_;
+	static constexpr unsigned int back_buffer_count = 2;
+	uint16_t m_currentBackBuffer = 0;
+	std::vector<ComPtr<ID3D12Resource>> m_backBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_bbRTVHeap;
 	bool CreateBackBufferView();
 
 	// Depth/Stencil Buffer
-	ComPtr<ID3D12Resource> depthBuffer_;
-	ComPtr<ID3D12DescriptorHeap> dsvHeap_;
+	ComPtr<ID3D12Resource> m_depthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 	bool CreateDepthBuffer();
 
 	// White Texture
-	ComPtr<ID3D12Resource> whiteTexture_;
-	ComPtr<ID3D12Resource> blackTexture_;
-	ComPtr<ID3D12Resource> gradTexture_ ;
+	ComPtr<ID3D12Resource> m_whiteTexture;
+	ComPtr<ID3D12Resource> m_blackTexture;
+	ComPtr<ID3D12Resource> m_gradTexture ;
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
+
+	void WaitForGPU();
 private:
 
 	// Send resouce from uploader(intermediate) buffer to GPU reading buffer
 	void UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata);
 
-	void WaitForGPU();
-
+	std::vector<std::shared_ptr<PMDModel>> m_pmdModelList;
 	void CreatePMDModel();
 
 	// Post effect rendering

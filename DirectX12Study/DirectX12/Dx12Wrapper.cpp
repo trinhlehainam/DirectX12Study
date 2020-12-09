@@ -62,7 +62,7 @@ namespace
         return ret.substr(0, idx) + texturePath;
     }
 
-    constexpr unsigned int back_buffer_count = 2;
+    
     constexpr unsigned int material_descriptor_count = 5;
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
@@ -89,9 +89,9 @@ void Dx12Wrapper::CreateDefaultTexture()
     HRESULT result = S_OK;
 
     // 転送先
-    whiteTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
-    blackTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
-    gradTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,4, 4);
+    m_whiteTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
+    m_blackTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
+    m_gradTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
 
     struct Color
     {
@@ -110,62 +110,62 @@ void Dx12Wrapper::CreateDefaultTexture()
     subresourcedata.SlicePitch = texdata.size() * 4;
 
     // 転送元
-    UpdateSubresourceToTextureBuffer(whiteTexture_.Get(), subresourcedata);
+    UpdateSubresourceToTextureBuffer(m_whiteTexture.Get(), subresourcedata);
 
     std::fill(texdata.begin(), texdata.end(), Color(0x00, 0x00, 0x00, 0xff));
-    UpdateSubresourceToTextureBuffer(blackTexture_.Get(), subresourcedata);
+    UpdateSubresourceToTextureBuffer(m_blackTexture.Get(), subresourcedata);
     
     texdata.resize(256);
     for (size_t i = 0; i < 256; ++i)
         std::fill_n(&texdata[i], 1, Color(255 - i, 255 - i, 255 - i, 0xff));
     
-    UpdateSubresourceToTextureBuffer(gradTexture_.Get(), subresourcedata);
+    UpdateSubresourceToTextureBuffer(m_gradTexture.Get(), subresourcedata);
 }
 
 void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata)
 {
     auto uploadBufferSize = GetRequiredIntermediateSize(texBuffer, 0, 1);
-    ComPtr<ID3D12Resource> intermediateBuffer = Dx12Helper::CreateBuffer(dev_,uploadBufferSize);
+    ComPtr<ID3D12Resource> intermediateBuffer = Dx12Helper::CreateBuffer(m_device,uploadBufferSize);
 
     auto dst = CD3DX12_TEXTURE_COPY_LOCATION(texBuffer);
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
-    cmdList_->Reset(cmdAlloc_.Get(), nullptr);
-    cmdAlloc_->Reset();
-    UpdateSubresources(cmdList_.Get(), texBuffer, intermediateBuffer.Get(), 0, 0, 1, &subresourcedata);
+    m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
+    m_cmdAlloc->Reset();
+    UpdateSubresources(m_cmdList.Get(), texBuffer, intermediateBuffer.Get(), 0, 0, 1, &subresourcedata);
     auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texBuffer,
         D3D12_RESOURCE_STATE_COPY_DEST,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    cmdList_->ResourceBarrier(1,
+    m_cmdList->ResourceBarrier(1,
         &resourceBarrier);
 
-    cmdList_->Close();
-    cmdQue_->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(cmdList_.GetAddressOf()));
+    m_cmdList->Close();
+    m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(m_cmdList.GetAddressOf()));
     WaitForGPU();
 }
 
 void Dx12Wrapper::CreateViewForRenderTargetTexture()
 {
     HRESULT result = S_OK;
-    auto rsDesc = backBuffers_[0]->GetDesc();
+    auto rsDesc = m_backBuffer[0]->GetDesc();
     float color[] = { 0.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = Dx12Helper::CreateTex2DBuffer(dev_,
+    rtTexture_ = Dx12Helper::CreateTex2DBuffer(m_device,
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(dev_,passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(m_device,passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Format = rsDesc.Format;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
-    dev_->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
 
     // SRV
-    Dx12Helper::CreateDescriptorHeap(dev_,passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(m_device,passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -176,7 +176,7 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
     srvDesc.Format = rsDesc.Format;
     auto heapHandle = passSRVHeap_->GetCPUDescriptorHandleForHeapStart();
-    dev_->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, heapHandle);
+    m_device->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, heapHandle);
 }
 
 void Dx12Wrapper::CreateBoardPolygonVertices()
@@ -185,7 +185,7 @@ void Dx12Wrapper::CreateBoardPolygonVertices()
                         {1.0f,-1.0f,0},                 // bottom right
                         {-1.0f,1.0f,0},                 // top left
                         {1.0f,1.0f,0} };                // top right
-    boardPolyVert_ = Dx12Helper::CreateBuffer(dev_,sizeof(vert));
+    boardPolyVert_ = Dx12Helper::CreateBuffer(m_device,sizeof(vert));
 
     XMFLOAT3* mappedData = nullptr;
     auto result = boardPolyVert_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
@@ -274,7 +274,7 @@ void Dx12Wrapper::CreateBoardPipeline()
     // Root Signature
     psoDesc.pRootSignature = boardRootSig_.Get();
 
-    result = dev_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(boardPipeline_.GetAddressOf()));
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(boardPipeline_.GetAddressOf()));
     assert(SUCCEEDED(result));
 
 }
@@ -282,24 +282,24 @@ void Dx12Wrapper::CreateBoardPipeline()
 void Dx12Wrapper::RenderToPostEffectBuffer()
 {
     auto wsize = Application::Instance().GetWindowSize();
-    CD3DX12_VIEWPORT vp(backBuffers_[currentBackBuffer_].Get());
-    cmdList_->RSSetViewports(1, &vp);
+    CD3DX12_VIEWPORT vp(m_backBuffer[m_currentBackBuffer].Get());
+    m_cmdList->RSSetViewports(1, &vp);
 
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
-    cmdList_->RSSetScissorRects(1, &rc);
+    m_cmdList->RSSetScissorRects(1, &rc);
 
     float peDefaultColor[4] = { 1.0f,0.0f,0.0f,0.0f };
     auto postEffectHeap = passRTVHeap_->GetCPUDescriptorHandleForHeapStart();
-    auto dsvHeap = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
-    cmdList_->OMSetRenderTargets(1, &postEffectHeap, false, &dsvHeap);
-    cmdList_->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    cmdList_->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
+    auto dsvHeap = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+    m_cmdList->OMSetRenderTargets(1, &postEffectHeap, false, &dsvHeap);
+    m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
     RenderPrimitive();
 
-    for (const auto& model : pmdModelList_)
+    for (const auto& model : m_pmdModelList)
     {
-        model->Render(cmdList_, frameNO);
+        model->Render(m_cmdList, frameNO);
     }
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -308,51 +308,51 @@ void Dx12Wrapper::RenderToPostEffectBuffer()
         rtTexture_.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 }
 
 void Dx12Wrapper::RenderToBackBuffer()
 {
     D3D12_RESOURCE_BARRIER barrier =
         CD3DX12_RESOURCE_BARRIER::Transition(
-            backBuffers_[currentBackBuffer_].Get(),      // resource buffer
+            m_backBuffer[m_currentBackBuffer].Get(),      // resource buffer
             D3D12_RESOURCE_STATE_PRESENT,               // state before
             D3D12_RESOURCE_STATE_RENDER_TARGET);        // state after
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE bbRTVHeap(bbRTVHeap_->GetCPUDescriptorHandleForHeapStart());
-    const auto rtvIncreSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    bbRTVHeap.Offset(currentBackBuffer_, rtvIncreSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE bbRTVHeap(m_bbRTVHeap->GetCPUDescriptorHandleForHeapStart());
+    const auto rtvIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    bbRTVHeap.Offset(m_currentBackBuffer, rtvIncreSize);
 
     float bbDefaultColor[] = { 0.0f,0.0f,0.0f,1.f };
-    cmdList_->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
-    cmdList_->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
+    m_cmdList->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
+    m_cmdList->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
 
-    cmdList_->SetPipelineState(boardPipeline_.Get());
-    cmdList_->SetGraphicsRootSignature(boardRootSig_.Get());
+    m_cmdList->SetPipelineState(boardPipeline_.Get());
+    m_cmdList->SetGraphicsRootSignature(boardRootSig_.Get());
 
-    cmdList_->SetDescriptorHeaps(1, passSRVHeap_.GetAddressOf());
+    m_cmdList->SetDescriptorHeaps(1, passSRVHeap_.GetAddressOf());
     CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(passSRVHeap_->GetGPUDescriptorHandleForHeapStart());
-    cmdList_->SetGraphicsRootDescriptorTable(0, shaderHeap);
+    m_cmdList->SetGraphicsRootDescriptorTable(0, shaderHeap);
 
-    cmdList_->IASetVertexBuffers(0, 1, &boardVBV_);
-    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    cmdList_->DrawInstanced(4, 1, 0, 0);
+    m_cmdList->IASetVertexBuffers(0, 1, &boardVBV_);
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    m_cmdList->DrawInstanced(4, 1, 0, 0);
 
 }
 
 void Dx12Wrapper::SetBackBufferIndexForNextFrame()
 {
     // Swap back buffer index to next frame use
-    currentBackBuffer_ = (currentBackBuffer_ + 1) % back_buffer_count;
+    m_currentBackBuffer = (m_currentBackBuffer + 1) % back_buffer_count;
 }
 
 void Dx12Wrapper::CreateNormalMapTexture()
 {
-    normalMapTex_ = Dx12Helper::CreateTextureFromFilePath(dev_, L"resource/image/normalmap3.png");
+    normalMapTex_ = Dx12Helper::CreateTextureFromFilePath(m_device, L"resource/image/normalmap3.png");
 
     HRESULT result = S_OK;
-    auto rsDesc = backBuffers_[0]->GetDesc();
+    auto rsDesc = m_backBuffer[0]->GetDesc();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -364,23 +364,23 @@ void Dx12Wrapper::CreateNormalMapTexture()
     srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
-    heapHandle.Offset(1, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-    dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
+    m_device->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
 }
 
 void Dx12Wrapper::CreateTimeBuffer()
 {
-    m_timeBuffer.Create(dev_,1,true);
+    m_timeBuffer.Create(m_device,1,true);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = m_timeBuffer.Size();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
-    heapHandle.Offset(2, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    heapHandle.Offset(2, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-    dev_->CreateConstantBufferView(&cbvDesc, heapHandle);
+    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 }
 
 void Dx12Wrapper::CreateBoardRootSignature()
@@ -425,7 +425,7 @@ void Dx12Wrapper::CreateBoardRootSignature()
         &errBlob);
     Dx12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
+    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
         IID_PPV_ARGS(boardRootSig_.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
@@ -439,20 +439,20 @@ void Dx12Wrapper::CreateCommandFamily()
     cmdQdesc.NodeMask = 0;
     cmdQdesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     cmdQdesc.Type = command_list_type;
-    result = dev_->CreateCommandQueue(&cmdQdesc, IID_PPV_ARGS(cmdQue_.GetAddressOf()));
+    result = m_device->CreateCommandQueue(&cmdQdesc, IID_PPV_ARGS(m_cmdQue.GetAddressOf()));
     assert(SUCCEEDED(result));
 
-    result = dev_->CreateCommandAllocator(command_list_type,
-        IID_PPV_ARGS(cmdAlloc_.GetAddressOf()));
+    result = m_device->CreateCommandAllocator(command_list_type,
+        IID_PPV_ARGS(m_cmdAlloc.GetAddressOf()));
     assert(SUCCEEDED(result));
 
-    result = dev_->CreateCommandList(0, command_list_type,
-        cmdAlloc_.Get(),
+    result = m_device->CreateCommandList(0, command_list_type,
+        m_cmdAlloc.Get(),
         nullptr,
-        IID_PPV_ARGS(cmdList_.GetAddressOf()));
+        IID_PPV_ARGS(m_cmdList.GetAddressOf()));
     assert(SUCCEEDED(result));
 
-    cmdList_->Close();
+    m_cmdList->Close();
 }
 
 void Dx12Wrapper::CreateSwapChain(const HWND& hwnd)
@@ -477,42 +477,42 @@ void Dx12Wrapper::CreateSwapChain(const HWND& hwnd)
     scDesc.Stereo = false;
     scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     ComPtr<IDXGISwapChain1> swapchain1;
-    auto result = dxgi_->CreateSwapChainForHwnd(
-        cmdQue_.Get(),
+    auto result = m_dxgi->CreateSwapChainForHwnd(
+        m_cmdQue.Get(),
         hwnd,
         &scDesc,
         nullptr,
         nullptr,
         swapchain1.ReleaseAndGetAddressOf());
     assert(SUCCEEDED(result));
-    result = swapchain1.As(&swapchain_);
+    result = swapchain1.As(&m_swapchain);
     assert(SUCCEEDED(result));
 }
 
 bool Dx12Wrapper::CreateBackBufferView()
 {
     DXGI_SWAP_CHAIN_DESC1 swDesc = {};
-    swapchain_->GetDesc1(&swDesc);
+    m_swapchain->GetDesc1(&swDesc);
     
-    Dx12Helper::CreateDescriptorHeap(dev_, bbRTVHeap_, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(m_device, m_bbRTVHeap, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    backBuffers_.resize(back_buffer_count);
+    m_backBuffer.resize(back_buffer_count);
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.Format = swDesc.Format;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    auto heap = bbRTVHeap_->GetCPUDescriptorHandleForHeapStart();
-    const auto increamentSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto heap = m_bbRTVHeap->GetCPUDescriptorHandleForHeapStart();
+    const auto increamentSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     for (int i = 0; i < back_buffer_count; ++i)
     {
-        swapchain_->GetBuffer(i, IID_PPV_ARGS(backBuffers_[i].GetAddressOf()));
-        dev_->CreateRenderTargetView(backBuffers_[i].Get(),
+        m_swapchain->GetBuffer(i, IID_PPV_ARGS(m_backBuffer[i].GetAddressOf()));
+        m_device->CreateRenderTargetView(m_backBuffer[i].Get(),
             &rtvDesc,
             heap);
         heap.ptr += increamentSize;
     }
     
-    currentBackBuffer_ = 0;
+    m_currentBackBuffer = 0;
 
     return true;
 }
@@ -520,7 +520,7 @@ bool Dx12Wrapper::CreateBackBufferView()
 bool Dx12Wrapper::CreateDepthBuffer()
 {
     HRESULT result = S_OK;
-    auto rtvDesc = backBuffers_[0]->GetDesc();
+    auto rtvDesc = m_backBuffer[0]->GetDesc();
     const auto depth_resource_format = DXGI_FORMAT_D32_FLOAT;
 
     CD3DX12_CLEAR_VALUE clearValue(
@@ -528,22 +528,22 @@ bool Dx12Wrapper::CreateDepthBuffer()
         ,1.0f                                       // depth
         ,0);                                        // stencil
 
-    depthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_,
+    m_depthBuffer = Dx12Helper::CreateTex2DBuffer(m_device,
         rtvDesc.Width, rtvDesc.Height, depth_resource_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(dev_, dsvHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(m_device, m_dsvHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
     dsvDesc.Format = depth_resource_format;
-    dev_->CreateDepthStencilView(
-        depthBuffer_.Get(),
+    m_device->CreateDepthStencilView(
+        m_depthBuffer.Get(),
         &dsvDesc,
-        dsvHeap_->GetCPUDescriptorHandleForHeapStart());
+        m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     return true;
 }
@@ -558,7 +558,7 @@ void Dx12Wrapper::CreateShadowMapping()
 bool Dx12Wrapper::CreateShadowDepthBuffer()
 {
     HRESULT result = S_OK;
-    auto rtvDesc = backBuffers_[0]->GetDesc();
+    auto rtvDesc = m_backBuffer[0]->GetDesc();
     const auto depth_resource_format = DXGI_FORMAT_D32_FLOAT;
 
     CD3DX12_CLEAR_VALUE clearValue(
@@ -566,19 +566,19 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(dev_,
+    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(m_device,
         1024, 1024, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(dev_, shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(m_device, shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-    dev_->CreateDepthStencilView(
+    m_device->CreateDepthStencilView(
         shadowDepthBuffer_.Get(),
         &dsvDesc,
         shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
@@ -615,7 +615,7 @@ void Dx12Wrapper::CreateShadowRootSignature()
         &errBlob);
     Dx12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
+    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
         IID_PPV_ARGS(shadowRootSig_.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
@@ -718,7 +718,7 @@ void Dx12Wrapper::CreateShadowPipelineState()
     // Root Signature
     psoDesc.pRootSignature = shadowRootSig_.Get();
 
-    result = dev_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(shadowPipeline_.GetAddressOf()));
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(shadowPipeline_.GetAddressOf()));
     assert(SUCCEEDED(result));
 
 }
@@ -726,24 +726,24 @@ void Dx12Wrapper::CreateShadowPipelineState()
 void Dx12Wrapper::RenderToShadowDepthBuffer()
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
-    cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
-    cmdList_->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+    m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
+    m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
-    cmdList_->SetPipelineState(shadowPipeline_.Get());
-    cmdList_->SetGraphicsRootSignature(shadowRootSig_.Get());
+    m_cmdList->SetPipelineState(shadowPipeline_.Get());
+    m_cmdList->SetGraphicsRootSignature(shadowRootSig_.Get());
 
     CD3DX12_VIEWPORT vp(shadowDepthBuffer_.Get());
-    cmdList_->RSSetViewports(1, &vp);
+    m_cmdList->RSSetViewports(1, &vp);
 
     auto desc = shadowDepthBuffer_->GetDesc();
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
-    cmdList_->RSSetScissorRects(1, &rc);
+    m_cmdList->RSSetScissorRects(1, &rc);
 
-    for (auto& model : pmdModelList_)
+    for (auto& model : m_pmdModelList)
     {
-        model->SetTransformGraphicPipeline(cmdList_);
-        model->SetInputAssembler(cmdList_);
-        cmdList_->DrawIndexedInstanced(model->GetIndicesSize(), 1, 0, 0, 0);
+        model->SetTransformGraphicPipeline(m_cmdList);
+        model->SetInputAssembler(m_cmdList);
+        m_cmdList->DrawIndexedInstanced(model->GetIndicesSize(), 1, 0, 0, 0);
     }
 
     // After draw to shadow buffer, change its state from DSV -> SRV
@@ -753,7 +753,7 @@ void Dx12Wrapper::RenderToShadowDepthBuffer()
             shadowDepthBuffer_.Get(),                       // resource buffer
             D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 }
 
 void Dx12Wrapper::CreatePlane()
@@ -785,7 +785,7 @@ void Dx12Wrapper::CreatePlaneBuffer()
     };
 
     auto byteSize = sizeof(PrimitiveVertex) * _countof(verts);
-    planeVB_ = Dx12Helper::CreateBuffer(dev_, byteSize);
+    planeVB_ = Dx12Helper::CreateBuffer(m_device, byteSize);
     
     planeVBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
     planeVBV_.SizeInBytes = byteSize;
@@ -840,7 +840,7 @@ void Dx12Wrapper::CreatePlaneRootSignature()
         &errBlob);
     Dx12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
-    result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
+    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
         IID_PPV_ARGS(planeRootSig_.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
@@ -925,54 +925,64 @@ void Dx12Wrapper::CreatePlanePipeLine()
     // Root Signature
     psoDesc.pRootSignature = planeRootSig_.Get();
 
-    result = dev_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(planePipeline_.GetAddressOf()));
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(planePipeline_.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
 void Dx12Wrapper::RenderPrimitive()
 {
-    cmdList_->SetPipelineState(planePipeline_.Get());
-    cmdList_->SetGraphicsRootSignature(planeRootSig_.Get());
-    cmdList_->SetDescriptorHeaps(1, primitiveHeap_.GetAddressOf());
+    m_cmdList->SetPipelineState(planePipeline_.Get());
+    m_cmdList->SetGraphicsRootSignature(planeRootSig_.Get());
+    m_cmdList->SetDescriptorHeaps(1, primitiveHeap_.GetAddressOf());
     CD3DX12_GPU_DESCRIPTOR_HANDLE primitiveHeap(primitiveHeap_->GetGPUDescriptorHandleForHeapStart());
-    cmdList_->SetGraphicsRootDescriptorTable(0, primitiveHeap);
+    m_cmdList->SetGraphicsRootDescriptorTable(0, primitiveHeap);
 
-    cmdList_->IASetVertexBuffers(0, 1, &planeVBV_);
-    cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    cmdList_->DrawInstanced(6, 1, 0, 0);
+    m_cmdList->IASetVertexBuffers(0, 1, &planeVBV_);
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    m_cmdList->DrawInstanced(6, 1, 0, 0);
 
 }
 
 void Dx12Wrapper::CreateDescriptorForPrimitive()
 {
-    Dx12Helper::CreateDescriptorHeap(dev_, primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(m_device, primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    auto transformBuffer = pmdModelList_[0]->GetTransformBuffer();
+    auto transformBuffer = m_pmdModelList[0]->GetTransformBuffer();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(primitiveHeap_->GetCPUDescriptorHandleForHeapStart());
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = transformBuffer->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = transformBuffer->GetDesc().Width;
-    dev_->CreateConstantBufferView(&cbvDesc, heapHandle);
+    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
-    heapHandle.Offset(1, dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
+    m_device->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
 }
 
 void Dx12Wrapper::WaitForGPU()
 {
-    cmdQue_->ExecuteCommandLists(1, (ID3D12CommandList* const*)cmdList_.GetAddressOf());
-    cmdQue_->Signal(fence_.Get(), ++fenceValue_);
-    while (1)
+    // Set current GPU target fence value to next process frame
+    ++m_targetFenceValue;
+
+    // use Signal of Command Que to tell GPU to set current GPU fence value
+    // to next process frame, after finished last Execution Draw Call
+    m_cmdQue->Signal(m_fence.Get(), m_targetFenceValue);
+
+    // Check GPU current fence value 
+    // If GPU current fence value haven't reached target Fence Value
+    // Tell CPU to wait until GPU reach current fence
+    while (m_fence->GetCompletedValue() < m_targetFenceValue)
     {
-        if (fence_->GetCompletedValue() == fenceValue_)
-            break;
-    }
+        auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+        m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
+        WaitForSingleObject(fenceEvent, INFINITE);
+        CloseHandle(fenceEvent);
+    };
 }
 
 void Dx12Wrapper::CreatePostEffectTexture()
@@ -991,12 +1001,15 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
 {
     HRESULT result = S_OK;
 
+    result = CoInitializeEx(0, COINIT_MULTITHREADED);
+    assert(SUCCEEDED(result));
+
 #if defined(DEBUG) || defined(_DEBUG)
     //ComPtr<ID3D12Debug> debug;
     //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
     //debug->EnableDebugLayer();
 
-    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(dxgi_.ReleaseAndGetAddressOf()));
+    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(m_dxgi.ReleaseAndGetAddressOf()));
 
 #else
     result = CreateDXGIFactory2(0, IID_PPV_ARGS(dxgi_.GetAddressOf()));
@@ -1014,7 +1027,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     UINT i = 0;
     IDXGIAdapter* pAdapter = nullptr;
     std::vector<IDXGIAdapter*> adapterList;
-    while (dxgi_->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
+    while (m_dxgi->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
     {
         DXGI_ADAPTER_DESC desc;
         pAdapter->GetDesc(&desc);
@@ -1032,7 +1045,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     {
         //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1046,32 +1059,38 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
    
     CreateCommandFamily();
 
-    dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence_.ReleaseAndGetAddressOf()));
-    fenceValue_ = fence_->GetCompletedValue();
-
-    result = CoInitializeEx(0, COINIT_MULTITHREADED);
-    assert(SUCCEEDED(result));
+    m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.ReleaseAndGetAddressOf()));
+    m_targetFenceValue = m_fence->GetCompletedValue();
 
     CreateSwapChain(hwnd);
     CreateBackBufferView();
+
+    
+
     CreateDepthBuffer();  
     CreatePostEffectTexture();
     CreateShadowMapping();
+
+    
     CreateDefaultTexture();
+    
+
     CreatePMDModel();
     CreatePlane();
-    
+
+   
+
     return true;
 }
 
 void Dx12Wrapper::CreatePMDModel()
 {
-    pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModelList_[0]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModelList_[0]->LoadPMD(model1_path);
-    pmdModelList_[0]->CreateModel();
-    pmdModelList_[0]->CreateShadowDepthView(shadowDepthBuffer_);
-    pmdModelList_[0]->LoadMotion(motion1_path);
+    m_pmdModelList.emplace_back(std::make_shared<PMDModel>(m_device));
+    m_pmdModelList[0]->GetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
+    m_pmdModelList[0]->LoadPMD(model1_path);
+    m_pmdModelList[0]->CreateModel();
+    m_pmdModelList[0]->CreateShadowDepthView(shadowDepthBuffer_);
+    m_pmdModelList[0]->LoadMotion(motion1_path);
 
     /*pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
     pmdModelList_[1]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
@@ -1108,7 +1127,7 @@ bool Dx12Wrapper::Update(const float& deltaTime)
         frameNO++;
         timer = animation_speed;
         scalar += 0.05;
-        for (auto& model : pmdModelList_)
+        for (auto& model : m_pmdModelList)
         {
             model->Transform(XMMatrixRotationY(angle));
             model->Transform(XMMatrixScaling(scale, scale, scale));
@@ -1128,27 +1147,27 @@ void Dx12Wrapper::SetResourceStateForNextFrame()
         rtTexture_.Get(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         shadowDepthBuffer_.Get(),                  // resource buffer
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,               // state before
         D3D12_RESOURCE_STATE_DEPTH_WRITE);        // state after
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 
     // change back buffer state to PRESENT to ready to be rendered
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        backBuffers_[currentBackBuffer_].Get(),                  // resource buffer
+        m_backBuffer[m_currentBackBuffer].Get(),                  // resource buffer
         D3D12_RESOURCE_STATE_RENDER_TARGET,         // state before
         D3D12_RESOURCE_STATE_PRESENT);              // state after
-    cmdList_->ResourceBarrier(1, &barrier);
+    m_cmdList->ResourceBarrier(1, &barrier);
 }
 
 bool Dx12Wrapper::Render()
 {
     // Clear commands and open
-    cmdAlloc_->Reset();
-    cmdList_->Reset(cmdAlloc_.Get(), nullptr);
+    m_cmdAlloc->Reset();
+    m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
     RenderToShadowDepthBuffer();
     RenderToPostEffectBuffer();
@@ -1156,11 +1175,12 @@ bool Dx12Wrapper::Render()
     SetResourceStateForNextFrame();
     SetBackBufferIndexForNextFrame();
 
-    cmdList_->Close();
+    m_cmdList->Close();
+    m_cmdQue->ExecuteCommandLists(1, (ID3D12CommandList* const*)m_cmdList.GetAddressOf());
     WaitForGPU();
 
     // screen flip
-    swapchain_->Present(0, 0);
+    m_swapchain->Present(0, 0);
     return true;
 }
 

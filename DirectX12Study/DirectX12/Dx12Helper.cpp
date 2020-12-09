@@ -73,6 +73,9 @@ size_t Dx12Helper::AlignedConstantBufferMemory(size_t byteSize)
 
 void Dx12Helper::ThrowIfFailed(HRESULT hr)
 {
+#if defined (_DEBUG) || defined (DEBUG)
+    assert(SUCCEEDED(hr));
+#endif
     if (FAILED(hr))
         throw Dx12Helper::HrException(hr);
 }
