@@ -101,47 +101,32 @@ void Dx12Wrapper::CreateDefaultTexture()
             r(red), g(green), b(blue), a(alpha) {};
     };
 
-    std::vector<Color> texdata(4 * 4);
-    std::fill(texdata.begin(), texdata.end(), Color(0xff, 0xff, 0xff, 0xff));
+    std::vector<Color> whiteTex(4 * 4);
+    std::fill(whiteTex.begin(), whiteTex.end(), Color(0xff, 0xff, 0xff, 0xff));
+    const std::string whiteTexStr = "white texture";
+    m_updateBuffers.Add(whiteTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
+    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture, 
+        m_updateBuffers.GetBuffer(whiteTexStr),
+        m_updateBuffers.GetSubresource(whiteTexStr));
 
-    D3D12_SUBRESOURCE_DATA subresourcedata = {};
-    subresourcedata.pData = texdata.data();
-    subresourcedata.RowPitch = sizeof(texdata[0]) * 4;
-    subresourcedata.SlicePitch = texdata.size() * 4;
-
-    // 転送元
-    UpdateSubresourceToTextureBuffer(m_whiteTexture.Get(), subresourcedata);
-
-    std::fill(texdata.begin(), texdata.end(), Color(0x00, 0x00, 0x00, 0xff));
-    UpdateSubresourceToTextureBuffer(m_blackTexture.Get(), subresourcedata);
+    std::vector<Color> blackTex(4 * 4);
+    std::fill(blackTex.begin(), blackTex.end(), Color(0x00, 0x00, 0x00, 0xff));
+    const std::string blackTexStr = "black texture";
+    m_updateBuffers.Add(blackTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
+    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture,
+        m_updateBuffers.GetBuffer(blackTexStr),
+        m_updateBuffers.GetSubresource(blackTexStr));
     
-    texdata.resize(256);
+    std::vector<Color> gradTex(4 * 4);
+    gradTex.resize(256);
     for (size_t i = 0; i < 256; ++i)
-        std::fill_n(&texdata[i], 1, Color(255 - i, 255 - i, 255 - i, 0xff));
+        std::fill_n(&gradTex[i], 1, Color(255 - i, 255 - i, 255 - i, 0xff));
+    const std::string gradTexStr = "gradiation texture";
+    m_updateBuffers.Add(gradTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
+    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture,
+        m_updateBuffers.GetBuffer(gradTexStr),
+        m_updateBuffers.GetSubresource(gradTexStr));
     
-    UpdateSubresourceToTextureBuffer(m_gradTexture.Get(), subresourcedata);
-}
-
-void Dx12Wrapper::UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata)
-{
-    auto uploadBufferSize = GetRequiredIntermediateSize(texBuffer, 0, 1);
-    ComPtr<ID3D12Resource> intermediateBuffer = Dx12Helper::CreateBuffer(m_device,uploadBufferSize);
-
-    auto dst = CD3DX12_TEXTURE_COPY_LOCATION(texBuffer);
-    // 中でcmdList->CopyTextureRegionが走っているため
-    // コマンドキューうを実行して待ちをしなければならない
-    m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
-    m_cmdAlloc->Reset();
-    UpdateSubresources(m_cmdList.Get(), texBuffer, intermediateBuffer.Get(), 0, 0, 1, &subresourcedata);
-    auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texBuffer,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    m_cmdList->ResourceBarrier(1,
-        &resourceBarrier);
-
-    m_cmdList->Close();
-    m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(m_cmdList.GetAddressOf()));
-    WaitForGPU();
 }
 
 void Dx12Wrapper::CreateViewForRenderTargetTexture()
@@ -1054,31 +1039,29 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
             return false;
         }
     }
-
-    // Load model vertices
    
     CreateCommandFamily();
 
+    m_cmdAlloc->Reset();
+    m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
+
     m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.ReleaseAndGetAddressOf()));
     m_targetFenceValue = m_fence->GetCompletedValue();
-
+    
     CreateSwapChain(hwnd);
     CreateBackBufferView();
-
-    
-
     CreateDepthBuffer();  
     CreatePostEffectTexture();
     CreateShadowMapping();
-
-    
     CreateDefaultTexture();
-    
-
     CreatePMDModel();
     CreatePlane();
 
-   
+    m_cmdList->Close();
+    m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList*const*>(m_cmdList.GetAddressOf()));
+    WaitForGPU();
+
+    m_updateBuffers.Clear();
 
     return true;
 }

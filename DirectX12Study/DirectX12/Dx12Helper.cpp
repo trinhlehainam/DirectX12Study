@@ -154,6 +154,52 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device
     return buffer;
 }
 
+ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList, 
+    ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize)
+{
+    ComPtr<ID3D12Resource> buffer = nullptr;
+    emptyUploadBuffer.Reset();
+
+    emptyUploadBuffer = Dx12Helper::CreateBuffer(device, dataSize);
+    buffer = Dx12Helper::CreateBuffer(device, dataSize, D3D12_HEAP_TYPE_DEFAULT);
+    
+    D3D12_SUBRESOURCE_DATA subResource = {};
+    subResource.pData = pData;
+    subResource.RowPitch = dataSize;
+    subResource.SlicePitch = subResource.RowPitch;
+
+    UpdateSubresources(pCmdList, buffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
+    ChangeResourceState(pCmdList, buffer.Get(), 
+        D3D12_RESOURCE_STATE_COPY_DEST, 
+        D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    return buffer;
+}
+
+bool Dx12Helper::UpdateDataToTextureBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+    ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource)
+{
+    emptyUploadBuffer.Reset();
+
+    auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, 1);
+    emptyUploadBuffer = Dx12Helper::CreateBuffer(device, uploadBufferSize);
+
+    // 中でcmdList->CopyTextureRegionが走っているため
+    // コマンドキューうを実行して待ちをしなければならない
+    UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
+    Dx12Helper::ChangeResourceState(pCmdList, textureBuffer.Get(), 
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    return true;
+}
+
+void Dx12Helper::ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+{
+    auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
+    pCmdList->ResourceBarrier(1, &resourceBarrier);
+}
+
 std::string Dx12Helper::HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -168,4 +214,42 @@ Dx12Helper::HrException::HrException(HRESULT hr):std::runtime_error(Dx12Helper::
 HRESULT Dx12Helper::HrException::Error() const
 {
     return m_hr;
+}
+
+bool UpdateTextureBuffers::Add(const std::string& bufferName, const void* pData, LONG_PTR rowPitch,
+    LONG_PTR slicePitch)
+{
+    if (m_updateBuffers.count(bufferName)) return false;
+
+    m_updateBuffers[bufferName].first = nullptr;
+    m_updateBuffers[bufferName].second = { pData, rowPitch, slicePitch };
+
+    return true;
+}
+
+bool UpdateTextureBuffers::Clear()
+{
+    m_updateBuffers.clear();
+
+    return m_updateBuffers.size();
+}
+
+const D3D12_SUBRESOURCE_DATA& UpdateTextureBuffers::GetSubresource(const std::string& bufferName)
+{
+    // Check if there is any buffer
+    assert(m_updateBuffers.size());
+    // Check if bufferName is in this list
+    assert(m_updateBuffers.count(bufferName));
+
+    return m_updateBuffers[bufferName].second;
+}
+
+ComPtr<ID3D12Resource>& UpdateTextureBuffers::GetBuffer(const std::string& bufferName)
+{
+    // Check if there is any buffer
+    assert(m_updateBuffers.size());
+    // Check if bufferName is in this list
+    assert(m_updateBuffers.count(bufferName));
+
+    return m_updateBuffers[bufferName].first;
 }

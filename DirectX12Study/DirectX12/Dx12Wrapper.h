@@ -13,7 +13,6 @@
 #include "Dx12Helper.h"
 #include "UploadBuffer.h"
 
-using Microsoft::WRL::ComPtr;
 
 /// <summary>
 /// DirectX12 feature
@@ -84,9 +83,7 @@ private:
 
 	void WaitForGPU();
 private:
-
-	// Send resouce from uploader(intermediate) buffer to GPU reading buffer
-	void UpdateSubresourceToTextureBuffer(ID3D12Resource* texBuffer, D3D12_SUBRESOURCE_DATA& subresourcedata);
+	UpdateTextureBuffers m_updateBuffers;
 
 	std::vector<std::shared_ptr<PMDModel>> m_pmdModelList;
 	void CreatePMDModel();

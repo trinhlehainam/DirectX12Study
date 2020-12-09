@@ -2,6 +2,7 @@
 
 #include <d3dx12.h>
 #include <stdexcept>
+#include <unordered_map>
 
 using Microsoft::WRL::ComPtr;
 
@@ -34,6 +35,23 @@ public:
 	// Return nullptr if FAILED to load texture from file
 	static ComPtr<ID3D12Resource> CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path);
 
+	// Create resource has default heap type (GPU read only)
+	// Use upload buffer to UPDATE resource to default buffer
+	// *** UPLOAD BUFFER SHOULD BE EMPTY
+	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
+	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
+	static ComPtr<ID3D12Resource> CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+		ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize);
+
+	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
+	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
+	static bool UpdateDataToTextureBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+		ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource);
+
+	// Change resource state at GPU executing time
+	static void ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
+		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
+
 private:
 	class HrException : public std::runtime_error
 	{
@@ -47,5 +65,20 @@ private:
 	static std::string HrToString(HRESULT hr);
 };
 
+// Buffers use for update to texture buffer
+class UpdateTextureBuffers
+{
+public:
+	UpdateTextureBuffers() = default;
 
-
+	bool Add(const std::string& bufferName, const void* pData, LONG_PTR rowPitch, LONG_PTR slicePitch);
+	bool Clear();
+	const D3D12_SUBRESOURCE_DATA& GetSubresource(const std::string& bufferName);
+	ComPtr<ID3D12Resource>& GetBuffer(const std::string& bufferName);
+private:
+	UpdateTextureBuffers(const UpdateTextureBuffers&) = delete;
+	UpdateTextureBuffers& operator = (const UpdateTextureBuffers&) = delete;
+private:
+	using UpdateBuffer_t = std::pair<ComPtr<ID3D12Resource>, D3D12_SUBRESOURCE_DATA>;
+	std::unordered_map<std::string, UpdateBuffer_t> m_updateBuffers;
+};
