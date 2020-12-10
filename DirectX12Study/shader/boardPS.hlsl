@@ -36,8 +36,8 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	float2 dt = float2(1.f / w, 1.f / h);
 	float2 offset = ((nmCol.xy * 2) - 1) * nmCol.a;
 
-	float4 color = renderTargetTex.Sample(smpWrap, input.uv + offset*0.03f);
-	//float4 color = renderTargetTex.Sample(smpWrap, input.uv);
+	//float4 color = renderTargetTex.Sample(smpWrap, input.uv + offset*0.03f);
+	float4 color = renderTargetTex.Sample(smpWrap, input.uv);
 
 	if (color.a > 0.0f)
 	{

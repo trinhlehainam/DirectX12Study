@@ -1,0 +1,46 @@
+#pragma once
+
+#include <stdint.h>
+#include <vector>
+#include <DirectXMath.h>
+
+class GeometryGenerator
+{
+public:
+	struct Vertex
+	{
+		Vertex() {};
+
+		Vertex(const DirectX::XMFLOAT3& position,
+			const DirectX::XMFLOAT3& normal,
+			const DirectX::XMFLOAT3& tangentU,
+			const DirectX::XMFLOAT2& uv);
+
+		Vertex(float positionX, float positionY, float positionZ,
+			float normalX, float normalY, float normalZ,
+			float tangentX, float tangentY, float tangentZ,
+			float u, float v);
+
+		DirectX::XMFLOAT3 position;
+		DirectX::XMFLOAT3 normal;
+		// Tangent Unit (Unit length)
+		DirectX::XMFLOAT3 tangentU;
+		DirectX::XMFLOAT2 texCoord;
+	};
+	struct Mesh
+	{
+		std::vector<Vertex> vertices;
+		std::vector<uint16_t> indices;
+	};
+
+	// Create cylinder and center it at origin parallel to y-axis. 
+	// Adjust top and bottom Radius to create cone-liked cylinders or even cones
+	// Adjust number of stact and slice to subdivision the shape (tessellation)
+	static Mesh CreateCylinder(float bottomRadius, float topRadius, float height, uint32_t stackCount,
+		uint32_t sliceCount);
+
+private:
+	static void BuildCylinderTopCap(const float& topRadius, const float& height, const uint32_t& verticesPerRing, Mesh& mesh);
+	static void BuildCylinderBottomCap(const float& bottomRadius, const float& height, const uint32_t& verticesPerRing, Mesh& mesh);
+};
+

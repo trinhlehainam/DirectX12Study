@@ -128,11 +128,15 @@ private:
 
 	ComPtr<ID3D12Resource> planeVB_;
 	D3D12_VERTEX_BUFFER_VIEW planeVBV_;
+	ComPtr<ID3D12Resource> planeIB_;
+	D3D12_INDEX_BUFFER_VIEW planeIBV_;
 	ComPtr<ID3D12PipelineState> planePipeline_;
 	ComPtr<ID3D12RootSignature> planeRootSig_;
 	
 	void CreatePlane();
 	void CreatePlaneBuffer();
+	void CreatePlaneVertexBuffer();
+	void CreatePlaneIndexBuffer();
 	void CreatePlaneRootSignature();
 	void CreatePlanePipeLine();
 	

@@ -2,6 +2,7 @@
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../VMDLoader/VMDMotion.h"
+#include "Geometry/GeometryGenerator.h"
 
 #include <cassert>
 #include <algorithm>
@@ -751,6 +752,17 @@ void Dx12Wrapper::CreatePlane()
 
 void Dx12Wrapper::CreatePlaneBuffer()
 {
+    CreatePlaneVertexBuffer();
+    CreatePlaneIndexBuffer();
+}
+
+namespace
+{
+    auto cylinder = GeometryGenerator::CreateCylinder(50.f, 30.f, 20.f, 1, 8);
+}
+
+void Dx12Wrapper::CreatePlaneVertexBuffer()
+{
     /*PrimitiveVertex verts[] = {
         {{-10.0f,0.0f,-10.0f}},
         {{10.0f,0.0f,-10.0f}},
@@ -769,17 +781,43 @@ void Dx12Wrapper::CreatePlaneBuffer()
         {{-10.0f,50.0f,10.0f}},
     };
 
-    auto byteSize = sizeof(PrimitiveVertex) * _countof(verts);
+    //auto byteSize = sizeof(PrimitiveVertex) * _countof(verts);
+    auto byteSize = sizeof(cylinder.vertices[0]) * cylinder.vertices.size();
     planeVB_ = Dx12Helper::CreateBuffer(m_device, byteSize);
     
     planeVBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
     planeVBV_.SizeInBytes = byteSize;
-    planeVBV_.StrideInBytes = sizeof(PrimitiveVertex);
+    planeVBV_.StrideInBytes = sizeof(cylinder.vertices[0]);
 
-    PrimitiveVertex* mappedVertices = nullptr;
+    auto type = cylinder.vertices[0];
+    decltype(type)* mappedVertices = nullptr;
+
+    //PrimitiveVertex* mappedVertices = nullptr;
     Dx12Helper::ThrowIfFailed(planeVB_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
-    std::copy(std::begin(verts), std::end(verts), mappedVertices);
+    //std::copy(std::begin(verts), std::end(verts), mappedVertices);
+    std::copy(cylinder.vertices.begin(), cylinder.vertices.end(), mappedVertices);
     planeVB_->Unmap(0, nullptr);
+
+}
+
+void Dx12Wrapper::CreatePlaneIndexBuffer()
+{
+
+    auto byteSize = sizeof(cylinder.indices[0]) * cylinder.indices.size();
+    planeIB_ = Dx12Helper::CreateBuffer(m_device, byteSize);
+
+    planeIBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
+    planeIBV_.SizeInBytes = byteSize;
+    planeIBV_.Format = DXGI_FORMAT_R16_UINT;
+
+    auto type = cylinder.indices[0];
+    decltype(type)* mappedVertices = nullptr;
+
+    //PrimitiveVertex* mappedVertices = nullptr;
+    Dx12Helper::ThrowIfFailed(planeIB_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
+    //std::copy(std::begin(verts), std::end(verts), mappedVertices);
+    std::copy(cylinder.indices.begin(), cylinder.indices.end(), mappedVertices);
+    planeIB_->Unmap(0, nullptr);
 }
 
 void Dx12Wrapper::CreatePlaneRootSignature()
@@ -845,7 +883,34 @@ void Dx12Wrapper::CreatePlanePipeLine()
     0,                                            //スロット番号（頂点データが入ってくる入口地番号）
     0,                                            //このデータが何バイト目から始まるのか
     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0}
+    0},
+    {
+    "NORMAL",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0 
+    },
+{
+    "TANGENT",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+    {
+    "TEXCOORD",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
     };
 
     // Input Assembler
@@ -871,8 +936,7 @@ void Dx12Wrapper::CreatePlanePipeLine()
 
     // Rasterizer
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.FrontCounterClockwise = true;
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
     // Pixel Shader
     ComPtr<ID3DBlob> psBlob;
@@ -923,8 +987,10 @@ void Dx12Wrapper::RenderPrimitive()
     m_cmdList->SetGraphicsRootDescriptorTable(0, primitiveHeap);
 
     m_cmdList->IASetVertexBuffers(0, 1, &planeVBV_);
+    m_cmdList->IASetIndexBuffer(&planeIBV_);
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    m_cmdList->DrawInstanced(6, 1, 0, 0);
+    //m_cmdList->DrawInstanced(cylinder.vertices.size(), 1, 0, 0);
+    m_cmdList->DrawIndexedInstanced(cylinder.indices.size(), 1, 0, 0, 0);
 
 }
 
