@@ -21,49 +21,6 @@ using namespace DirectX;
 
 namespace
 {
-    // convert string to wide string
-    std::wstring ConvertStringToWideString(const std::string& str)
-    {
-        std::wstring ret;
-        auto wstringSize = MultiByteToWideChar(
-            CP_ACP,
-            MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-            str.c_str(), str.length(), nullptr, 0);
-        ret.resize(wstringSize);
-        MultiByteToWideChar(
-            CP_ACP,
-            MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-            str.c_str(), str.length(), &ret[0], ret.length());
-        return ret;
-    }
-
-    std::string GetFileExtension(const std::string& path)
-    {
-        auto idx = path.rfind('.') + 1;
-        return idx == std::string::npos ? "" : path.substr(idx, path.length() - idx);
-    }
-
-    std::vector<std::string> SplitFilePath(const std::string& path, const char splitter = ' *')
-    {
-        std::vector <std::string> ret;
-        auto idx = path.rfind(splitter);
-        if (idx == std::string::npos)
-            ret.push_back(path);
-        ret.push_back(path.substr(0, idx));
-        ++idx;
-        ret.push_back(path.substr(idx, path.length() - idx));
-        return ret;
-    }
-
-    std::string GetTexturePathFromModelPath(const char* modelPath, const char* texturePath)
-    {
-        std::string ret = modelPath;
-        auto idx = ret.rfind("/") + 1;
-
-        return ret.substr(0, idx) + texturePath;
-    }
-
-    
     constexpr unsigned int material_descriptor_count = 5;
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
@@ -90,9 +47,9 @@ void Dx12Wrapper::CreateDefaultTexture()
     HRESULT result = S_OK;
 
     // 転送先
-    m_whiteTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
-    m_blackTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
-    m_gradTexture = Dx12Helper::CreateTex2DBuffer(m_device,4, 4);
+    m_whiteTexture = Dx12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
+    m_blackTexture = Dx12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
+    m_gradTexture = Dx12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
 
     struct Color
     {
@@ -136,12 +93,12 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     auto rsDesc = m_backBuffer[0]->GetDesc();
     float color[] = { 0.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = Dx12Helper::CreateTex2DBuffer(m_device,
+    rtTexture_ = Dx12Helper::CreateTex2DBuffer(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(m_device,passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(),passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -151,7 +108,7 @@ void Dx12Wrapper::CreateViewForRenderTargetTexture()
     m_device->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
 
     // SRV
-    Dx12Helper::CreateDescriptorHeap(m_device,passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(),passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -480,7 +437,7 @@ bool Dx12Wrapper::CreateBackBufferView()
     DXGI_SWAP_CHAIN_DESC1 swDesc = {};
     m_swapchain->GetDesc1(&swDesc);
     
-    Dx12Helper::CreateDescriptorHeap(m_device, m_bbRTVHeap, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_bbRTVHeap, back_buffer_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     m_backBuffer.resize(back_buffer_count);
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -514,13 +471,13 @@ bool Dx12Wrapper::CreateDepthBuffer()
         ,1.0f                                       // depth
         ,0);                                        // stencil
 
-    m_depthBuffer = Dx12Helper::CreateTex2DBuffer(m_device,
+    m_depthBuffer = Dx12Helper::CreateTex2DBuffer(m_device.Get(),
         rtvDesc.Width, rtvDesc.Height, depth_resource_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(m_device, m_dsvHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_dsvHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -552,13 +509,13 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(m_device,
+    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(m_device.Get(),
         1024, 1024, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    Dx12Helper::CreateDescriptorHeap(m_device, shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -996,7 +953,7 @@ void Dx12Wrapper::RenderPrimitive()
 
 void Dx12Wrapper::CreateDescriptorForPrimitive()
 {
-    Dx12Helper::CreateDescriptorHeap(m_device, primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     auto transformBuffer = m_pmdModelList[0]->GetTransformBuffer();
 

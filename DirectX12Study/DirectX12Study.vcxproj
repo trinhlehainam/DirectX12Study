@@ -152,8 +152,11 @@
     <ClCompile Include="Loader\BmpLoader.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="PMDLoader\PMDModel.cpp" />
+    <ClCompile Include="PMDModel\PMDMeshes.cpp" />
+    <ClCompile Include="PMDModel\PMDManger.cpp" />
+    <ClCompile Include="PMDModel\PMDModel.cpp" />
     <ClCompile Include="DirectX12\UploadBuffer.cpp" />
+    <ClCompile Include="Common\StringHelper.cpp" />
     <ClCompile Include="VMDLoader\VMDMotion.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -166,8 +169,11 @@
     <ClInclude Include="Input\Mouse.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
-    <ClInclude Include="PMDLoader\PMDModel.h" />
+    <ClInclude Include="PMDModel\PMDMeshes.h" />
+    <ClInclude Include="PMDModel\PMDManger.h" />
+    <ClInclude Include="PMDModel\PMDModel.h" />
     <ClInclude Include="DirectX12\UploadBuffer.h" />
+    <ClInclude Include="Common\StringHelper.h" />
     <ClInclude Include="VMDLoader\VMDMotion.h" />
   </ItemGroup>
   <ItemGroup>

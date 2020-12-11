@@ -7,7 +7,7 @@ struct Size
 	size_t height;
 };
 
-struct BasicMatrix {
+struct WorldPassConstant {
 	DirectX::XMMATRIX world;
 	DirectX::XMMATRIX viewproj;
 	DirectX::XMVECTOR lightPos;

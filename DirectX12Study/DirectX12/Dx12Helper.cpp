@@ -19,7 +19,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ComPtr<ID3D12Device>& device ,si
     return buffer;
 }
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ComPtr<ID3D12Device>& device, UINT64 width, UINT height, 
+ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height, 
      DXGI_FORMAT texFormat, D3D12_RESOURCE_FLAGS flag, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES state,
     const D3D12_CLEAR_VALUE* clearValue)
 {
@@ -29,7 +29,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ComPtr<ID3D12Device>& devic
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
 
     ComPtr<ID3D12Resource> buffer = nullptr;
-    ThrowIfFailed(device->CreateCommittedResource(
+    ThrowIfFailed(pdevice->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -40,7 +40,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ComPtr<ID3D12Device>& devic
     return buffer;
 }
 
-bool Dx12Helper::CreateDescriptorHeap(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorHeap>& descriptorHeap, 
+bool Dx12Helper::CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12DescriptorHeap>& pDescriptorHeap,
     UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool isShaderVisible, UINT nodeMask)
 {
     D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
@@ -48,7 +48,7 @@ bool Dx12Helper::CreateDescriptorHeap(ComPtr<ID3D12Device>& device, ComPtr<ID3D1
     descHeap.Flags = isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     descHeap.NumDescriptors = numDesciprtor;
     descHeap.Type = heapType;
-    ThrowIfFailed(device->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(descriptorHeap.ReleaseAndGetAddressOf())));
+    ThrowIfFailed(pDevice->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(pDescriptorHeap.ReleaseAndGetAddressOf())));
     return false;
 }
 

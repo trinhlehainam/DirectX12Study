@@ -27,9 +27,6 @@
     <ClCompile Include="Loader\BmpLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PMDLoader\PMDModel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="VMDLoader\VMDMotion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -51,6 +48,18 @@
     <ClCompile Include="DirectX12\Geometry\GeometryGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PMDModel\PMDModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\StringHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PMDModel\PMDManger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PMDModel\PMDMeshes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -63,9 +72,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PMDLoader\PMDModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VMDLoader\VMDMotion.h">
@@ -87,6 +93,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectX12\Geometry\GeometryGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDModel\PMDModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\StringHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDModel\PMDManger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDModel\PMDMeshes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

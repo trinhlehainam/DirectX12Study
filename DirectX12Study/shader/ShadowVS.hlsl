@@ -1,5 +1,21 @@
 #include "common.hlsli"
 
+struct VsInput
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD;
+	float4 normal : NORMAL;
+	min16uint2 boneno : BONENO;
+	float weight : WEIGHT;
+	uint instanceID : SV_InstanceID;
+};
+
+cbuffer objectConstant : register(b1)
+{
+	matrix world; // transform to world space matrix
+	matrix bones[512];
+}
+
 VsOutput ShadowVS(VsInput input)
 {
 	VsOutput ret;

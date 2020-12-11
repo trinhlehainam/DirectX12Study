@@ -41,7 +41,7 @@ public:
 
 	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
 
-	BasicMatrix* GetMappedMatrix();
+	WorldPassConstant* GetMappedMatrix();
 
 	PMDModel(ComPtr<ID3D12Device> device);
 	~PMDModel();
@@ -81,14 +81,15 @@ private:
 	std::vector<PMDMaterial> materials_;
 	std::vector<std::string> modelPaths_;
 	std::vector<std::string> toonPaths_;
-	std::vector<PMDBone> bones_;
+	std::vector<PMDBone> m_boneMatrices;
 	std::unordered_map<std::string, uint16_t> bonesTable_;
 	std::vector<DirectX::XMMATRIX> boneMatrices_;
 	const char* pmdPath_;
 
+private:
 	std::shared_ptr<VMDMotion> vmdMotion_;
 
-	ComPtr<ID3D12Device> dev_ = nullptr;
+	ComPtr<ID3D12Device> m_device = nullptr;
 
 	ComPtr<ID3D12Resource> whiteTexture_;
 	ComPtr<ID3D12Resource> blackTexture_;
@@ -106,7 +107,7 @@ private:
 	void CreateIndexBuffer();
 
 	// Constant Buffer
-	BasicMatrix* mappedBasicMatrix_ = nullptr;
+	WorldPassConstant* mappedBasicMatrix_ = nullptr;
 	ComPtr<ID3D12Resource> transformBuffer_;
 	ComPtr<ID3D12DescriptorHeap> transformDescHeap_;
 	bool CreateTransformBuffer();

@@ -2,6 +2,8 @@
 #include "../Application.h"
 #include "../VMDLoader/VMDMotion.h"
 #include "../DirectX12/Dx12Helper.h"
+#include "../Common/StringHelper.h"
+
 #include <stdio.h>
 #include <Windows.h>
 #include <array>
@@ -9,49 +11,7 @@
 
 namespace
 {
-	std::string GetTexturePathFromModelPath(const char* modelPath, const char* texturePath)
-	{
-		std::string ret = modelPath;
-		auto idx = ret.rfind("/") + 1;
-
-		return ret.substr(0, idx) + texturePath;
-	}
-
-	std::wstring ConvertStringToWideString(const std::string& str)
-	{
-		std::wstring ret;
-		auto wstringSize = MultiByteToWideChar(
-			CP_ACP,
-			MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-			str.c_str(), str.length(), nullptr, 0);
-		ret.resize(wstringSize);
-		MultiByteToWideChar(
-			CP_ACP,
-			MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-			str.c_str(), str.length(), &ret[0], ret.length());
-		return ret;
-	}
-
-	std::string GetFileExtension(const std::string& path)
-	{
-		auto idx = path.rfind('.') + 1;
-		return idx == std::string::npos ? "" : path.substr(idx, path.length() - idx);
-	}
-
-	std::vector<std::string> SplitFilePath(const std::string& path, const char splitter = ' *')
-	{
-		std::vector <std::string> ret;
-		auto idx = path.rfind(splitter);
-		if (idx == std::string::npos)
-			ret.push_back(path);
-		ret.push_back(path.substr(0, idx));
-		++idx;
-		ret.push_back(path.substr(idx, path.length() - idx));
-		return ret;
-	}
-
 	const char* pmd_path = "resource/PMD/";
-
 	constexpr unsigned int material_descriptor_count = 5;
 }
 
@@ -96,7 +56,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	/*-------------Set up material and texture-------------*/
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)materialDescHeap_.GetAddressOf());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
-	auto materialHeapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	uint32_t indexOffset = 0;
 	for (auto& m : materials_)
 	{
@@ -137,7 +97,7 @@ void PMDModel::SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdLis
 	cmdList->SetGraphicsRootSignature(rootSig_.Get());
 }
 
-BasicMatrix* PMDModel::GetMappedMatrix()
+WorldPassConstant* PMDModel::GetMappedMatrix()
 {
 	return mappedBasicMatrix_;
 }
@@ -150,7 +110,7 @@ void PMDModel::GetDefaultTexture(ComPtr<ID3D12Resource>& whiteTexture, ComPtr<ID
 }
 
 PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
-	dev_(device)
+	m_device(device)
 {
 	vmdMotion_ = std::make_shared<VMDMotion>();
 }
@@ -159,7 +119,7 @@ PMDModel::~PMDModel()
 {
 	boneBuffer_->Unmap(0, nullptr);
 	vertexBuffer_->Unmap(0, nullptr);
-	dev_ = nullptr;
+	m_device = nullptr;
 }
 
 bool PMDModel::LoadPMD(const char* path)
@@ -252,11 +212,11 @@ bool PMDModel::LoadPMD(const char* path)
 	// Bone
 	std::vector<BoneData> boneData(boneNum);
 	fread_s(boneData.data(), sizeof(boneData[0])* boneData.size(), sizeof(boneData[0])* boneData.size(), 1, fp);
-	bones_.resize(boneNum);
+	m_boneMatrices.resize(boneNum);
 	for (int i = 0; i < boneNum; ++i)
 	{
-		bones_[i].name = boneData[i].boneName;
-		bones_[i].pos = boneData[i].pos;
+		m_boneMatrices[i].name = boneData[i].boneName;
+		m_boneMatrices[i].pos = boneData[i].pos;
 		bonesTable_[boneData[i].boneName] = i;
 	}
 	boneMatrices_.resize(boneNum);
@@ -266,9 +226,9 @@ bool PMDModel::LoadPMD(const char* path)
 	{
 		if (boneData[i].parentNo == 0xffff) continue;
 		auto pno = boneData[i].parentNo;
-		bones_[pno].children.push_back(i);
+		m_boneMatrices[pno].children.push_back(i);
 #ifdef _DEBUG
-		bones_[pno].childrenName.push_back(boneData[i].boneName);
+		m_boneMatrices[pno].childrenName.push_back(boneData[i].boneName);
 #endif
 	}
 
@@ -342,7 +302,7 @@ void PMDModel::CreateVertexBuffer()
 {
 	HRESULT result = S_OK;
 
-	vertexBuffer_ = Dx12Helper::CreateBuffer(dev_, sizeof(vertices_[0]) * vertices_.size());
+	vertexBuffer_ = Dx12Helper::CreateBuffer(m_device, sizeof(vertices_[0]) * vertices_.size());
 
 	result = vertexBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertex_));
 	std::copy(std::begin(vertices_), std::end(vertices_), mappedVertex_);
@@ -357,7 +317,7 @@ void PMDModel::CreateIndexBuffer()
 {
 	HRESULT result = S_OK;
 
-	indicesBuffer_ = Dx12Helper::CreateBuffer(dev_, sizeof(indices_[0]) * indices_.size());
+	indicesBuffer_ = Dx12Helper::CreateBuffer(m_device, sizeof(indices_[0]) * indices_.size());
 
 	ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
 	ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
@@ -374,9 +334,10 @@ bool PMDModel::CreateTransformBuffer()
 {
 	HRESULT result = S_OK;
 
-	Dx12Helper::CreateDescriptorHeap(dev_, transformDescHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12Helper::CreateDescriptorHeap(m_device.Get(), transformDescHeap_, 
+		2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-	transformBuffer_ = Dx12Helper::CreateBuffer(dev_, Dx12Helper::AlignedConstantBufferMemory(sizeof(BasicMatrix)));
+	transformBuffer_ = Dx12Helper::CreateBuffer(m_device, Dx12Helper::AlignedConstantBufferMemory(sizeof(WorldPassConstant)));
 
 	auto wSize = Application::Instance().GetWindowSize();
 	XMMATRIX tempMat = XMMatrixIdentity();
@@ -421,7 +382,7 @@ bool PMDModel::CreateTransformBuffer()
 	cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = cbDesc.Width;
 	auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
-	dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+	m_device->CreateConstantBufferView(&cbvDesc, heapPos);
 
 	return true;
 }
@@ -432,7 +393,8 @@ bool PMDModel::CreateBoneBuffer()
 	// take bone's name and bone's index to boneTable
 	// <bone's name, bone's index>
 
-	boneBuffer_ = Dx12Helper::CreateBuffer(dev_, Dx12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
+	boneBuffer_ = Dx12Helper::CreateBuffer(m_device,
+		Dx12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
 	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
 
 	UpdateMotionTransform();
@@ -442,9 +404,9 @@ bool PMDModel::CreateBoneBuffer()
 	cbvDesc.BufferLocation = boneBuffer_->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = cbDesc.Width;
 	auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
-	auto heapIncreSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto heapIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	heapPos.ptr += heapIncreSize;
-	dev_->CreateConstantBufferView(&cbvDesc, heapPos);
+	m_device->CreateConstantBufferView(&cbvDesc, heapPos);
 	return false;
 }
 
@@ -468,12 +430,12 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 	auto strideBytes = Dx12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
 
-	materialBuffer_ = Dx12Helper::CreateBuffer(dev_, materials_.size() * strideBytes);
+	materialBuffer_ = Dx12Helper::CreateBuffer(m_device, materials_.size() * strideBytes);
 
-	Dx12Helper::CreateDescriptorHeap(dev_, materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
-	auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(materialDescHeap_->GetCPUDescriptorHandleForHeapStart());
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = strideBytes;
@@ -492,7 +454,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		materialData->specularity = materials_[i].specularity;
 		materialData->ambient = materials_[i].ambient;
 		cbvDesc.BufferLocation = gpuAddress;
-		dev_->CreateConstantBufferView(
+		m_device->CreateConstantBufferView(
 			&cbvDesc,
 			heapAddress);
 		// move memory offset
@@ -510,7 +472,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 		// Create SRV for main texture (image)
 		srvDesc.Format = textureBuffers_[i] ? textureBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
-		dev_->CreateShaderResourceView(
+		m_device->CreateShaderResourceView(
 			!textureBuffers_[i].Get() ? whiteTexture_.Get() : textureBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
@@ -519,7 +481,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 		// Create SRV for sphere mapping texture (sph)
 		srvDesc.Format = sphBuffers_[i] ? sphBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
-		dev_->CreateShaderResourceView(
+		m_device->CreateShaderResourceView(
 			!sphBuffers_[i].Get() ? whiteTexture_.Get() : sphBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
@@ -528,7 +490,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 		// Create SRV for sphere mapping texture (spa)
 		srvDesc.Format = spaBuffers_[i] ? spaBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
-		dev_->CreateShaderResourceView(
+		m_device->CreateShaderResourceView(
 			!spaBuffers_[i].Get() ? blackTexture_.Get() : spaBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
@@ -537,7 +499,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 		// Create SRV for toon map
 		srvDesc.Format = toonBuffers_[i] ? toonBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
-		dev_->CreateShaderResourceView(
+		m_device->CreateShaderResourceView(
 			!toonBuffers_[i].Get() ? gradTexture_.Get() : toonBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
@@ -645,7 +607,7 @@ bool PMDModel::CreatePipelineStateObject()
 	// Root Signature
 	psoDesc.pRootSignature = rootSig_.Get();
 
-	result = dev_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipeline_.GetAddressOf()));
+	result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipeline_.GetAddressOf()));
 	assert(SUCCEEDED(result));
 
 	return true;
@@ -664,34 +626,34 @@ void PMDModel::LoadTextureToBuffer()
 		{
 			std::string toonPath;
 			
-			toonPath = GetTexturePathFromModelPath(pmdPath_, toonPaths_[i].c_str());
-			toonBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_, ConvertStringToWideString(toonPath));
+			toonPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, toonPaths_[i].c_str());
+			toonBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			if (!toonBuffers_[i])
 			{
 				toonPath = std::string(pmd_path) + "toon/" + toonPaths_[i];
-				toonBuffers_[i]= Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(toonPath));
+				toonBuffers_[i]= Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
 		if (!modelPaths_[i].empty())
 		{
-			auto splittedPaths = SplitFilePath(modelPaths_[i]);
+			auto splittedPaths = StringHelper::SplitFilePath(modelPaths_[i]);
 			for (auto& path : splittedPaths)
 			{
-				auto ext = GetFileExtension(path);
+				auto ext = StringHelper::GetFileExtension(path);
 				if (ext == "sph")
 				{
-					auto sphPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					sphBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(sphPath));
+					auto sphPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					sphBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
-					auto spaPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					spaBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_,ConvertStringToWideString(spaPath));
+					auto spaPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					spaBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
-					auto texPath = GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					textureBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(dev_, ConvertStringToWideString(texPath));
+					auto texPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					textureBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
 		}
@@ -702,7 +664,7 @@ void PMDModel::LoadTextureToBuffer()
 
 bool PMDModel::CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_)
 {
-	Dx12Helper::CreateDescriptorHeap(dev_, shadowDepthHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12Helper::CreateDescriptorHeap(m_device.Get(), shadowDepthHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -714,7 +676,7 @@ bool PMDModel::CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_)
 	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(shadowDepthHeap_->GetCPUDescriptorHandleForHeapStart());
-	dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
+	m_device->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
 
 	return false;
 }
@@ -791,7 +753,7 @@ void PMDModel::CreateRootSignature()
 		&errBlob);
 	Dx12Helper::OutputFromErrorBlob(errBlob);
 	assert(SUCCEEDED(result));
-	result = dev_->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(rootSig_.GetAddressOf()));
+	result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(rootSig_.GetAddressOf()));
 	assert(SUCCEEDED(result));
 }
 
@@ -821,7 +783,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	for (auto& motion : motionData)
 	{
 		auto index = bonesTable_[motion.first];
-		auto& rotationOrigin = bones_[index].pos;
+		auto& rotationOrigin = m_boneMatrices[index].pos;
 		auto& keyframe = motion.second;
 
 		auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
@@ -850,7 +812,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 		mats[index] *= XMMatrixTranslation(move.x, move.y, move.z);
 	}
 
-	RecursiveCalculate(bones_, mats, 0);
+	RecursiveCalculate(m_boneMatrices, mats, 0);
 	std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
 }
 

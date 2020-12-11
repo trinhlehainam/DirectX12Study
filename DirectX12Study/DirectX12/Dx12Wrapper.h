@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "../PMDLoader/PMDModel.h"
+#include "../PMDModel/PMDModel.h"
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "Dx12Helper.h"
