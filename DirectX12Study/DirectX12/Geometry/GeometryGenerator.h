@@ -33,11 +33,16 @@ public:
 		std::vector<uint16_t> indices;
 	};
 
-	// Create cylinder and center it at origin parallel to y-axis. 
+	// Create cylinder parallel to y-axis, and center it at origin 
 	// Adjust top and bottom Radius to create cone-liked cylinders or even cones
-	// Adjust number of stact and slice to subdivision the shape (tessellation)
+	// Adjust number of stack and slice to control detail of shape (the degree of tessellation)
 	static Mesh CreateCylinder(float bottomRadius, float topRadius, float height, uint32_t stackCount,
 		uint32_t sliceCount);
+
+	// Create sphere using spherical coordinate method (slice and stack)
+	// Center point of sphere is place at origin with given radius
+	// Adjust number of stack and slice to control detail of shape (the degree of tessellation)
+	static Mesh CreateSphere(float radius, uint32_t stackCount, uint32_t sliceCount);
 
 private:
 	static void BuildCylinderTopCap(const float& topRadius, const float& height, const uint32_t& verticesPerRing, Mesh& mesh);
