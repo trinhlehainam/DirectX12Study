@@ -10,7 +10,7 @@ class Dx12Helper
 {
 public:
 
-	static ComPtr<ID3D12Resource> CreateBuffer(ComPtr<ID3D12Device>& device, size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
+	static ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
 	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) -> D3D12_RESOURCE_DESC
 	static ComPtr<ID3D12Resource> CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -41,12 +41,12 @@ public:
 	// *** UPLOAD BUFFER SHOULD BE EMPTY
 	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
 	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
-	static ComPtr<ID3D12Resource> CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+	static ComPtr<ID3D12Resource> CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
 		ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize);
 
 	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
 	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
-	static bool UpdateDataToTextureBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+	static bool UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
 		ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource);
 
 	// Change resource state at GPU executing time

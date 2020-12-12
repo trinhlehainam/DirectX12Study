@@ -8,6 +8,7 @@
 using Microsoft::WRL::ComPtr;
 
 class PMDModel;
+class Timer;
 
 class PMDManager
 {
@@ -40,16 +41,19 @@ public:
 	bool Add(const std::string& name);
 	PMDModel& Get(const std::string& name);
 
-	void Render();
-	void Update();
+	void Update(const float& deltaTime);
+	void Render(ID3D12GraphicsCommandList* pGraphicsCmdList);
 private:
-	void Sleep();
-	void PrivateRender();
-	void PrivateUpdate();
-
-	using Func_ptr = void (PMDManager::*)();
-	Func_ptr m_updateFunc;
-	Func_ptr m_renderFunc;
+	void SleepUpdate(const float& deltaTime);
+	void SleepRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	
+	void PrivateUpdate(const float& deltaTime);
+	void PrivateRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	
+	using UpdateFunc_ptr = void (PMDManager::*)(const float& deltaTime);
+	using RenderFunc_ptr = void (PMDManager::*)(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	UpdateFunc_ptr m_updateFunc;
+	RenderFunc_ptr m_renderFunc;
 
 	bool m_isInitDone = false;
 private:

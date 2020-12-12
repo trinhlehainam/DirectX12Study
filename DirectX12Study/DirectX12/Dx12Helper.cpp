@@ -4,12 +4,12 @@
 
 using namespace DirectX;
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ComPtr<ID3D12Device>& device ,size_t size, D3D12_HEAP_TYPE heapType)
+ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t size, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
     auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
     ComPtr<ID3D12Resource> buffer = nullptr;
-    ThrowIfFailed(device->CreateCommittedResource(
+    ThrowIfFailed(pDevice->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
@@ -154,14 +154,14 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device
     return buffer;
 }
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList, 
+ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
     ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize)
 {
     ComPtr<ID3D12Resource> buffer = nullptr;
     emptyUploadBuffer.Reset();
 
-    emptyUploadBuffer = Dx12Helper::CreateBuffer(device, dataSize);
-    buffer = Dx12Helper::CreateBuffer(device, dataSize, D3D12_HEAP_TYPE_DEFAULT);
+    emptyUploadBuffer = Dx12Helper::CreateBuffer(pDevice, dataSize);
+    buffer = Dx12Helper::CreateBuffer(pDevice, dataSize, D3D12_HEAP_TYPE_DEFAULT);
     
     D3D12_SUBRESOURCE_DATA subResource = {};
     subResource.pData = pData;
@@ -176,13 +176,13 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ComPtr<ID3D12Device>& dev
     return buffer;
 }
 
-bool Dx12Helper::UpdateDataToTextureBuffer(ComPtr<ID3D12Device>& device, ID3D12GraphicsCommandList* pCmdList,
+bool Dx12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
     ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource)
 {
     emptyUploadBuffer.Reset();
 
     auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, 1);
-    emptyUploadBuffer = Dx12Helper::CreateBuffer(device, uploadBufferSize);
+    emptyUploadBuffer = Dx12Helper::CreateBuffer(pDevice, uploadBufferSize);
 
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない

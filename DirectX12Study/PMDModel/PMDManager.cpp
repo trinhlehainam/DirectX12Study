@@ -6,14 +6,14 @@
 
 PMDManager::PMDManager()
 {
-	m_updateFunc = &PMDManager::Sleep;
-	m_renderFunc = &PMDManager::Sleep;
+	m_updateFunc = &PMDManager::SleepUpdate;
+	m_renderFunc = &PMDManager::SleepRender;
 }
 
 PMDManager::PMDManager(ID3D12Device* pDevice):m_device(pDevice)
 {
-	m_updateFunc = &PMDManager::Sleep;
-	m_renderFunc = &PMDManager::Sleep;
+	m_updateFunc = &PMDManager::SleepUpdate;
+	m_renderFunc = &PMDManager::SleepRender;
 }
 
 PMDManager::~PMDManager()
@@ -44,30 +44,46 @@ bool PMDManager::Init()
 
 	if (!CheckDefaultBuffers()) return false;
 	if (!CreatePipeline()) return false;
-	size_t indicesCount = 0;
+
+	// Init all models
+	for (auto& model : m_models)
+	{
+		model.second.GetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
+		model.second.CreateModel();
+	}
+
+	size_t indexCount = 0;
+	size_t vertexCount = 0;
 	// Loop for calculate size of indices of all models
 	// And save baseIndex of each model for Render Usage
-	for (auto& data : m_models)
+	for (auto& model : m_models)
 	{
-		auto& model = data.second;
-		m_meshes.meshIndex[data.first].baseIndex = indicesCount;
-		indicesCount += model.indices_.size();
+		auto& data = model.second;
+		m_meshes.meshIndex[model.first].baseIndex = indexCount;
+		indexCount += data.indices_.size();
+		vertexCount += data.vertices_.size();
 	}
-	m_meshes.indices.reserve(indicesCount);
+	m_meshes.indices.reserve(indexCount);
+	m_meshes.vertices.reserve(vertexCount);
 
-	// Add all indices to Meshes
+	// Add all vertices and indices to PMDMeshes
 	for (auto& data : m_models)
 	{
 		auto& model = data.second;
+
 		for (const auto& indice : model.indices_)
-		{
 			m_meshes.indices.push_back(indice);
-		}
+
+		for (const auto& vertex : model.vertices_)
+			m_meshes.vertices.push_back(vertex);
 	}
+
+	m_meshes.CreateVertexBufferView(m_device);
+	m_meshes.CreateIndexBufferView(m_device);
 	
 	m_isInitDone = true;
 	m_updateFunc = &PMDManager::PrivateUpdate;
-	m_updateFunc = &PMDManager::PrivateUpdate;
+	m_renderFunc = &PMDManager::PrivateRender;
 
 	return true;
 }
@@ -149,27 +165,58 @@ PMDModel& PMDManager::Get(const std::string& name)
 	return m_models[name];
 }
 
-void PMDManager::Update()
+void PMDManager::Update(const float& deltaTime)
 {
-	(this->*m_updateFunc)();
+	(this->*m_updateFunc)(deltaTime);
 }
 
-void PMDManager::Sleep()
+void PMDManager::Render(ID3D12GraphicsCommandList* pGraphicsCmdList)
+{
+	(this->*m_renderFunc)(pGraphicsCmdList);
+}
+
+void PMDManager::SleepUpdate(const float& deltaTime)
 {
 	assert(m_isInitDone);
 }
 
-void PMDManager::PrivateRender()
+void PMDManager::SleepRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
 {
+	assert(m_isInitDone);
 }
 
-void PMDManager::PrivateUpdate()
+void PMDManager::PrivateUpdate(const float& deltaTime)
 {
+
 }
 
-void PMDManager::Render()
+void PMDManager::PrivateRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
 {
-	(this->*m_renderFunc)();
+	pGraphicsCmdList->SetPipelineState(m_pipeline.Get());
+	pGraphicsCmdList->SetGraphicsRootSignature(m_rootSig.Get());
+
+	// Set Input Assembler
+	pGraphicsCmdList->IASetVertexBuffers(0, 1, &m_meshes.vbview);
+	pGraphicsCmdList->IASetIndexBuffer(&m_meshes.ibview);
+	pGraphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Set world pass constant
+	pGraphicsCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
+	pGraphicsCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Set shadow depth
+	pGraphicsCmdList->SetDescriptorHeaps(1, m_shadowDepthHeap.GetAddressOf());
+	pGraphicsCmdList->SetGraphicsRootDescriptorTable(1, m_shadowDepthHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Render all models
+	for (auto& model : m_models)
+	{
+		auto& name = model.first;
+		auto& data = model.second;
+		auto& index = m_meshes.meshIndex[name].baseIndex;
+
+		data.Render(pGraphicsCmdList, index);
+	}
 }
 
 bool PMDManager::CreatePipeline()

@@ -64,7 +64,7 @@ void Dx12Wrapper::CreateDefaultTexture()
     std::fill(whiteTex.begin(), whiteTex.end(), Color(0xff, 0xff, 0xff, 0xff));
     const std::string whiteTexStr = "white texture";
     m_updateBuffers.Add(whiteTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
-    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture, 
+    Dx12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture, 
         m_updateBuffers.GetBuffer(whiteTexStr),
         m_updateBuffers.GetSubresource(whiteTexStr));
 
@@ -72,7 +72,7 @@ void Dx12Wrapper::CreateDefaultTexture()
     std::fill(blackTex.begin(), blackTex.end(), Color(0x00, 0x00, 0x00, 0xff));
     const std::string blackTexStr = "black texture";
     m_updateBuffers.Add(blackTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
-    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture,
+    Dx12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture,
         m_updateBuffers.GetBuffer(blackTexStr),
         m_updateBuffers.GetSubresource(blackTexStr));
     
@@ -82,7 +82,7 @@ void Dx12Wrapper::CreateDefaultTexture()
         std::fill_n(&gradTex[i], 1, Color(255 - i, 255 - i, 255 - i, 0xff));
     const std::string gradTexStr = "gradiation texture";
     m_updateBuffers.Add(gradTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
-    Dx12Helper::UpdateDataToTextureBuffer(m_device, m_cmdList.Get(), m_whiteTexture,
+    Dx12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture,
         m_updateBuffers.GetBuffer(gradTexStr),
         m_updateBuffers.GetSubresource(gradTexStr));
     
@@ -129,7 +129,7 @@ void Dx12Wrapper::CreateBoardPolygonVertices()
                         {1.0f,-1.0f,0},                 // bottom right
                         {-1.0f,1.0f,0},                 // top left
                         {1.0f,1.0f,0} };                // top right
-    boardPolyVert_ = Dx12Helper::CreateBuffer(m_device,sizeof(vert));
+    boardPolyVert_ = Dx12Helper::CreateBuffer(m_device.Get(),sizeof(vert));
 
     XMFLOAT3* mappedData = nullptr;
     auto result = boardPolyVert_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
@@ -240,6 +240,7 @@ void Dx12Wrapper::RenderToPostEffectBuffer()
     m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
     //RenderPrimitive();
+    m_PMDmanager->Render(m_cmdList.Get());
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -310,7 +311,7 @@ void Dx12Wrapper::CreateNormalMapTexture()
 
 void Dx12Wrapper::CreateTimeBuffer()
 {
-    m_timeBuffer.Create(m_device,1,true);
+    m_timeBuffer.Create(m_device.Get(),1,true);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
@@ -736,7 +737,7 @@ void Dx12Wrapper::CreatePlaneVertexBuffer()
 
     //auto byteSize = sizeof(PrimitiveVertex) * _countof(verts);
     auto byteSize = sizeof(cylinder.vertices[0]) * cylinder.vertices.size();
-    planeVB_ = Dx12Helper::CreateBuffer(m_device, byteSize);
+    planeVB_ = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
     
     planeVBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
     planeVBV_.SizeInBytes = byteSize;
@@ -757,7 +758,7 @@ void Dx12Wrapper::CreatePlaneIndexBuffer()
 {
 
     auto byteSize = sizeof(cylinder.indices[0]) * cylinder.indices.size();
-    planeIB_ = Dx12Helper::CreateBuffer(m_device, byteSize);
+    planeIB_ = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
 
     planeIBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
     planeIBV_.SizeInBytes = byteSize;
@@ -1092,7 +1093,7 @@ bool Dx12Wrapper::CreateWorldPassConstant()
     Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_worldPassConstantHeap,
         2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    m_worldPCBuffer.Create(m_device, 1, true);
+    m_worldPCBuffer.Create(m_device.Get(), 1, true);
 
     auto& mappedData = m_worldPCBuffer.MappedData();
 

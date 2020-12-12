@@ -11,6 +11,7 @@
 
 #include "../common.h"
 #include "../DirectX12/UploadBuffer.h"
+#include "PMDCommon.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -22,34 +23,23 @@ class PMDModel
 public:
 	bool LoadPMD(const char* path);
 	void LoadMotion(const char* path);
-	void GetDefaultTexture(ComPtr<ID3D12Resource>& whiteTexture,
-		ComPtr<ID3D12Resource>& blackTexture,
-		ComPtr<ID3D12Resource>& gradTexture);
+	void GetDefaultTexture(ID3D12Resource* whiteTexture,
+						   ID3D12Resource* blackTexture,
+						   ID3D12Resource* gradTexture);
 	void CreateModel();
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
 	uint16_t GetIndicesSize() const;
 
-	void SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList);
+	void SetTransformDescriptorTable(ID3D12GraphicsCommandList* cmdList);
 
-	void SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList);
-
-	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
+	void Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex);
 
 	PMDModel() = default;
 	PMDModel(ComPtr<ID3D12Device> device);
 	~PMDModel();
 private:
 	friend class PMDManager;
-
-	struct PMDVertex
-	{
-		DirectX::XMFLOAT3 pos;
-		DirectX::XMFLOAT3 normal;
-		DirectX::XMFLOAT2 uv;
-		uint16_t boneNo[2];
-		float weight;
-	};
 
 	struct PMDMaterial
 	{
@@ -84,9 +74,9 @@ private:
 private:
 	ComPtr<ID3D12Device> m_device = nullptr;
 
-	ComPtr<ID3D12Resource> whiteTexture_;
-	ComPtr<ID3D12Resource> blackTexture_;
-	ComPtr<ID3D12Resource> gradTexture_;
+	ID3D12Resource* whiteTexture_;
+	ID3D12Resource* blackTexture_;
+	ID3D12Resource* gradTexture_;
 
 	struct ObjectConstant
 	{

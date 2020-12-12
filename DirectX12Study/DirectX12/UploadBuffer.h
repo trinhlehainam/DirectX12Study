@@ -14,7 +14,7 @@ public:
 	UploadBuffer(ComPtr<ID3D12Device>& device, uint16_t elementCount = 1, bool isConstantBuffer = false);
 	~UploadBuffer();
 
-	bool Create(ComPtr<ID3D12Device>& device, uint16_t elementCount = 1, bool isConstantBuffer = false);
+	bool Create(ID3D12Device* device, uint16_t elementCount = 1, bool isConstantBuffer = false);
 	ID3D12Resource* Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
@@ -70,12 +70,12 @@ inline UploadBuffer<T>::~UploadBuffer()
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::Create(ComPtr<ID3D12Device>& device, uint16_t elementCount, bool isConstantBuffer)
+inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint16_t elementCount, bool isConstantBuffer)
 {
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 
-	m_buffer = Dx12Helper::CreateBuffer(device, SizeInBytes());
+	m_buffer = Dx12Helper::CreateBuffer(pDevice, SizeInBytes());
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 
 	return false;
