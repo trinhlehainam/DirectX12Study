@@ -156,6 +156,7 @@ private:
 	void RenderToPostEffectBuffer();
 	void RenderToBackBuffer();
 	void RenderPrimitive();
+
 	void SetResourceStateForNextFrame();
 	void SetBackBufferIndexForNextFrame();
 };

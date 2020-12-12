@@ -8,12 +8,14 @@ PMDManager::PMDManager()
 {
 	m_updateFunc = &PMDManager::SleepUpdate;
 	m_renderFunc = &PMDManager::SleepRender;
+	m_renderDepthFunc = &PMDManager::SleepRender;
 }
 
 PMDManager::PMDManager(ID3D12Device* pDevice):m_device(pDevice)
 {
 	m_updateFunc = &PMDManager::SleepUpdate;
 	m_renderFunc = &PMDManager::SleepRender;
+	m_renderDepthFunc = &PMDManager::SleepRender;
 }
 
 PMDManager::~PMDManager()
@@ -82,8 +84,9 @@ bool PMDManager::Init()
 	m_meshes.CreateIndexBufferView(m_device);
 	
 	m_isInitDone = true;
-	m_updateFunc = &PMDManager::PrivateUpdate;
-	m_renderFunc = &PMDManager::PrivateRender;
+	m_updateFunc = &PMDManager::NormalUpdate;
+	m_renderFunc = &PMDManager::NormalRender;
+	m_renderDepthFunc = &PMDManager::DepthRender;
 
 	return true;
 }
@@ -175,6 +178,11 @@ void PMDManager::Render(ID3D12GraphicsCommandList* pGraphicsCmdList)
 	(this->*m_renderFunc)(pGraphicsCmdList);
 }
 
+void PMDManager::RenderDepth(ID3D12GraphicsCommandList* pGraphicsCmdList)
+{
+	(this->*m_renderDepthFunc)(pGraphicsCmdList);
+}
+
 void PMDManager::SleepUpdate(const float& deltaTime)
 {
 	assert(m_isInitDone);
@@ -185,12 +193,12 @@ void PMDManager::SleepRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
 	assert(m_isInitDone);
 }
 
-void PMDManager::PrivateUpdate(const float& deltaTime)
+void PMDManager::NormalUpdate(const float& deltaTime)
 {
 
 }
 
-void PMDManager::PrivateRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
+void PMDManager::NormalRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
 {
 	pGraphicsCmdList->SetPipelineState(m_pipeline.Get());
 	pGraphicsCmdList->SetGraphicsRootSignature(m_rootSig.Get());
@@ -216,6 +224,28 @@ void PMDManager::PrivateRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
 		auto& index = m_meshes.meshIndex[name].baseIndex;
 
 		data.Render(pGraphicsCmdList, index);
+	}
+}
+
+void PMDManager::DepthRender(ID3D12GraphicsCommandList* pGraphicsCmdList)
+{
+	// Set Input Assembler
+	pGraphicsCmdList->IASetVertexBuffers(0, 1, &m_meshes.vbview);
+	pGraphicsCmdList->IASetIndexBuffer(&m_meshes.ibview);
+	pGraphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Set world pass constant
+	pGraphicsCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
+	pGraphicsCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Render all models
+	for (auto& model : m_models)
+	{
+		auto& name = model.first;
+		auto& data = model.second;
+		auto& index = m_meshes.meshIndex[name].baseIndex;
+
+		data.RenderDepth(pGraphicsCmdList, index);
 	}
 }
 

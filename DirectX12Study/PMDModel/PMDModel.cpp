@@ -42,7 +42,8 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIn
 	//UpdateMotionTransform(frame);
 
 	/*-------------Set up transform-------------*/
-	SetTransformDescriptorTable(cmdList);
+	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(2, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 	/*-------------------------------------------*/
 
 	/*-------------Set up material and texture-------------*/
@@ -65,18 +66,21 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIn
 	/*-------------------------------------------*/
 }
 
-void PMDModel::SetTransformDescriptorTable(ID3D12GraphicsCommandList* cmdList)
+void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex)
 {
+	// Object constant
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(2, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	cmdList->DrawIndexedInstanced(indices_.size(), 1, 0, meshIndex, 0);
 }
 
 void PMDModel::GetDefaultTexture(ID3D12Resource* whiteTexture, 
 	ID3D12Resource* blackTexture, ID3D12Resource* gradTexture)
 {
-	whiteTexture_ = whiteTexture;
-	blackTexture_ = blackTexture;
-	gradTexture_ = gradTexture;
+	m_whiteTexture = whiteTexture;
+	m_blackTexture = blackTexture;
+	m_gradTexture = gradTexture;
 }
 
 PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
@@ -87,9 +91,10 @@ PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
 
 PMDModel::~PMDModel()
 {
-	//boneBuffer_->Unmap(0, nullptr);
-	vertexBuffer_->Unmap(0, nullptr);
 	m_device = nullptr;
+	m_whiteTexture = nullptr;
+	m_blackTexture = nullptr;
+	m_gradTexture = nullptr;
 }
 
 bool PMDModel::LoadPMD(const char* path)
@@ -268,38 +273,6 @@ bool PMDModel::LoadPMD(const char* path)
 	return true;
 }
 
-void PMDModel::CreateVertexBuffer()
-{
-	HRESULT result = S_OK;
-
-	vertexBuffer_ = Dx12Helper::CreateBuffer(m_device.Get(), sizeof(vertices_[0]) * vertices_.size());
-
-	result = vertexBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertex_));
-	std::copy(std::begin(vertices_), std::end(vertices_), mappedVertex_);
-	assert(SUCCEEDED(result));
-
-	vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
-	vbView_.SizeInBytes = sizeof(vertices_[0]) * vertices_.size();
-	vbView_.StrideInBytes = sizeof(vertices_[0]);
-}
-
-void PMDModel::CreateIndexBuffer()
-{
-	HRESULT result = S_OK;
-
-	indicesBuffer_ = Dx12Helper::CreateBuffer(m_device.Get(), sizeof(indices_[0]) * indices_.size());
-
-	ibView_.BufferLocation = indicesBuffer_->GetGPUVirtualAddress();
-	ibView_.SizeInBytes = sizeof(indices_[0]) * indices_.size();
-	ibView_.Format = DXGI_FORMAT_R16_UINT;
-
-	uint16_t* mappedIdxData = nullptr;
-	result = indicesBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedIdxData));
-	std::copy(std::begin(indices_), std::end(indices_), mappedIdxData);
-	assert(SUCCEEDED(result));
-	indicesBuffer_->Unmap(0, nullptr);
-}
-
 bool PMDModel::CreateBoneBuffer()
 {
 	// take bone's name and bone's index to boneTable
@@ -405,7 +378,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		// Create SRV for main texture (image)
 		srvDesc.Format = textureBuffers_[i] ? textureBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!textureBuffers_[i].Get() ? whiteTexture_ : textureBuffers_[i].Get(),
+			!textureBuffers_[i].Get() ? m_whiteTexture : textureBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -414,7 +387,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		// Create SRV for sphere mapping texture (sph)
 		srvDesc.Format = sphBuffers_[i] ? sphBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!sphBuffers_[i].Get() ? whiteTexture_ : sphBuffers_[i].Get(),
+			!sphBuffers_[i].Get() ? m_whiteTexture : sphBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -423,7 +396,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		// Create SRV for sphere mapping texture (spa)
 		srvDesc.Format = spaBuffers_[i] ? spaBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!spaBuffers_[i].Get() ? blackTexture_ : spaBuffers_[i].Get(),
+			!spaBuffers_[i].Get() ? m_blackTexture : spaBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -432,7 +405,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		// Create SRV for toon map
 		srvDesc.Format = toonBuffers_[i] ? toonBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!toonBuffers_[i].Get() ? gradTexture_ : toonBuffers_[i].Get(),
+			!toonBuffers_[i].Get() ? m_gradTexture : toonBuffers_[i].Get(),
 			&srvDesc,
 			heapAddress
 		);

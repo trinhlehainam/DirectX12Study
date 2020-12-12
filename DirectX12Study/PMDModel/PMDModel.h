@@ -31,9 +31,9 @@ public:
 
 	uint16_t GetIndicesSize() const;
 
-	void SetTransformDescriptorTable(ID3D12GraphicsCommandList* cmdList);
-
 	void Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex);
+
+	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex);
 
 	PMDModel() = default;
 	PMDModel(ComPtr<ID3D12Device> device);
@@ -74,26 +74,15 @@ private:
 private:
 	ComPtr<ID3D12Device> m_device = nullptr;
 
-	ID3D12Resource* whiteTexture_;
-	ID3D12Resource* blackTexture_;
-	ID3D12Resource* gradTexture_;
+	ID3D12Resource* m_whiteTexture;
+	ID3D12Resource* m_blackTexture;
+	ID3D12Resource* m_gradTexture;
 
 	struct ObjectConstant
 	{
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX bones[512];
 	};
-
-	// Vertex Buffer
-	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
-	D3D12_VERTEX_BUFFER_VIEW vbView_;
-	PMDVertex* mappedVertex_ = nullptr;
-	// 頂点バッファを生成 (して、CPU側の頂点情報をコピー)
-	void CreateVertexBuffer();
-
-	ComPtr<ID3D12Resource> indicesBuffer_;
-	D3D12_INDEX_BUFFER_VIEW ibView_;
-	void CreateIndexBuffer();
 
 	// Object Constant
 	UploadBuffer<ObjectConstant> m_transformBuffer;
