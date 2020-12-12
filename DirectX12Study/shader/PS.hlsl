@@ -1,10 +1,11 @@
 #include "common.hlsli"
 
-Texture2D<float4> tex:register(t0);			// main texture
-Texture2D<float4> sph:register(t1);			// sphere mapping texture
-Texture2D<float4> spa:register(t2);
-Texture2D<float4> toon:register(t3);
-Texture2D<float> shadowTex:register(t4);
+Texture2D<float> shadowTex : register(t0);
+Texture2D<float4> tex:register(t1);			// main texture
+Texture2D<float4> sph:register(t2);			// sphere mapping texture
+Texture2D<float4> spa:register(t3);
+Texture2D<float4> toon:register(t4);
+
 SamplerState	  smp:register(s0);
 SamplerState	  toonSmp:register(s1);
 SamplerComparisonState	  shadowCmpSmp:register(s2);

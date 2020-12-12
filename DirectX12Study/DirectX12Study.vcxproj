@@ -153,7 +153,7 @@
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDModel\PMDMeshes.cpp" />
-    <ClCompile Include="PMDModel\PMDManger.cpp" />
+    <ClCompile Include="PMDModel\PMDManager.cpp" />
     <ClCompile Include="PMDModel\PMDModel.cpp" />
     <ClCompile Include="DirectX12\UploadBuffer.cpp" />
     <ClCompile Include="Common\StringHelper.cpp" />
@@ -169,8 +169,9 @@
     <ClInclude Include="Input\Mouse.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
+    <ClInclude Include="PMDModel\PMDCommon.h" />
     <ClInclude Include="PMDModel\PMDMeshes.h" />
-    <ClInclude Include="PMDModel\PMDManger.h" />
+    <ClInclude Include="PMDModel\PMDManager.h" />
     <ClInclude Include="PMDModel\PMDModel.h" />
     <ClInclude Include="DirectX12\UploadBuffer.h" />
     <ClInclude Include="Common\StringHelper.h" />

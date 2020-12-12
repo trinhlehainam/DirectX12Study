@@ -54,10 +54,10 @@
     <ClCompile Include="Common\StringHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PMDModel\PMDManger.cpp">
+    <ClCompile Include="PMDModel\PMDMeshes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PMDModel\PMDMeshes.cpp">
+    <ClCompile Include="PMDModel\PMDManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -101,10 +101,13 @@
     <ClInclude Include="Common\StringHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PMDModel\PMDManger.h">
+    <ClInclude Include="PMDModel\PMDMeshes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PMDModel\PMDMeshes.h">
+    <ClInclude Include="PMDModel\PMDCommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDModel\PMDManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,16 +1,22 @@
-#include "PMDManger.h"
+#include "PMDManager.h"
 #include "PMDModel.h"
 #include "../DirectX12/UploadBuffer.h"
 
-PMDManger::PMDManger()
+#include <cassert>
+
+PMDManager::PMDManager()
 {
+	m_updateFunc = &PMDManager::Sleep;
+	m_renderFunc = &PMDManager::Sleep;
 }
 
-PMDManger::PMDManger(ID3D12Device* pDevice)
+PMDManager::PMDManager(ID3D12Device* pDevice):m_device(pDevice)
 {
+	m_updateFunc = &PMDManager::Sleep;
+	m_renderFunc = &PMDManager::Sleep;
 }
 
-PMDManger::~PMDManger()
+PMDManager::~PMDManager()
 {
 	m_device = nullptr;
 	m_whiteTexture = nullptr;
@@ -18,7 +24,7 @@ PMDManger::~PMDManger()
 	m_gradTexture = nullptr;
 }
 
-bool PMDManger::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* pBlackTexture, ID3D12Resource* pGradTexture)
+bool PMDManager::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* pBlackTexture, ID3D12Resource* pGradTexture)
 {
 	if (!pWhiteTexture || !pBlackTexture || !pGradTexture) return false;
 
@@ -29,24 +35,57 @@ bool PMDManger::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* 
 	return true;
 }
 
-bool PMDManger::Init()
+bool PMDManager::Init()
 {
-    if (m_device == nullptr) return false;
-	if (m_worldPCBHeap == nullptr) return false;
-	if (m_shadowDepthHeap == nullptr) return false;
+	if (!m_device) return false;
+	if (!CheckDefaultBuffers()) return false;
+	if (!CreatePipeline()) return false;
+
+    
+	if (!m_worldPCBHeap) return false;
+	if (!m_shadowDepthHeap) return false;
+
+	
+
+	size_t indicesCount = 0;
+	// Loop for calculate size of indices of all models
+	// And save baseIndex of each model for Render Usage
+	for (auto& data : m_models)
+	{
+		auto& model = data.second;
+		m_meshes.meshIndex[data.first].baseIndex = indicesCount;
+		indicesCount += model.indices_.size();
+	}
+	m_meshes.indices.reserve(indicesCount);
+
+	// Add all indices to Meshes
+	for (auto& data : m_models)
+	{
+		auto& model = data.second;
+		for (const auto& indice : model.indices_)
+		{
+			m_meshes.indices.push_back(indice);
+		}
+	}
+	
+	m_isInitDone = true;
+	m_updateFunc = &PMDManager::PrivateUpdate;
+	m_updateFunc = &PMDManager::PrivateUpdate;
 
 	return true;
 }
 
-bool PMDManger::SetDevice(ID3D12Device* pDevice)
+bool PMDManager::SetDevice(ID3D12Device* pDevice)
 {
     if (pDevice == nullptr) return false;
     m_device = pDevice;
     return false;
 }
 
-bool PMDManger::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_t bufferSize)
+bool PMDManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_t bufferSize)
 {
+	assert(m_device);
+	if (m_device == nullptr) return false;
 	if (pWorldPassConstant == nullptr) return false;
 	if (bufferSize == 0) return false;
 
@@ -63,8 +102,11 @@ bool PMDManger::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_t
 	return true;
 }
 
-bool PMDManger::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
+bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 {
+	assert(m_device);
+	if (pShadowDepthBuffer == nullptr) return false;
+
 	Dx12Helper::CreateDescriptorHeap(m_device, m_shadowDepthHeap, 1,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
@@ -84,54 +126,78 @@ bool PMDManger::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	return false;
 }
 
-bool PMDManger::Add(const std::string& name)
+bool PMDManager::Add(const std::string& name)
 {
-	return false;
+	if (m_models.count(name)) return false;
+	m_models[name].m_device = m_device;
+	return true;
 }
 
-bool PMDManger::Get(const std::string& name)
+PMDModel& PMDManager::Get(const std::string& name)
 {
-	return false;
+	assert(m_models.count(name));
+	return m_models[name];
 }
 
-void PMDManger::Update()
+void PMDManager::Update()
+{
+	(this->*m_updateFunc)();
+}
+
+void PMDManager::Sleep()
+{
+	assert(m_isInitDone);
+}
+
+void PMDManager::PrivateRender()
 {
 }
 
-void PMDManger::Render()
+void PMDManager::PrivateUpdate()
 {
 }
 
-bool PMDManger::CreatePipeline()
+void PMDManager::Render()
 {
-	return false;
+	(this->*m_renderFunc)();
 }
 
-bool PMDManger::CreateRootSignature()
+bool PMDManager::CreatePipeline()
+{
+	if (!CreateRootSignature()) return false;
+	if (!CreatePipelineStateObject()) return false;
+	return true;
+}
+
+bool PMDManager::CreateRootSignature()
 {
 	HRESULT result = S_OK;
 	//Root Signature
 	D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	CD3DX12_ROOT_PARAMETER rootParam[4] = {};
+	CD3DX12_ROOT_PARAMETER parameter[4] = {};
 	CD3DX12_DESCRIPTOR_RANGE range[5] = {};
 
 	// World Pass Constant
 	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	rootParam[0].InitAsDescriptorTable(1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
+	parameter[0].InitAsDescriptorTable(1, &range[0]);
 
 	// Shadow Depth
 	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	rootParam[1].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
-
+	parameter[1].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
+	
 	// Object Constant
 	range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	rootParam[2].InitAsDescriptorTable(1, &range[2], D3D12_SHADER_VISIBILITY_VERTEX);
-
+	parameter[2].InitAsDescriptorTable(1, &range[2], D3D12_SHADER_VISIBILITY_VERTEX);
+	
 	// Material
 	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
 	range[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 1);
+	parameter[3].InitAsDescriptorTable(2, &range[3], D3D12_SHADER_VISIBILITY_PIXEL);
+
+	rtSigDesc.pParameters = parameter;
+	rtSigDesc.NumParameters = _countof(parameter);
 
 	//サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
 	//動きyや、UVをもとに色をとってくるときのルールを指定するもの
@@ -146,7 +212,7 @@ bool PMDManger::CreateRootSignature()
 	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].ShaderRegister = 1;
-
+	
 	samplerDesc[2] = samplerDesc[0];
 	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
 	samplerDesc[2].ShaderRegister = 2;
@@ -158,18 +224,18 @@ bool PMDManger::CreateRootSignature()
 
 	ComPtr<ID3DBlob> rootSigBlob;
 	ComPtr<ID3DBlob> errBlob;
-	result = D3D12SerializeRootSignature(&rtSigDesc,
+	Dx12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&rtSigDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
 		&rootSigBlob,
-		&errBlob);
+		&errBlob));
 	Dx12Helper::OutputFromErrorBlob(errBlob);
 	Dx12Helper::ThrowIfFailed(m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(),
-		rootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_rootSig.GetAddressOf())));
+		rootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_rootSig.ReleaseAndGetAddressOf())));
 
 	return true;
 }
 
-bool PMDManger::CreatePipelineStateObject()
+bool PMDManager::CreatePipelineStateObject()
 {
 	HRESULT result = S_OK;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -269,5 +335,10 @@ bool PMDManger::CreatePipelineStateObject()
 		IID_PPV_ARGS(m_pipeline.GetAddressOf())));
 
 	return true;
+}
+
+bool PMDManager::CheckDefaultBuffers()
+{
+	return m_whiteTexture && m_blackTexture && m_gradTexture;
 }
 

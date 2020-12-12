@@ -19,12 +19,12 @@ namespace
 void PMDModel::CreateModel()
 {
 	CreateTexture();
-	CreateModelPipeline();
+	CreateTransformConstant();
 }
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 {
-	mappedBasicMatrix_->world *= transformMatrix;
+	m_transformBuffer.MappedData().world *= transformMatrix;
 }
 
 uint16_t PMDModel::GetIndicesSize() const
@@ -40,18 +40,14 @@ void PMDModel::LoadMotion(const char* path)
 void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frameNO)
 {
 	auto frame = frameNO % vmdMotion_->GetMaxFrame();
-	UpdateMotionTransform(frame);
+	//UpdateMotionTransform(frame);
 
-	SetGraphicPinelineState(cmdList);
 	// Set Input Assemble
 	SetInputAssembler(cmdList);
 
 	/*-------------Set up transform-------------*/
-	SetTransformGraphicPipeline(cmdList);
+	SetTransformDescriptorTable(cmdList);
 	/*-------------------------------------------*/
-
-	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)shadowDepthHeap_.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(2, shadowDepthHeap_->GetGPUDescriptorHandleForHeapStart());
 
 	/*-------------Set up material and texture-------------*/
 	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)materialDescHeap_.GetAddressOf());
@@ -60,7 +56,7 @@ void PMDModel::Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& 
 	uint32_t indexOffset = 0;
 	for (auto& m : materials_)
 	{
-		cmdList->SetGraphicsRootDescriptorTable(1, materialHeapHandle);
+		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 
 		cmdList->DrawIndexedInstanced(m.indices,
 			1,
@@ -80,26 +76,10 @@ void PMDModel::SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-ComPtr<ID3D12Resource> PMDModel::GetTransformBuffer()
+void PMDModel::SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 {
-	return transformBuffer_;
-}
-
-void PMDModel::SetTransformGraphicPipeline(ComPtr<ID3D12GraphicsCommandList>& cmdList)
-{
-	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)transformDescHeap_.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(0, transformDescHeap_->GetGPUDescriptorHandleForHeapStart());
-}
-
-void PMDModel::SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdList)
-{
-	cmdList->SetPipelineState(pipeline_.Get());
-	cmdList->SetGraphicsRootSignature(rootSig_.Get());
-}
-
-WorldPassConstant* PMDModel::GetMappedMatrix()
-{
-	return mappedBasicMatrix_;
+	cmdList->SetDescriptorHeaps(1, (ID3D12DescriptorHeap* const*)m_transformDescHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(2, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void PMDModel::GetDefaultTexture(ComPtr<ID3D12Resource>& whiteTexture, ComPtr<ID3D12Resource>& blackTexture, ComPtr<ID3D12Resource>& gradTexture)
@@ -330,64 +310,6 @@ void PMDModel::CreateIndexBuffer()
 	indicesBuffer_->Unmap(0, nullptr);
 }
 
-bool PMDModel::CreateTransformBuffer()
-{
-	HRESULT result = S_OK;
-
-	Dx12Helper::CreateDescriptorHeap(m_device.Get(), transformDescHeap_, 
-		2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-	transformBuffer_ = Dx12Helper::CreateBuffer(m_device, Dx12Helper::AlignedConstantBufferMemory(sizeof(WorldPassConstant)));
-
-	auto wSize = Application::Instance().GetWindowSize();
-	XMMATRIX tempMat = XMMatrixIdentity();
-
-	// world coordinate
-	auto angle = 4 * XM_PI / 3.0f;
-	XMMATRIX world = XMMatrixRotationY(angle);
-
-	// camera array (view)
-	XMMATRIX viewproj = XMMatrixLookAtRH(
-		{ 10.0f, 10.0f, 10.0f, 1.0f },
-		{ 0.0f, 10.0f, 0.0f, 1.0f },
-		{ 0.0f, 1.0f, 0.0f, 0.0f });
-
-	// projection array
-	viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
-		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
-		0.1f,
-		300.0f);
-	result = transformBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBasicMatrix_));
-	assert(SUCCEEDED(result));
-
-	mappedBasicMatrix_->viewproj = viewproj;
-	mappedBasicMatrix_->world = world;
-	XMVECTOR plane = { 0,1,0,0 };
-	XMVECTOR light = { -1,1,-1,0 };
-	mappedBasicMatrix_->lightPos = light;
-	mappedBasicMatrix_->shadow = XMMatrixShadow(plane, light);
-
-	XMVECTOR lightPos = { -10,30,30,1 };
-	XMVECTOR targetPos = { 10,0,0,1 };
-	auto screenSize = Application::Instance().GetWindowSize();
-	float aspect = static_cast<float>(screenSize.width) / screenSize.height;
-	mappedBasicMatrix_->lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
-		XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
-
-
-	transformBuffer_->Unmap(0, nullptr);
-
-	auto cbDesc = transformBuffer_->GetDesc();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = cbDesc.Width;
-	auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
-	m_device->CreateConstantBufferView(&cbvDesc, heapPos);
-
-	return true;
-}
-
-
 bool PMDModel::CreateBoneBuffer()
 {
 	// take bone's name and bone's index to boneTable
@@ -403,11 +325,31 @@ bool PMDModel::CreateBoneBuffer()
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = boneBuffer_->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = cbDesc.Width;
-	auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
-	auto heapIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	heapPos.ptr += heapIncreSize;
-	m_device->CreateConstantBufferView(&cbvDesc, heapPos);
+	//auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
+	//auto heapIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//heapPos.ptr += heapIncreSize;
+	//m_device->CreateConstantBufferView(&cbvDesc, heapPos);
 	return false;
+}
+
+bool PMDModel::CreateTransformConstant()
+{
+	Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_transformDescHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	m_transformBuffer.Create(m_device, 1, true);
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = m_transformBuffer.GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = m_transformBuffer.SizeInBytes();
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_transformDescHeap->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+
+	auto& data = m_transformBuffer.MappedData();
+	data.world = XMMatrixIdentity();
+	auto bones = boneMatrices_;
+	std::copy(bones.begin(), bones.end(), &data.world);
+
+	return true;
 }
 
 void PMDModel::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index)
@@ -511,108 +453,6 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 	return true;
 }
 
-bool PMDModel::CreatePipelineStateObject()
-{
-	HRESULT result = S_OK;
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	//IA(Input-Assembler...つまり頂点入力)
-	//まず入力レイアウト（ちょうてんのフォーマット）
-
-	D3D12_INPUT_ELEMENT_DESC layout[] = {
-	{
-	"POSITION",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	0,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0},
-	{
-	"NORMAL",
-	0,
-	DXGI_FORMAT_R32G32B32_FLOAT,
-	0,
-	D3D12_APPEND_ALIGNED_ELEMENT,
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-	0
-	},
-		// UV layout
-		{
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		},
-		{
-		"BONENO",
-		0,
-		DXGI_FORMAT_R16G16_UINT,
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		},
-		{
-		"WEIGHT",
-		0,
-		DXGI_FORMAT_R32_FLOAT,
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		}
-	};
-
-
-	// Input Assembler
-	psoDesc.InputLayout.NumElements = _countof(layout);
-	psoDesc.InputLayout.pInputElementDescs = layout;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	// Vertex Shader
-	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShader(L"shader/vs.hlsl", "VS", "vs_5_1");
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
-	// Rasterizer
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FrontCounterClockwise = true;
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShader(L"shader/ps.hlsl", "PS", "ps_5_1");
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-
-	// Other set up
-
-	// Depth/Stencil
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
-	psoDesc.NodeMask = 0;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.SampleDesc.Quality = 0;
-	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	// Output set up
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	// Blend
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //※ color : ABGR
-
-	// Root Signature
-	psoDesc.pRootSignature = rootSig_.Get();
-
-	result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipeline_.GetAddressOf()));
-	assert(SUCCEEDED(result));
-
-	return true;
-}
-
 void PMDModel::LoadTextureToBuffer()
 {
 	textureBuffers_.resize(modelPaths_.size());
@@ -661,118 +501,15 @@ void PMDModel::LoadTextureToBuffer()
 
 }
 
-
-bool PMDModel::CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_)
-{
-	Dx12Helper::CreateDescriptorHeap(m_device.Get(), shadowDepthHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ※
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(shadowDepthHeap_->GetCPUDescriptorHandleForHeapStart());
-	m_device->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
-
-	return false;
-}
-
-void PMDModel::CreateRootSignature()
-{
-	HRESULT result = S_OK;
-	//Root Signature
-	D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	D3D12_ROOT_PARAMETER rootParam[3] = {};
-
-	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[4] = {};
-
-	// transform
-	range[0] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-		2,                                      // number of descriptors
-		0);                                     // base shader register
-
-	// material
-	range[1] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-
-	// texture
-	range[2] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
-
-	range[3] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
-
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0]);
-
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1],
-		2,                                          // number of descriptor range
-		&range[1],                                  // pointer to descritpor range
-		D3D12_SHADER_VISIBILITY_PIXEL);             // shader visibility
-
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[2],
-		1,                                          // number of descriptor range
-		&range[3],                                  // pointer to descritpor range
-		D3D12_SHADER_VISIBILITY_PIXEL);             // shader visibility
-
-	rtSigDesc.pParameters = rootParam;
-	rtSigDesc.NumParameters = _countof(rootParam);
-
-	//サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
-	//動きyや、UVをもとに色をとってくるときのルールを指定するもの
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
-	//WRAPは繰り返しを表す。
-	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
-		0,                                  // shader register location
-		D3D12_FILTER_MIN_MAG_MIP_POINT);    // Filter     
-
-	samplerDesc[1] = samplerDesc[0];
-	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].ShaderRegister = 1;
-
-	samplerDesc[2] = samplerDesc[0];
-	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-	samplerDesc[2].ShaderRegister = 2;
-	samplerDesc[2].MaxAnisotropy = 1;
-	samplerDesc[2].MipLODBias = 0.0f;
-
-	rtSigDesc.pStaticSamplers = samplerDesc;
-	rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
-
-	ComPtr<ID3DBlob> rootSigBlob;
-	ComPtr<ID3DBlob> errBlob;
-	result = D3D12SerializeRootSignature(&rtSigDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-		&rootSigBlob,
-		&errBlob);
-	Dx12Helper::OutputFromErrorBlob(errBlob);
-	assert(SUCCEEDED(result));
-	result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(rootSig_.GetAddressOf()));
-	assert(SUCCEEDED(result));
-}
-
 bool PMDModel::CreateTexture()
 {
 	CreateVertexBuffer();
 	CreateIndexBuffer();
-	CreateTransformBuffer();
-	CreateBoneBuffer();
+	CreateTransformConstant();
 	LoadTextureToBuffer();
 	CreateMaterialAndTextureBuffer();
 	
 	return true;
-}
-
-void PMDModel::CreateModelPipeline()
-{
-	CreateRootSignature();
-	CreatePipelineStateObject();
 }
 
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)

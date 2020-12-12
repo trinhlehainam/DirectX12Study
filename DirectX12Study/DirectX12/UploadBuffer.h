@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cassert>
 #include "Dx12Helper.h"
 
 using Microsoft::WRL::ComPtr;
@@ -14,15 +15,15 @@ public:
 	~UploadBuffer();
 
 	bool Create(ComPtr<ID3D12Device>& device, uint16_t elementCount = 1, bool isConstantBuffer = false);
-	ID3D12Resource* GetBuffer();
+	ID3D12Resource* Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
-	size_t Size() const;
+	size_t SizeInBytes() const;
 	size_t ElementSize() const;
 
 	// If buffer has MULTIPLE elements of data, get data of input index
 	// If buffer has only one element , index is automatically set to default (0)
-	T& GetData(uint16_t index = 0);
+	T& MappedData(uint16_t index = 0);
 
 	// If buffer has MULTIPLE elements, copy data to specific index
 	// return false if index is invalid (index is larger than number of element)
@@ -74,14 +75,14 @@ inline bool UploadBuffer<T>::Create(ComPtr<ID3D12Device>& device, uint16_t eleme
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 
-	m_buffer = Dx12Helper::CreateBuffer(device, Size());
+	m_buffer = Dx12Helper::CreateBuffer(device, SizeInBytes());
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 
 	return false;
 }
 
 template<typename T>
-inline ID3D12Resource* UploadBuffer<T>::GetBuffer()
+inline ID3D12Resource* UploadBuffer<T>::Resource()
 {
 	return m_buffer.Get();
 }
@@ -89,11 +90,12 @@ inline ID3D12Resource* UploadBuffer<T>::GetBuffer()
 template<typename T>
 inline D3D12_GPU_VIRTUAL_ADDRESS UploadBuffer<T>::GetGPUVirtualAddress()
 {
+	assert(m_buffer.Get() != nullptr);
 	return m_buffer.Get()->GetGPUVirtualAddress();
 }
 
 template<typename T>
-inline size_t UploadBuffer<T>::Size() const
+inline size_t UploadBuffer<T>::SizeInBytes() const
 {
 	return ElementSize() * m_elementCount;
 }
@@ -107,8 +109,9 @@ inline size_t UploadBuffer<T>::ElementSize() const
 }
 
 template<typename T>
-inline T& UploadBuffer<T>::GetData(uint16_t index)
+inline T& UploadBuffer<T>::MappedData(uint16_t index)
 {
+	assert(m_buffer.Get() != nullptr);
 	if (index > m_elementCount)
 		index = 0;
 	return m_mappedData[index];

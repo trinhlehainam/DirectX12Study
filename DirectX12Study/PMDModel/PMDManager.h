@@ -3,16 +3,22 @@
 #include <string>
 #include <d3dx12.h>
 
+#include "PMDMeshes.h"
+
 using Microsoft::WRL::ComPtr;
 
 class PMDModel;
 
-class PMDManger
+class PMDManager
 {
 public:
-	PMDManger();
-	PMDManger(ID3D12Device* pDevice);
-	~PMDManger();
+	PMDManager();
+	PMDManager(ID3D12Device* pDevice);
+	~PMDManager();
+
+	//
+	/*----Functions use for Initialize PMD Manager------*/
+	//
 
 	bool SetDevice(ID3D12Device* pDevice);
 	bool SetWorldPassConstant(ID3D12Resource* pWorldPassConstant, size_t bufferSize);
@@ -24,15 +30,30 @@ public:
 	bool SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* pBlackTexture,
 		ID3D12Resource* pGradTexture);
 	bool Init();
+public:
 	bool Add(const std::string& name);
-	bool Get(const std::string& name);
-	void Update();
+	PMDModel& Get(const std::string& name);
+
 	void Render();
+	void Update();
+private:
+	void Sleep();
+	void PrivateRender();
+	void PrivateUpdate();
+
+	using Func_ptr = void (PMDManager::*)();
+	Func_ptr m_updateFunc;
+	Func_ptr m_renderFunc;
+
+	bool m_isInitDone = false;
 private:
 	bool CreatePipeline();
 	bool CreateRootSignature();
 	bool CreatePipelineStateObject();
-private:
+	// check default buffers are initialized or not
+	bool CheckDefaultBuffers();
+
+	/*----------RESOURCE FROM ENGINE----------*/
 	// Device from engine
 	ID3D12Device* m_device = nullptr;
 
@@ -40,7 +61,8 @@ private:
 	ID3D12Resource* m_whiteTexture = nullptr;
 	ID3D12Resource* m_blackTexture = nullptr;
 	ID3D12Resource* m_gradTexture = nullptr;
-private:
+	/*-----------------------------------------*/
+
 	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
 	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
@@ -53,8 +75,9 @@ private:
 	// Descriptor heap stores descriptor of shadow depth buffer
 	// Use for binding resource of engine to this pipeline
 	ComPtr<ID3D12DescriptorHeap> m_shadowDepthHeap = nullptr;
+
 private:
 	std::unordered_map<std::string, PMDModel> m_models;
-
+	PMDMeshes m_meshes;
 };
 

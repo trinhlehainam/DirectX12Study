@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "../common.h"
+#include "../DirectX12/UploadBuffer.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -29,24 +30,18 @@ public:
 
 	uint16_t GetIndicesSize() const;
 
-	void SetGraphicPinelineState(ComPtr<ID3D12GraphicsCommandList>& cmdList);
-
 	void SetInputAssembler(ComPtr<ID3D12GraphicsCommandList>& cmdList);
 
-	ComPtr<ID3D12Resource> GetTransformBuffer();
-
-	void SetTransformGraphicPipeline(ComPtr<ID3D12GraphicsCommandList>& cmdList);
-
-	bool CreateShadowDepthView(ComPtr<ID3D12Resource>& shadowDepthBuffer_);
+	void SetTransformDescriptorTable(ComPtr<ID3D12GraphicsCommandList>& cmdList);
 
 	void Render(ComPtr<ID3D12GraphicsCommandList>& cmdList, const size_t& frame);
 
-	WorldPassConstant* GetMappedMatrix();
-
+	PMDModel() = default;
 	PMDModel(ComPtr<ID3D12Device> device);
 	~PMDModel();
 private:
-	
+	friend class PMDManager;
+
 	struct PMDVertex
 	{
 		DirectX::XMFLOAT3 pos;
@@ -87,13 +82,17 @@ private:
 	const char* pmdPath_;
 
 private:
-	std::shared_ptr<VMDMotion> vmdMotion_;
-
 	ComPtr<ID3D12Device> m_device = nullptr;
 
 	ComPtr<ID3D12Resource> whiteTexture_;
 	ComPtr<ID3D12Resource> blackTexture_;
 	ComPtr<ID3D12Resource> gradTexture_;
+
+	struct ObjectConstant
+	{
+		DirectX::XMMATRIX world;
+		DirectX::XMMATRIX bones[512];
+	};
 
 	// Vertex Buffer
 	ComPtr<ID3D12Resource> vertexBuffer_;				//頂点バッファ
@@ -106,11 +105,10 @@ private:
 	D3D12_INDEX_BUFFER_VIEW ibView_;
 	void CreateIndexBuffer();
 
-	// Constant Buffer
-	WorldPassConstant* mappedBasicMatrix_ = nullptr;
-	ComPtr<ID3D12Resource> transformBuffer_;
-	ComPtr<ID3D12DescriptorHeap> transformDescHeap_;
-	bool CreateTransformBuffer();
+	// Object Constant
+	UploadBuffer<ObjectConstant> m_transformBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_transformDescHeap;
+	bool CreateTransformConstant();
 
 	// Bone buffer
 	ComPtr<ID3D12Resource> boneBuffer_;
@@ -127,18 +125,12 @@ private:
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
 	bool CreateMaterialAndTextureBuffer();
 
-	ComPtr<ID3D12DescriptorHeap> shadowDepthHeap_;
-
-	void CreateRootSignature();
 	bool CreateTexture(void);
 
-	void CreateModelPipeline();
+private:
 
-	// Graphic pipeline
-	ComPtr<ID3D12PipelineState> pipeline_;
-	ComPtr<ID3D12RootSignature> rootSig_;
-	bool CreatePipelineStateObject();
-	
+	std::shared_ptr<VMDMotion> vmdMotion_;
+
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
 	// Root-finding algorithm ( finding ZERO or finding ROOT )

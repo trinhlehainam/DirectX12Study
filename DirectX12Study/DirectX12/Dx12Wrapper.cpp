@@ -1,7 +1,8 @@
 #include "Dx12Wrapper.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
-#include "../VMDLoader/VMDMotion.h"
+#include "../PMDModel/PMDManager.h"
+#include "../PMDModel/PMDModel.h"
 #include "Geometry/GeometryGenerator.h"
 
 #include <cassert>
@@ -238,12 +239,7 @@ void Dx12Wrapper::RenderToPostEffectBuffer()
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
-    RenderPrimitive();
-
-    for (const auto& model : m_pmdModelList)
-    {
-        model->Render(m_cmdList, frameNO);
-    }
+    //RenderPrimitive();
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -318,7 +314,7 @@ void Dx12Wrapper::CreateTimeBuffer()
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_timeBuffer.Size();
+    cbvDesc.SizeInBytes = m_timeBuffer.SizeInBytes();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(2, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -682,12 +678,12 @@ void Dx12Wrapper::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    for (auto& model : m_pmdModelList)
-    {
-        model->SetTransformGraphicPipeline(m_cmdList);
-        model->SetInputAssembler(m_cmdList);
-        m_cmdList->DrawIndexedInstanced(model->GetIndicesSize(), 1, 0, 0, 0);
-    }
+    //for (auto& model : m_pmdModelList)
+    //{
+    //    model->SetTransformDescriptorTable(m_cmdList);
+    //    model->SetInputAssembler(m_cmdList);
+    //    m_cmdList->DrawIndexedInstanced(model->GetIndicesSize(), 1, 0, 0, 0);
+    //}
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -701,8 +697,8 @@ void Dx12Wrapper::RenderToShadowDepthBuffer()
 
 void Dx12Wrapper::CreatePlane()
 {
-    CreatePlaneBuffer();
-    CreateDescriptorForPrimitive();
+    //CreatePlaneBuffer();
+    //CreateDescriptorForPrimitive();
     CreatePlaneRootSignature();
     CreatePlanePipeLine();
 }
@@ -955,12 +951,11 @@ void Dx12Wrapper::CreateDescriptorForPrimitive()
 {
     Dx12Helper::CreateDescriptorHeap(m_device.Get(), primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    auto transformBuffer = m_pmdModelList[0]->GetTransformBuffer();
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(primitiveHeap_->GetCPUDescriptorHandleForHeapStart());
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = transformBuffer->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = transformBuffer->GetDesc().Width;
+    //cbvDesc.BufferLocation = transformBuffer->GetGPUVirtualAddress();
+    //cbvDesc.SizeInBytes = transformBuffer->GetDesc().Width;
     m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
     heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -1074,6 +1069,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     CreateSwapChain(hwnd);
     CreateBackBufferView();
     CreateDepthBuffer();  
+    CreateWorldPassConstant();
     CreatePostEffectTexture();
     CreateShadowMapping();
     CreateDefaultTexture();
@@ -1089,28 +1085,65 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     return true;
 }
 
+bool Dx12Wrapper::CreateWorldPassConstant()
+{
+    HRESULT result = S_OK;
+
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_worldPassConstantHeap,
+        2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+    m_worldPCBuffer.Create(m_device, 1, true);
+
+    auto& mappedData = m_worldPCBuffer.MappedData();
+
+    auto wSize = Application::Instance().GetWindowSize();
+
+    // camera array (view)
+    XMMATRIX viewproj = XMMatrixLookAtRH(
+        { 10.0f, 10.0f, 10.0f, 1.0f },
+        { 0.0f, 10.0f, 0.0f, 1.0f },
+        { 0.0f, 1.0f, 0.0f, 0.0f });
+
+    // projection array
+    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
+        static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+        0.1f,
+        300.0f);
+
+    mappedData.viewproj = viewproj;
+    XMVECTOR plane = { 0,1,0,0 };
+    XMVECTOR light = { -1,1,-1,0 };
+    mappedData.lightPos = light;
+    mappedData.shadow = XMMatrixShadow(plane, light);
+
+    XMVECTOR lightPos = { -10,30,30,1 };
+    XMVECTOR targetPos = { 10,0,0,1 };
+    auto screenSize = Application::Instance().GetWindowSize();
+    float aspect = static_cast<float>(screenSize.width) / screenSize.height;
+    mappedData.lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
+        XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = m_worldPCBuffer.SizeInBytes();
+    auto heapPos = m_worldPassConstantHeap->GetCPUDescriptorHandleForHeapStart();
+    m_device->CreateConstantBufferView(&cbvDesc, heapPos);
+
+    return true;
+}
+
 void Dx12Wrapper::CreatePMDModel()
 {
-    m_pmdModelList.emplace_back(std::make_shared<PMDModel>(m_device));
-    m_pmdModelList[0]->GetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
-    m_pmdModelList[0]->LoadPMD(model1_path);
-    m_pmdModelList[0]->CreateModel();
-    m_pmdModelList[0]->CreateShadowDepthView(shadowDepthBuffer_);
-    m_pmdModelList[0]->LoadMotion(motion1_path);
-
-    /*pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModelList_[1]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModelList_[1]->LoadPMD(model2_path);
-    pmdModelList_[1]->CreateModel();
-    pmdModelList_[1]->LoadMotion(motion2_path);
-    pmdModelList_[1]->Transform(XMMatrixTranslation(10, 0, -10));
-
-    pmdModelList_.emplace_back(std::make_shared<PMDModel>(dev_));
-    pmdModelList_[2]->GetDefaultTexture(whiteTexture_, blackTexture_, gradTexture_);
-    pmdModelList_[2]->LoadPMD(model3_path);
-    pmdModelList_[2]->CreateModel();
-    pmdModelList_[2]->LoadMotion(motion2_path);
-    pmdModelList_[2]->Transform(XMMatrixTranslation(-15, 0, 5));*/
+    m_PMDmanager = std::make_unique<PMDManager>();
+    m_PMDmanager->SetDevice(m_device.Get());
+    m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
+    m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
+    m_PMDmanager->SetWorldShadowMap(shadowDepthBuffer_.Get());
+    m_PMDmanager->Add("Miku");
+    auto& mikuModel = m_PMDmanager->Get("Miku");
+    mikuModel.LoadPMD(model1_path);
+    m_PMDmanager->Init();
+    return;
 }
 
 bool Dx12Wrapper::Update(const float& deltaTime)
@@ -1128,17 +1161,6 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     if (m_mouse.IsRightPressed())
         scale -= 0.2f;
         
-    if (timer <= 0.0f)
-    {
-        frameNO++;
-        timer = animation_speed;
-        scalar += 0.05;
-        for (auto& model : m_pmdModelList)
-        {
-            model->Transform(XMMatrixRotationY(angle));
-            model->Transform(XMMatrixScaling(scale, scale, scale));
-        }
-    }
     timer -= deltaTime;
 
     scalar = scalar > 5 ? 0.1 : scalar;

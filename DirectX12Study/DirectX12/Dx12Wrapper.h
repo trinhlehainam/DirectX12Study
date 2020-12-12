@@ -7,11 +7,12 @@
 #include <memory>
 #include <string>
 
-#include "../PMDModel/PMDModel.h"
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "Dx12Helper.h"
 #include "UploadBuffer.h"
+#include "../PMDModel/PMDManager.h"
+#include "../common.h"
 
 
 /// <summary>
@@ -83,9 +84,14 @@ private:
 
 	void WaitForGPU();
 private:
+	// World Pass Constant
+	UploadBuffer<WorldPassConstant> m_worldPCBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_worldPassConstantHeap;
+	bool CreateWorldPassConstant();
+private:
 	UpdateTextureBuffers m_updateBuffers;
 
-	std::vector<std::shared_ptr<PMDModel>> m_pmdModelList;
+	std::unique_ptr<PMDManager> m_PMDmanager;
 	void CreatePMDModel();
 
 	// Post effect rendering
@@ -126,6 +132,7 @@ private:
 	void CreateShadowRootSignature();
 	void CreateShadowPipelineState();
 
+private:
 	ComPtr<ID3D12Resource> planeVB_;
 	D3D12_VERTEX_BUFFER_VIEW planeVBV_;
 	ComPtr<ID3D12Resource> planeIB_;
@@ -143,6 +150,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> primitiveHeap_;
 	void CreateDescriptorForPrimitive();
 
+private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();
 	void RenderToPostEffectBuffer();
