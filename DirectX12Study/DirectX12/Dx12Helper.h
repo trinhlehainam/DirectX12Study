@@ -31,7 +31,7 @@ public:
 
 	// Compile shader file at RUNTIME and convert it to bytecode for PSO (pipeline state object) use it
 	// ->Return shader's bytecode
-	static ComPtr<ID3DBlob> CompileShader(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
+	static ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
 
 	// Return nullptr if FAILED to load texture from file
 	static ComPtr<ID3D12Resource> CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path);

@@ -29,7 +29,13 @@ public:
 	// 3: GRADIENT TEXTURE
 	bool SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* pBlackTexture,
 		ID3D12Resource* pGradTexture);
+
+	// Need to set up all resource for PMD Manager BEFORE initialize it
 	bool Init();
+
+	// Use for check PMD Manager is initialized
+	// If PMD Manager isn't initialized, some feature of it won't work right
+	bool IsInitialized();
 public:
 	bool Add(const std::string& name);
 	PMDModel& Get(const std::string& name);
@@ -47,6 +53,8 @@ private:
 
 	bool m_isInitDone = false;
 private:
+	friend class Dx12Wrapper;
+
 	bool CreatePipeline();
 	bool CreateRootSignature();
 	bool CreatePipelineStateObject();

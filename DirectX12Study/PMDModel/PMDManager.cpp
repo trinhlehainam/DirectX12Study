@@ -1,4 +1,4 @@
-#include "PMDManager.h"
+ï»¿#include "PMDManager.h"
 #include "PMDModel.h"
 #include "../DirectX12/UploadBuffer.h"
 
@@ -37,16 +37,13 @@ bool PMDManager::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource*
 
 bool PMDManager::Init()
 {
+	if (m_isInitDone) return true;
 	if (!m_device) return false;
-	if (!CheckDefaultBuffers()) return false;
-	if (!CreatePipeline()) return false;
-
-    
 	if (!m_worldPCBHeap) return false;
 	if (!m_shadowDepthHeap) return false;
 
-	
-
+	if (!CheckDefaultBuffers()) return false;
+	if (!CreatePipeline()) return false;
 	size_t indicesCount = 0;
 	// Loop for calculate size of indices of all models
 	// And save baseIndex of each model for Render Usage
@@ -112,7 +109,14 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = rsDes.Format;
+
+	/*--------------EASY TO BECOME BUG----------------*/
+	// the type of shadow depth buffer is R32_TYPELESS
+	// In able to shader resource view to read shadow depth buffer
+	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT; 
+	/*-------------------------------------------------*/
+
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -123,11 +127,17 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_shadowDepthHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
 
-	return false;
+	return true;
+}
+
+bool PMDManager::IsInitialized()
+{
+	return m_isInitDone;
 }
 
 bool PMDManager::Add(const std::string& name)
 {
+	assert(m_device);
 	if (m_models.count(name)) return false;
 	m_models[name].m_device = m_device;
 	return true;
@@ -199,10 +209,10 @@ bool PMDManager::CreateRootSignature()
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
 
-	//ƒTƒ“ƒvƒ‰‚ç‚Ì’è‹`AƒTƒ“ƒvƒ‰‚Æ‚ÍUV‚ª0–¢–‚Æ‚©1’´‚¦‚Æ‚©‚Ì‚Æ‚«‚Ì
-	//“®‚«y‚âAUV‚ğ‚à‚Æ‚ÉF‚ğ‚Æ‚Á‚Ä‚­‚é‚Æ‚«‚Ìƒ‹[ƒ‹‚ğw’è‚·‚é‚à‚Ì
+	//ã‚µãƒ³ãƒ—ãƒ©ã‚‰ã®å®šç¾©ã€ã‚µãƒ³ãƒ—ãƒ©ã¨ã¯UVãŒ0æœªæº€ã¨ã‹1è¶…ãˆã¨ã‹ã®ã¨ãã®
+	//å‹•ãyã‚„ã€UVã‚’ã‚‚ã¨ã«è‰²ã‚’ã¨ã£ã¦ãã‚‹ã¨ãã®ãƒ«ãƒ¼ãƒ«ã‚’æŒ‡å®šã™ã‚‹ã‚‚ã®
 	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
-	//WRAP‚ÍŒJ‚è•Ô‚µ‚ğ•\‚·B
+	//WRAPã¯ç¹°ã‚Šè¿”ã—ã‚’è¡¨ã™ã€‚
 	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
 		0,                                  // shader register location
 		D3D12_FILTER_MIN_MAG_MIP_POINT);    // Filter     
@@ -225,7 +235,7 @@ bool PMDManager::CreateRootSignature()
 	ComPtr<ID3DBlob> rootSigBlob;
 	ComPtr<ID3DBlob> errBlob;
 	Dx12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&rtSigDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
+		D3D_ROOT_SIGNATURE_VERSION_1_0,             //â€» 
 		&rootSigBlob,
 		&errBlob));
 	Dx12Helper::OutputFromErrorBlob(errBlob);
@@ -239,17 +249,17 @@ bool PMDManager::CreatePipelineStateObject()
 {
 	HRESULT result = S_OK;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	//IA(Input-Assembler...‚Â‚Ü‚è’¸“_“ü—Í)
-	//‚Ü‚¸“ü—ÍƒŒƒCƒAƒEƒgi‚¿‚å‚¤‚Ä‚ñ‚ÌƒtƒH[ƒ}ƒbƒgj
+	//IA(Input-Assembler...ã¤ã¾ã‚Šé ‚ç‚¹å…¥åŠ›)
+	//ã¾ãšå…¥åŠ›ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆï¼ˆã¡ã‚‡ã†ã¦ã‚“ã®ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆï¼‰
 
 	D3D12_INPUT_ELEMENT_DESC layout[] = {
 	{
 	"POSITION",                                   //semantic
-	0,                                            //semantic index(”z—ñ‚Ìê‡‚É”z—ñ”Ô†‚ğ“ü‚ê‚é)
+	0,                                            //semantic index(é…åˆ—ã®å ´åˆã«é…åˆ—ç•ªå·ã‚’å…¥ã‚Œã‚‹)
 	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //ƒXƒƒbƒg”Ô†i’¸“_ƒf[ƒ^‚ª“ü‚Á‚Ä‚­‚é“üŒû’n”Ô†j
-	0,                                            //‚±‚Ìƒf[ƒ^‚ª‰½ƒoƒCƒg–Ú‚©‚çn‚Ü‚é‚Ì‚©
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //’¸“_‚²‚Æ‚Ìƒf[ƒ^
+	0,                                            //ã‚¹ãƒ­ãƒƒãƒˆç•ªå·ï¼ˆé ‚ç‚¹ãƒ‡ãƒ¼ã‚¿ãŒå…¥ã£ã¦ãã‚‹å…¥å£åœ°ç•ªå·ï¼‰
+	0,                                            //ã“ã®ãƒ‡ãƒ¼ã‚¿ãŒä½•ãƒã‚¤ãƒˆç›®ã‹ã‚‰å§‹ã¾ã‚‹ã®ã‹
+	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //é ‚ç‚¹ã”ã¨ã®ãƒ‡ãƒ¼ã‚¿
 	0},
 	{
 	"NORMAL",
@@ -297,7 +307,7 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 	// Vertex Shader
-	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShader(L"shader/vs.hlsl", "VS", "vs_5_1");
+	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShaderFromFile(L"shader/vs.hlsl", "VS", "vs_5_1");
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
 	// Rasterizer
@@ -306,7 +316,7 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShader(L"shader/ps.hlsl", "PS", "ps_5_1");
+	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShaderFromFile(L"shader/ps.hlsl", "PS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
 	// Other set up
@@ -326,7 +336,7 @@ bool PMDManager::CreatePipelineStateObject()
 	// Blend
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
+	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //â€» color : ABGR
 
 	// Root Signature
 	psoDesc.pRootSignature = m_rootSig.Get();

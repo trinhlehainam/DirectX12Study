@@ -90,7 +90,7 @@ private:
 	bool CreateWorldPassConstant();
 private:
 	UpdateTextureBuffers m_updateBuffers;
-
+	
 	std::unique_ptr<PMDManager> m_PMDmanager;
 	void CreatePMDModel();
 

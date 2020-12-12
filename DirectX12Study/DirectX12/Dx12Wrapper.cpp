@@ -1135,6 +1135,7 @@ bool Dx12Wrapper::CreateWorldPassConstant()
 void Dx12Wrapper::CreatePMDModel()
 {
     m_PMDmanager = std::make_unique<PMDManager>();
+
     m_PMDmanager->SetDevice(m_device.Get());
     m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
@@ -1143,6 +1144,7 @@ void Dx12Wrapper::CreatePMDModel()
     auto& mikuModel = m_PMDmanager->Get("Miku");
     mikuModel.LoadPMD(model1_path);
     m_PMDmanager->Init();
+
     return;
 }
 
