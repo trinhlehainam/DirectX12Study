@@ -534,16 +534,23 @@ void Dx12Wrapper::CreateShadowRootSignature()
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
-    // transform and bone
+    D3D12_DESCRIPTOR_RANGE range[2] = {};
+    D3D12_ROOT_PARAMETER rootParam[2] = {};
+
+    // World pass constant
     range[0] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        2,                                      // number of descriptors
+        1,                                      // number of descriptors
         0);                                     // base shader register
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
-    D3D12_ROOT_PARAMETER rootParam[1] = {};
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0],D3D12_SHADER_VISIBILITY_VERTEX);
-
+    //World pass constant
+    range[1] = CD3DX12_DESCRIPTOR_RANGE(
+        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
+        1,                                      // number of descriptors
+        1);                                     // base shader register
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[1], D3D12_SHADER_VISIBILITY_VERTEX);
+   
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
 
@@ -678,6 +685,8 @@ void Dx12Wrapper::RenderToShadowDepthBuffer()
     auto desc = shadowDepthBuffer_->GetDesc();
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
+
+    m_PMDmanager->RenderDepth(m_cmdList.Get());
 
     //for (auto& model : m_pmdModelList)
     //{

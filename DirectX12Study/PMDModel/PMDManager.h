@@ -42,18 +42,32 @@ public:
 	PMDModel& Get(const std::string& name);
 
 	void Update(const float& deltaTime);
+
+	// 
 	void Render(ID3D12GraphicsCommandList* pGraphicsCmdList);
+
+	// Function use for taking models depth value
+	// This function DON'T set up ITS own PIPELINE
+	// or any pipeline
+	// client must set pipeline before use this
+	void RenderDepth(ID3D12GraphicsCommandList* pGraphicsCmdList);
 private:
+	// When Initialization hasn't done
+	// =>Client's Render and Update methods are putted to sleep
 	void SleepUpdate(const float& deltaTime);
 	void SleepRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
 	
-	void PrivateUpdate(const float& deltaTime);
-	void PrivateRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
-	
+	void NormalUpdate(const float& deltaTime);
+	void NormalRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+
+	// Function use for taking models depth value
+	void DepthRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+
 	using UpdateFunc_ptr = void (PMDManager::*)(const float& deltaTime);
 	using RenderFunc_ptr = void (PMDManager::*)(ID3D12GraphicsCommandList* pGraphicsCmdList);
 	UpdateFunc_ptr m_updateFunc;
 	RenderFunc_ptr m_renderFunc;
+	RenderFunc_ptr m_renderDepthFunc;
 
 	bool m_isInitDone = false;
 private:
