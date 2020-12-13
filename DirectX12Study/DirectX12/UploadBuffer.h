@@ -37,6 +37,11 @@ public:
 	// return false if the size of array is empty 
 	// or different with number of element
 	bool CopyData(const std::vector<T>& arrayData);
+
+	// return false if it's already in copyable state
+	bool EnableCopy();
+	// return false if it's already in disable copy state
+	bool DisableCopy();
 private:
 	UploadBuffer(const UploadBuffer&) = delete;
 	UploadBuffer& operator = (const UploadBuffer&) = delete;
@@ -44,8 +49,11 @@ private:
 private:
 	ComPtr<ID3D12Resource> m_buffer = nullptr;
 	T* m_mappedData = nullptr;
+	// uint16_t max value is 0xffff (65535)
+	// it maybe too small with size of Indices
 	uint32_t m_elementCount = 0;
 	bool m_isConstantBuffer = false;
+	bool m_isCopyable = true;
 };
 
 template<typename T>
@@ -64,7 +72,7 @@ inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elem
 template<typename T>
 inline UploadBuffer<T>::~UploadBuffer()
 {
-	if (m_buffer != nullptr)
+	if (m_buffer != nullptr && m_isCopyable)
 		m_buffer->Unmap(0, nullptr);
 	m_mappedData = nullptr;
 }
@@ -111,7 +119,7 @@ inline size_t UploadBuffer<T>::ElementSize() const
 template<typename T>
 inline T& UploadBuffer<T>::MappedData(uint32_t index)
 {
-	assert(m_buffer.Get() != nullptr);
+	assert(m_buffer.Get());
 	if (index > m_elementCount)
 		index = 0;
 	return m_mappedData[index];
@@ -120,6 +128,8 @@ inline T& UploadBuffer<T>::MappedData(uint32_t index)
 template<typename T>
 inline bool UploadBuffer<T>::CopyData(const T& data, uint32_t index)
 {
+	assert(m_isCopyable);
+
 	if (index >= m_elementCount) 
 		return false;
 
@@ -130,6 +140,8 @@ inline bool UploadBuffer<T>::CopyData(const T& data, uint32_t index)
 template<typename T>
 inline bool UploadBuffer<T>::CopyData(const T* pArrayData, uint32_t elementCount)
 {
+	assert(m_isCopyable);
+
 	if (elementCount == 0 || elementCount != m_elementCount)
 		return false;
 
@@ -141,12 +153,32 @@ inline bool UploadBuffer<T>::CopyData(const T* pArrayData, uint32_t elementCount
 template<typename T>
 inline bool UploadBuffer<T>::CopyData(const std::vector<T>& arrayData)
 {
+	assert(m_isCopyable);
+
 	size_t arraySize = arrayData.size();
 	if (arraySize == 0 || arraySize != m_elementCount)
 		return false;
 
 	std::copy(arrayData.begin(), arrayData.end(), m_mappedData);
 	return true;
+}
+
+template<typename T>
+inline bool UploadBuffer<T>::EnableCopy()
+{
+	if (m_isCopyable) return false;
+	m_isCopyable = false;
+	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
+	return true;
+}
+
+template<typename T>
+inline bool UploadBuffer<T>::DisableCopy()
+{
+	if (!m_isCopyable) return false;
+	m_isCopyable = true;
+	m_buffer->Unmap(0, nullptr);
+	return false;
 }
 
 

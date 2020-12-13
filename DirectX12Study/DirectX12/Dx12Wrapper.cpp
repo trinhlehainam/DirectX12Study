@@ -3,7 +3,7 @@
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
 #include "../PMDModel/PMDModel.h"
-#include "Geometry/GeometryGenerator.h"
+#include "../Geometry/GeometryGenerator.h"
 
 #include <cassert>
 #include <algorithm>
