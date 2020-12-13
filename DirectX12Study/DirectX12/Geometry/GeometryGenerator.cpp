@@ -20,7 +20,7 @@ GeometryGenerator::Vertex::Vertex(float positionX, float positionY, float positi
 }
 
 GeometryGenerator::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, 
-	float height, uint32_t stackCount, uint32_t sliceCount)
+	float height, uint32_t sliceCount, uint32_t stackCount)
 {
 	Mesh mesh;
 

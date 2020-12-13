@@ -122,7 +122,7 @@ private:
 	// ShadowMapping
 	void CreateShadowMapping();
 
-	ComPtr<ID3D12Resource> shadowDepthBuffer_;
+	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
 	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
 	bool CreateShadowDepthBuffer();
@@ -133,21 +133,21 @@ private:
 	void CreateShadowPipelineState();
 
 private:
-	ComPtr<ID3D12Resource> planeVB_;
-	D3D12_VERTEX_BUFFER_VIEW planeVBV_;
-	ComPtr<ID3D12Resource> planeIB_;
-	D3D12_INDEX_BUFFER_VIEW planeIBV_;
-	ComPtr<ID3D12PipelineState> planePipeline_;
-	ComPtr<ID3D12RootSignature> planeRootSig_;
+	ComPtr<ID3D12Resource> m_primitiveVB;
+	D3D12_VERTEX_BUFFER_VIEW m_primitiveVBV;
+	ComPtr<ID3D12Resource> m_primitiveIB;
+	D3D12_INDEX_BUFFER_VIEW m_primitiveIBV;
+	ComPtr<ID3D12PipelineState> m_primitivePipeline;
+	ComPtr<ID3D12RootSignature> m_primitiveRootSig;
 	
-	void CreatePlane();
-	void CreatePlaneBuffer();
-	void CreatePlaneVertexBuffer();
-	void CreatePlaneIndexBuffer();
-	void CreatePlaneRootSignature();
-	void CreatePlanePipeLine();
+	void CreatePrimitive();
+	void CreatePrimitiveBuffer();
+	void CreatePrimitiveVertexBuffer();
+	void CreatePrimitiveIndexBuffer();
+	void CreatePrimitiveRootSignature();
+	void CreatePrimitivePipeLine();
 	
-	ComPtr<ID3D12DescriptorHeap> primitiveHeap_;
+	ComPtr<ID3D12DescriptorHeap> m_primitiveHeap;
 	void CreateDescriptorForPrimitive();
 
 private:

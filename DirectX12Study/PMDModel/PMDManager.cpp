@@ -400,42 +400,30 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.InputLayout.NumElements = _countof(layout);
 	psoDesc.InputLayout.pInputElementDescs = layout;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
 	// Vertex Shader
 	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShaderFromFile(L"shader/vs.hlsl", "VS", "vs_5_1");
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
 	// Rasterizer
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FrontCounterClockwise = true;
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
 	// Pixel Shader
 	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShaderFromFile(L"shader/ps.hlsl", "PS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-
 	// Other set up
-
 	// Depth/Stencil
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
 	psoDesc.NodeMask = 0;
 	psoDesc.SampleDesc.Count = 1;
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
 	// Output set up
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	// Blend
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //※ color : ABGR
-
 	// Root Signature
 	psoDesc.pRootSignature = m_rootSig.Get();
-
 	Dx12Helper::ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, 
 		IID_PPV_ARGS(m_pipeline.GetAddressOf())));
 

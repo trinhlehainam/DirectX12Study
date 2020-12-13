@@ -1,6 +1,5 @@
 cbuffer passConstant:register (b0)
 {
-	matrix world;			// transform to world space matrix
 	matrix viewproj;		// projecting object to window space matrix
 	vector lightPos;
 	matrix shadow;
@@ -28,15 +27,22 @@ struct PrimitiveInput
 PrimitiveOut primitiveVS(PrimitiveInput input)
 {
 	PrimitiveOut ret;
-	ret.pos = mul(world, input.pos);
+	//ret.pos = mul(world, input.pos);
 	
 	// Remove translate
-	matrix wrl = world;
-	wrl._14_24_34 = 0.0f;
-	ret.normal = mul(wrl, input.normal);
+	//matrix wrl = world;
+	//wrl._14_24_34 = 0.0f;
+	//ret.normal = mul(wrl, input.normal);
+	
+	// test
+	ret.pos = input.pos;
+	ret.normal = input.normal;
+	//
+	
 	ret.tangent = input.tangent;
 	ret.uv = input.uv;
 	ret.svpos = mul(viewproj, ret.pos);
 	ret.lvpos = mul(lightViewProj, ret.pos);
+	
 	return ret;
 }

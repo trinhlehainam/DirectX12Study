@@ -14,10 +14,8 @@ struct PMDSubMesh
 
 struct PMDMesh
 {
-	using Indices_t = uint16_t;
-
 	std::vector<PMDVertex> vertices;
-	std::vector<Indices_t> indices;
+	std::vector<uint16_t> indices;
 
 	std::unordered_map<std::string, PMDSubMesh> DrawArgs;
 
@@ -25,7 +23,7 @@ struct PMDMesh
 	D3D12_INDEX_BUFFER_VIEW ibview;
 
 	UploadBuffer<PMDVertex> vertexBuffer;
-	UploadBuffer<Indices_t> indexBuffer;
+	UploadBuffer<uint16_t> indexBuffer;
 
 	bool CreateVertexBufferView(ID3D12Device* pDevice);
 	bool CreateIndexBufferView(ID3D12Device* pDevice);

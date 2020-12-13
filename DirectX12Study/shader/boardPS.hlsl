@@ -46,7 +46,7 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	else
 	{
 		float div = 100.0f;
-		return float4(0.7, 1, 1, 1);
+		return float4(0, 0, 0, 1);
 		return float4(fmod(input.uv, 1.0f / div) * div,1, 1);
 	}	
 }

@@ -240,7 +240,7 @@ void Dx12Wrapper::RenderToPostEffectBuffer()
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
-    //RenderPrimitive();
+    RenderPrimitive();
     m_PMDmanager->Render(m_cmdList.Get());
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -507,7 +507,7 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    shadowDepthBuffer_ = Dx12Helper::CreateTex2DBuffer(m_device.Get(),
+    m_shadowDepthBuffer = Dx12Helper::CreateTex2DBuffer(m_device.Get(),
         1024, 1024, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -520,7 +520,7 @@ bool Dx12Wrapper::CreateShadowDepthBuffer()
     dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
     m_device->CreateDepthStencilView(
-        shadowDepthBuffer_.Get(),
+        m_shadowDepthBuffer.Get(),
         &dsvDesc,
         shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
 
@@ -680,111 +680,78 @@ void Dx12Wrapper::RenderToShadowDepthBuffer()
     m_cmdList->SetPipelineState(shadowPipeline_.Get());
     m_cmdList->SetGraphicsRootSignature(shadowRootSig_.Get());
 
-    CD3DX12_VIEWPORT vp(shadowDepthBuffer_.Get());
+    CD3DX12_VIEWPORT vp(m_shadowDepthBuffer.Get());
     m_cmdList->RSSetViewports(1, &vp);
 
-    auto desc = shadowDepthBuffer_->GetDesc();
+    auto desc = m_shadowDepthBuffer->GetDesc();
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
     m_PMDmanager->RenderDepth(m_cmdList.Get());
 
-    //for (auto& model : m_pmdModelList)
-    //{
-    //    model->SetTransformDescriptorTable(m_cmdList);
-    //    model->SetInputAssembler(m_cmdList);
-    //    m_cmdList->DrawIndexedInstanced(model->GetIndicesSize(), 1, 0, 0, 0);
-    //}
-
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
     D3D12_RESOURCE_BARRIER barrier =
         CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer_.Get(),                       // resource buffer
+            m_shadowDepthBuffer.Get(),                       // resource buffer
             D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
     m_cmdList->ResourceBarrier(1, &barrier);
 }
 
-void Dx12Wrapper::CreatePlane()
+void Dx12Wrapper::CreatePrimitive()
 {
-    //CreatePlaneBuffer();
-    //CreateDescriptorForPrimitive();
-    CreatePlaneRootSignature();
-    CreatePlanePipeLine();
+    CreatePrimitiveBuffer();
+    CreateDescriptorForPrimitive();
+    CreatePrimitiveRootSignature();
+    CreatePrimitivePipeLine();
 }
 
-void Dx12Wrapper::CreatePlaneBuffer()
+void Dx12Wrapper::CreatePrimitiveBuffer()
 {
-    CreatePlaneVertexBuffer();
-    CreatePlaneIndexBuffer();
+    CreatePrimitiveVertexBuffer();
+    CreatePrimitiveIndexBuffer();
 }
 
 namespace
 {
-    auto cylinder = GeometryGenerator::CreateCylinder(50.f, 30.f, 20.f, 1, 8);
+    auto g_primitive = GeometryGenerator::CreateSphere(10.f,20,20);
 }
 
-void Dx12Wrapper::CreatePlaneVertexBuffer()
+void Dx12Wrapper::CreatePrimitiveVertexBuffer()
 {
-    /*PrimitiveVertex verts[] = {
-        {{-10.0f,0.0f,-10.0f}},
-        {{10.0f,0.0f,-10.0f}},
-        {{10.0f,0.0f,10.0f}},
-        {{-10.0f,0.0f,10.0f}},
-        {{10.0f,50.0f,10.0f}},
-        {{-10.0f,50.0f,10.0f}},
-    };*/
-
-    PrimitiveVertex verts[] = {
-        {{10.0f,0.0f,-10.0f}},
-        {{-10.0f,0.0f,-10.0f}},
-        {{10.0f,0.0f,10.0f}},
-        {{-10.0f,0.0f,10.0f}},
-        {{10.0f,50.0f,10.0f}},
-        {{-10.0f,50.0f,10.0f}},
-    };
-
-    //auto byteSize = sizeof(PrimitiveVertex) * _countof(verts);
-    auto byteSize = sizeof(cylinder.vertices[0]) * cylinder.vertices.size();
-    planeVB_ = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
+    auto byteSize = sizeof(g_primitive.vertices[0]) * g_primitive.vertices.size();
+    m_primitiveVB = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
     
-    planeVBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
-    planeVBV_.SizeInBytes = byteSize;
-    planeVBV_.StrideInBytes = sizeof(cylinder.vertices[0]);
+    m_primitiveVBV.BufferLocation = m_primitiveVB->GetGPUVirtualAddress();
+    m_primitiveVBV.SizeInBytes = byteSize;
+    m_primitiveVBV.StrideInBytes = sizeof(g_primitive.vertices[0]);
 
-    auto type = cylinder.vertices[0];
+    auto type = g_primitive.vertices[0];
     decltype(type)* mappedVertices = nullptr;
 
-    //PrimitiveVertex* mappedVertices = nullptr;
-    Dx12Helper::ThrowIfFailed(planeVB_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
-    //std::copy(std::begin(verts), std::end(verts), mappedVertices);
-    std::copy(cylinder.vertices.begin(), cylinder.vertices.end(), mappedVertices);
-    planeVB_->Unmap(0, nullptr);
+    Dx12Helper::ThrowIfFailed(m_primitiveVB->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
+    std::copy(g_primitive.vertices.begin(), g_primitive.vertices.end(), mappedVertices);
+    m_primitiveVB->Unmap(0, nullptr);
 
 }
 
-void Dx12Wrapper::CreatePlaneIndexBuffer()
+void Dx12Wrapper::CreatePrimitiveIndexBuffer()
 {
+    auto byteSize = sizeof(g_primitive.indices[0]) * g_primitive.indices.size();
+    m_primitiveIB = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
 
-    auto byteSize = sizeof(cylinder.indices[0]) * cylinder.indices.size();
-    planeIB_ = Dx12Helper::CreateBuffer(m_device.Get(), byteSize);
+    uint16_t* mappedData = nullptr;
+    Dx12Helper::ThrowIfFailed(m_primitiveIB->Map(0, nullptr, reinterpret_cast<void**>(&mappedData)));
+    std::copy(g_primitive.indices.begin(), g_primitive.indices.end(), mappedData);
+    m_primitiveIB->Unmap(0, nullptr);
 
-    planeIBV_.BufferLocation = planeVB_->GetGPUVirtualAddress();
-    planeIBV_.SizeInBytes = byteSize;
-    planeIBV_.Format = DXGI_FORMAT_R16_UINT;
-
-    auto type = cylinder.indices[0];
-    decltype(type)* mappedVertices = nullptr;
-
-    //PrimitiveVertex* mappedVertices = nullptr;
-    Dx12Helper::ThrowIfFailed(planeIB_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
-    //std::copy(std::begin(verts), std::end(verts), mappedVertices);
-    std::copy(cylinder.indices.begin(), cylinder.indices.end(), mappedVertices);
-    planeIB_->Unmap(0, nullptr);
+    m_primitiveIBV.BufferLocation = m_primitiveIB->GetGPUVirtualAddress();
+    m_primitiveIBV.SizeInBytes = byteSize;
+    m_primitiveIBV.Format = DXGI_FORMAT_R16_UINT;
 }
 
-void Dx12Wrapper::CreatePlaneRootSignature()
+void Dx12Wrapper::CreatePrimitiveRootSignature()
 {
     HRESULT result = S_OK;
     //Root Signature
@@ -793,16 +760,20 @@ void Dx12Wrapper::CreatePlaneRootSignature()
 
     // Descriptor table
     D3D12_DESCRIPTOR_RANGE range[2] = {};
-    // transform and bone
+
+    // world pass constant
     range[0] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
         1,                                      // number of descriptors
         0);                                     // base shader register
 
+    // shadow depth buffer
     range[1] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
         1,                                      // number of descriptors
         0);                                     // base shader register
+
+    // object constant
 
     D3D12_ROOT_PARAMETER parameter[1] = {};
     CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 2, &range[0], D3D12_SHADER_VISIBILITY_ALL);
@@ -828,11 +799,11 @@ void Dx12Wrapper::CreatePlaneRootSignature()
     Dx12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
     result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
-        IID_PPV_ARGS(planeRootSig_.GetAddressOf()));
+        IID_PPV_ARGS(m_primitiveRootSig.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
-void Dx12Wrapper::CreatePlanePipeLine()
+void Dx12Wrapper::CreatePrimitivePipeLine()
 {
     HRESULT result = S_OK;
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -881,92 +852,58 @@ void Dx12Wrapper::CreatePlanePipeLine()
     psoDesc.InputLayout.NumElements = _countof(layout);
     psoDesc.InputLayout.pInputElementDescs = layout;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
     // Vertex Shader
-    ComPtr<ID3DBlob> errBlob;
-    ComPtr<ID3DBlob> vsBlob;
-    result = D3DCompileFromFile(
-        L"shader/primitiveVS.hlsl",                                  // path to shader file
-        nullptr,                                            // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
-        "primitiveVS",                                               // entry name
-        "vs_5_1",                                           // shader version
-        0, 0,                                               // Flag1, Flag2 (unknown)
-        vsBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    Dx12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
+    ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShaderFromFile(L"shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
     // Rasterizer
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
+    psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     // Pixel Shader
-    ComPtr<ID3DBlob> psBlob;
-    result = D3DCompileFromFile(
-        L"shader/primitivePS.hlsl",                              // path to shader file
-        nullptr,                                        // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
-        "primitivePS",                                           // entry name
-        "ps_5_1",                                       // shader version
-        0, 0,                                            // Flag1, Flag2 (unknown)
-        psBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    Dx12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
+    ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShaderFromFile(L"shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
     psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-
     // Other set up
-
     psoDesc.NodeMask = 0;
     psoDesc.SampleDesc.Count = 1;
     psoDesc.SampleDesc.Quality = 0;
     psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
     // Output set up
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     // Blend
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-    psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
-
     psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
     // Root Signature
-    psoDesc.pRootSignature = planeRootSig_.Get();
-
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(planePipeline_.GetAddressOf()));
+    psoDesc.pRootSignature = m_primitiveRootSig.Get();
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_primitivePipeline.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
 void Dx12Wrapper::RenderPrimitive()
 {
-    m_cmdList->SetPipelineState(planePipeline_.Get());
-    m_cmdList->SetGraphicsRootSignature(planeRootSig_.Get());
-    m_cmdList->SetDescriptorHeaps(1, primitiveHeap_.GetAddressOf());
-    CD3DX12_GPU_DESCRIPTOR_HANDLE primitiveHeap(primitiveHeap_->GetGPUDescriptorHandleForHeapStart());
-    m_cmdList->SetGraphicsRootDescriptorTable(0, primitiveHeap);
+    m_cmdList->SetPipelineState(m_primitivePipeline.Get());
+    m_cmdList->SetGraphicsRootSignature(m_primitiveRootSig.Get());
 
-    m_cmdList->IASetVertexBuffers(0, 1, &planeVBV_);
-    m_cmdList->IASetIndexBuffer(&planeIBV_);
-    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    //m_cmdList->DrawInstanced(cylinder.vertices.size(), 1, 0, 0);
-    m_cmdList->DrawIndexedInstanced(cylinder.indices.size(), 1, 0, 0, 0);
+    m_cmdList->IASetVertexBuffers(0, 1, &m_primitiveVBV);
+    m_cmdList->IASetIndexBuffer(&m_primitiveIBV);
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    m_cmdList->SetDescriptorHeaps(1, m_primitiveHeap.GetAddressOf());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE primitiveHeap(m_primitiveHeap->GetGPUDescriptorHandleForHeapStart());
+    m_cmdList->SetGraphicsRootDescriptorTable(0, primitiveHeap);
+    m_cmdList->DrawIndexedInstanced(g_primitive.indices.size(), 1, 0, 0, 0);
 
 }
 
 void Dx12Wrapper::CreateDescriptorForPrimitive()
 {
-    Dx12Helper::CreateDescriptorHeap(m_device.Get(), primitiveHeap_, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_primitiveHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(primitiveHeap_->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_primitiveHeap->GetCPUDescriptorHandleForHeapStart());
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    //cbvDesc.BufferLocation = transformBuffer->GetGPUVirtualAddress();
-    //cbvDesc.SizeInBytes = transformBuffer->GetDesc().Width;
+    cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = m_worldPCBuffer.SizeInBytes();
     m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
     heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -975,7 +912,7 @@ void Dx12Wrapper::CreateDescriptorForPrimitive()
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    m_device->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, heapHandle);
+    m_device->CreateShaderResourceView(m_shadowDepthBuffer.Get(), &srvDesc, heapHandle);
 }
 
 void Dx12Wrapper::WaitForGPU()
@@ -1085,7 +1022,7 @@ bool Dx12Wrapper::Initialize(const HWND& hwnd)
     CreateShadowMapping();
     CreateDefaultTexture();
     CreatePMDModel();
-    CreatePlane();
+    CreatePrimitive();
 
     m_cmdList->Close();
     m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList*const*>(m_cmdList.GetAddressOf()));
@@ -1112,7 +1049,7 @@ bool Dx12Wrapper::CreateWorldPassConstant()
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
         { 10.0f, 10.0f, 10.0f, 1.0f },
-        { 0.0f, 10.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
         { 0.0f, 1.0f, 0.0f, 0.0f });
 
     // projection array
@@ -1150,7 +1087,7 @@ void Dx12Wrapper::CreatePMDModel()
     m_PMDmanager->SetDevice(m_device.Get());
     m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
-    m_PMDmanager->SetWorldShadowMap(shadowDepthBuffer_.Get());
+    m_PMDmanager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_PMDmanager->Add("Miku").LoadPMD(model_path);
     //m_PMDmanager->Add("Hibiki").LoadPMD(model1_path);
    
@@ -1162,10 +1099,39 @@ void Dx12Wrapper::CreatePMDModel()
 bool Dx12Wrapper::Update(const float& deltaTime)
 {
     angle = 0;
-    if(m_keyboard.IsPressed(VK_LEFT))
-        angle = 0.1f;
+    
+
+    static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
+    static float movespeed = 10.f;
+
+
+    if (m_keyboard.IsPressed(VK_LEFT))
+        viewpos.m128_f32[0] -= movespeed * deltaTime;
     if (m_keyboard.IsPressed(VK_RIGHT))
-        angle = -0.1f;
+        viewpos.m128_f32[0] += movespeed * deltaTime;
+
+    if(m_keyboard.IsPressed(VK_UP))
+        viewpos.m128_f32[1] += movespeed * deltaTime;
+    if(m_keyboard.IsPressed(VK_DOWN))
+        viewpos.m128_f32[1] -= movespeed * deltaTime;
+
+    auto wSize = Application::Instance().GetWindowSize();
+
+    // camera array (view)
+    XMMATRIX viewproj = XMMatrixLookAtRH(
+        viewpos,
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 1.0f, 0.0f, 0.0f });
+
+    // projection array
+    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
+        static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+        0.1f,
+        300.0f);
+
+
+    auto& worldPassData = m_worldPCBuffer.MappedData();
+    worldPassData.viewproj = viewproj;
 
     static float scale = 0;
     scale = 1;
@@ -1191,7 +1157,7 @@ void Dx12Wrapper::SetResourceStateForNextFrame()
     m_cmdList->ResourceBarrier(1, &barrier);
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        shadowDepthBuffer_.Get(),                  // resource buffer
+        m_shadowDepthBuffer.Get(),                  // resource buffer
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,               // state before
         D3D12_RESOURCE_STATE_DEPTH_WRITE);        // state after
     m_cmdList->ResourceBarrier(1, &barrier);

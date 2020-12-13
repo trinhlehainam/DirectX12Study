@@ -13,6 +13,10 @@ struct PrimitiveOut
 
 float4 primitivePS(PrimitiveOut input) : SV_TARGET
 {
+	// test
+	return float4(1, 1, 1, 1);
+	// 
+	
 	float4 color = float4(1,1,1,1);
 	//float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	float2 uv = input.uv;

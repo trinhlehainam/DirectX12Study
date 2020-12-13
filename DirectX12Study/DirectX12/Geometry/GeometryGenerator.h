@@ -36,8 +36,8 @@ public:
 	// Create cylinder parallel to y-axis, and center it at origin 
 	// Adjust top and bottom Radius to create cone-liked cylinders or even cones
 	// Adjust number of stack and slice to control detail of shape (the degree of tessellation)
-	static Mesh CreateCylinder(float bottomRadius, float topRadius, float height, uint32_t stackCount,
-		uint32_t sliceCount);
+	static Mesh CreateCylinder(float bottomRadius, float topRadius, float height, 
+		uint32_t sliceCount, uint32_t stackCount);
 
 	// Create sphere using spherical coordinate method (slice and stack)
 	// Center point of sphere is place at origin with given radius
