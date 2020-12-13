@@ -1089,7 +1089,7 @@ void Dx12Wrapper::CreatePMDModel()
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
     m_PMDmanager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_PMDmanager->Add("Miku").LoadPMD(model_path);
-    //m_PMDmanager->Add("Hibiki").LoadPMD(model1_path);
+    m_PMDmanager->Add("Hibiki").LoadPMD(model1_path);
    
     assert(m_PMDmanager->Init());
 

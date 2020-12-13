@@ -11,10 +11,10 @@ class UploadBuffer
 {
 public:
 	UploadBuffer() = default;
-	UploadBuffer(ComPtr<ID3D12Device>& device, uint16_t elementCount = 1, bool isConstantBuffer = false);
+	UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elementCount = 1, bool isConstantBuffer = false);
 	~UploadBuffer();
 
-	bool Create(ID3D12Device* device, uint16_t elementCount = 1, bool isConstantBuffer = false);
+	bool Create(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
 	ID3D12Resource* Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
@@ -23,16 +23,16 @@ public:
 
 	// If buffer has MULTIPLE elements of data, get data of input index
 	// If buffer has only one element , index is automatically set to default (0)
-	T& MappedData(uint16_t index = 0);
+	T& MappedData(uint32_t index = 0);
 
 	// If buffer has MULTIPLE elements, copy data to specific index
 	// return false if index is invalid (index is larger than number of element)
-	bool CopyData(const T& data, uint16_t index = 0);
+	bool CopyData(const T& data, uint32_t index = 0);
 
 	// Copy an array data to buffer
 	// return false if elementCount is zero (0) 
 	// or different with number of element
-	bool CopyData(const T* pArrayData, size_t elementCount = 1);
+	bool CopyData(const T* pArrayData, uint32_t elementCount = 1);
 
 	// return false if the size of array is empty 
 	// or different with number of element
@@ -44,12 +44,12 @@ private:
 private:
 	ComPtr<ID3D12Resource> m_buffer = nullptr;
 	T* m_mappedData = nullptr;
-	uint16_t m_elementCount = 0;
+	uint32_t m_elementCount = 0;
 	bool m_isConstantBuffer = false;
 };
 
 template<typename T>
-inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint16_t elementCount, bool isConstantBuffer)
+inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elementCount, bool isConstantBuffer)
 {
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
@@ -70,7 +70,7 @@ inline UploadBuffer<T>::~UploadBuffer()
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint16_t elementCount, bool isConstantBuffer)
+inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint32_t elementCount, bool isConstantBuffer)
 {
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
@@ -109,7 +109,7 @@ inline size_t UploadBuffer<T>::ElementSize() const
 }
 
 template<typename T>
-inline T& UploadBuffer<T>::MappedData(uint16_t index)
+inline T& UploadBuffer<T>::MappedData(uint32_t index)
 {
 	assert(m_buffer.Get() != nullptr);
 	if (index > m_elementCount)
@@ -118,7 +118,7 @@ inline T& UploadBuffer<T>::MappedData(uint16_t index)
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::CopyData(const T& data, uint16_t index)
+inline bool UploadBuffer<T>::CopyData(const T& data, uint32_t index)
 {
 	if (index >= m_elementCount) 
 		return false;
@@ -128,12 +128,12 @@ inline bool UploadBuffer<T>::CopyData(const T& data, uint16_t index)
 }
 
 template<typename T>
-inline bool UploadBuffer<T>::CopyData(const T* pArrayData, size_t elementCount)
+inline bool UploadBuffer<T>::CopyData(const T* pArrayData, uint32_t elementCount)
 {
 	if (elementCount == 0 || elementCount != m_elementCount)
 		return false;
 
-	for (uint16_t i = 0; i < m_elementCount; ++i)
+	for (uint32_t i = 0; i < m_elementCount; ++i)
 		m_mappedData[i] = pArrayData[i];
 	return true;
 }
