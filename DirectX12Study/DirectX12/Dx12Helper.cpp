@@ -4,10 +4,10 @@
 
 using namespace DirectX;
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t size, D3D12_HEAP_TYPE heapType)
+ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
-    auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
     ComPtr<ID3D12Resource> buffer = nullptr;
     ThrowIfFailed(pDevice->CreateCommittedResource(
         &heapProp,

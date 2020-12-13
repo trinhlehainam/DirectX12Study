@@ -1,6 +1,6 @@
-#include "PMDMeshes.h"
+#include "PMDMesh.h"
 
-bool PMDMeshes::CreateVertexBufferView(ID3D12Device* pDevice)
+bool PMDMesh::CreateVertexBufferView(ID3D12Device* pDevice)
 {
 	vertexBuffer.Create(pDevice, vertices.size());
 	vertexBuffer.CopyData(vertices);
@@ -12,7 +12,7 @@ bool PMDMeshes::CreateVertexBufferView(ID3D12Device* pDevice)
 	return true;
 }
 
-bool PMDMeshes::CreateIndexBufferView(ID3D12Device* pDevice)
+bool PMDMesh::CreateIndexBufferView(ID3D12Device* pDevice)
 {
 	indexBuffer.Create(pDevice, indices.size());
 	indexBuffer.CopyData(indices);
@@ -21,5 +21,5 @@ bool PMDMeshes::CreateIndexBufferView(ID3D12Device* pDevice)
 	ibview.Format = DXGI_FORMAT_R16_UINT;
 	ibview.SizeInBytes = indexBuffer.SizeInBytes();
 
-	return false;
+	return true;
 }

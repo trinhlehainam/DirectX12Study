@@ -10,7 +10,7 @@ class Dx12Helper
 {
 public:
 
-	static ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t size, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
+	static ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t sizeInBytes, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
 	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) -> D3D12_RESOURCE_DESC
 	static ComPtr<ID3D12Resource> CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,

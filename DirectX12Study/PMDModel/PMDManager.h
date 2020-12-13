@@ -3,7 +3,7 @@
 #include <string>
 #include <d3dx12.h>
 
-#include "PMDMeshes.h"
+#include "PMDMesh.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -38,30 +38,31 @@ public:
 	// If PMD Manager isn't initialized, some feature of it won't work right
 	bool IsInitialized();
 public:
-	bool Add(const std::string& name);
+	PMDModel& Add(const std::string& name);
 	PMDModel& Get(const std::string& name);
 
 	void Update(const float& deltaTime);
 
-	// 
-	void Render(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	void Render(ID3D12GraphicsCommandList* cmdList);
 
 	// Function use for taking models depth value
 	// This function DON'T set up ITS own PIPELINE
 	// or any pipeline
 	// client must set pipeline before use this
-	void RenderDepth(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	void RenderDepth(ID3D12GraphicsCommandList* cmdList);
 private:
+	void InitModels();
+
 	// When Initialization hasn't done
 	// =>Client's Render and Update methods are putted to sleep
 	void SleepUpdate(const float& deltaTime);
-	void SleepRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	void SleepRender(ID3D12GraphicsCommandList* cmdList);
 	
 	void NormalUpdate(const float& deltaTime);
-	void NormalRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	void NormalRender(ID3D12GraphicsCommandList* cmdList);
 
 	// Function use for taking models depth value
-	void DepthRender(ID3D12GraphicsCommandList* pGraphicsCmdList);
+	void DepthRender(ID3D12GraphicsCommandList* cmdList);
 
 	using UpdateFunc_ptr = void (PMDManager::*)(const float& deltaTime);
 	using RenderFunc_ptr = void (PMDManager::*)(ID3D12GraphicsCommandList* pGraphicsCmdList);
@@ -104,6 +105,6 @@ private:
 
 private:
 	std::unordered_map<std::string, PMDModel> m_models;
-	PMDMeshes m_meshes;
+	PMDMesh m_mesh;
 };
 

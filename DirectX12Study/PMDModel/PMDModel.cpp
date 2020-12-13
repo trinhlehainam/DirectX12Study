@@ -18,7 +18,9 @@ namespace
 
 void PMDModel::CreateModel()
 {
-	CreateTexture();
+	CreateTransformConstant();
+	LoadTextureToBuffer();
+	CreateMaterialAndTextureBuffer();
 }
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
@@ -26,17 +28,12 @@ void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 	m_transformBuffer.MappedData().world *= transformMatrix;
 }
 
-uint16_t PMDModel::GetIndicesSize() const
-{
-	return indices_.size();
-}
-
 void PMDModel::LoadMotion(const char* path)
 {
 	vmdMotion_->Load(path);
 }
 
-void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex)
+void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex)
 {
 	//auto frame = frameNO % vmdMotion_->GetMaxFrame();
 	//UpdateMotionTransform(frame);
@@ -50,7 +47,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIn
 	cmdList->SetDescriptorHeaps(1, materialDescHeap_.GetAddressOf());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
 	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	uint32_t indexOffset = meshIndex;
+	uint32_t indexOffset = baseIndex;
 	for (auto& m : materials_)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
@@ -58,7 +55,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIn
 		cmdList->DrawIndexedInstanced(m.indices,
 			1,
 			indexOffset,
-			0,
+			baseVertex,
 			0);
 		indexOffset += m.indices;
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);
@@ -66,13 +63,13 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIn
 	/*-------------------------------------------*/
 }
 
-void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex)
+void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex)
 {
 	// Object constant
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 
-	cmdList->DrawIndexedInstanced(indices_.size(), 1, 0, meshIndex, 0);
+	cmdList->DrawIndexedInstanced(indices_.size(), 1, baseIndex, baseVertex, 0);
 }
 
 void PMDModel::GetDefaultTexture(ID3D12Resource* whiteTexture, 
@@ -187,23 +184,23 @@ bool PMDModel::LoadPMD(const char* path)
 	// Bone
 	std::vector<BoneData> boneData(boneNum);
 	fread_s(boneData.data(), sizeof(boneData[0])* boneData.size(), sizeof(boneData[0])* boneData.size(), 1, fp);
-	m_boneMatrices.resize(boneNum);
+	m_bones.resize(boneNum);
 	for (int i = 0; i < boneNum; ++i)
 	{
-		m_boneMatrices[i].name = boneData[i].boneName;
-		m_boneMatrices[i].pos = boneData[i].pos;
+		m_bones[i].name = boneData[i].boneName;
+		m_bones[i].pos = boneData[i].pos;
 		bonesTable_[boneData[i].boneName] = i;
 	}
-	boneMatrices_.resize(boneNum);
+	boneMatrices_.resize(512);
 	std::fill(boneMatrices_.begin(), boneMatrices_.end(), DirectX::XMMatrixIdentity());
 
 	for (int i = 0; i < boneNum; ++i)
 	{
 		if (boneData[i].parentNo == 0xffff) continue;
 		auto pno = boneData[i].parentNo;
-		m_boneMatrices[pno].children.push_back(i);
+		m_bones[pno].children.push_back(i);
 #ifdef _DEBUG
-		m_boneMatrices[pno].childrenName.push_back(boneData[i].boneName);
+		m_bones[pno].childrenName.push_back(boneData[i].boneName);
 #endif
 	}
 
@@ -310,7 +307,7 @@ bool PMDModel::CreateTransformConstant()
 	auto& data = m_transformBuffer.MappedData();
 	data.world = XMMatrixIdentity();
 	auto bones = boneMatrices_;
-	std::copy(bones.begin(), bones.end(), &data.world);
+	std::copy(bones.begin(), bones.end(), data.bones);
 
 	return true;
 }
@@ -464,15 +461,6 @@ void PMDModel::LoadTextureToBuffer()
 
 }
 
-bool PMDModel::CreateTexture()
-{
-	CreateTransformConstant();
-	LoadTextureToBuffer();
-	CreateMaterialAndTextureBuffer();
-	
-	return true;
-}
-
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 {
 	auto& motionData = vmdMotion_->GetVMDMotionData();
@@ -481,7 +469,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	for (auto& motion : motionData)
 	{
 		auto index = bonesTable_[motion.first];
-		auto& rotationOrigin = m_boneMatrices[index].pos;
+		auto& rotationOrigin = m_bones[index].pos;
 		auto& keyframe = motion.second;
 
 		auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
@@ -510,7 +498,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 		mats[index] *= XMMatrixTranslation(move.x, move.y, move.z);
 	}
 
-	RecursiveCalculate(m_boneMatrices, mats, 0);
+	RecursiveCalculate(m_bones, mats, 0);
 	std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
 }
 

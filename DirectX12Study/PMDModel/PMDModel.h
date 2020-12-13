@@ -29,12 +29,10 @@ public:
 	void CreateModel();
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
-	uint16_t GetIndicesSize() const;
+	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex);
 
-	void Render(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex);
-
-	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint16_t& meshIndex);
-
+	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex);
+	
 	PMDModel() = default;
 	PMDModel(ComPtr<ID3D12Device> device);
 	~PMDModel();
@@ -66,7 +64,7 @@ private:
 	std::vector<PMDMaterial> materials_;
 	std::vector<std::string> modelPaths_;
 	std::vector<std::string> toonPaths_;
-	std::vector<PMDBone> m_boneMatrices;
+	std::vector<PMDBone> m_bones;
 	std::unordered_map<std::string, uint16_t> bonesTable_;
 	std::vector<DirectX::XMMATRIX> boneMatrices_;
 	const char* pmdPath_;
@@ -103,8 +101,6 @@ private:
 	ComPtr<ID3D12Resource> materialBuffer_;
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
 	bool CreateMaterialAndTextureBuffer();
-
-	bool CreateTexture(void);
 
 private:
 

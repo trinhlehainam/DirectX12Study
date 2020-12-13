@@ -23,9 +23,10 @@ cbuffer objectConstant : register(b1)
 VsOutput VS( VsInput input )
 {
 	VsOutput ret;
+	
 	matrix skinMat = bones[input.boneno.x] * input.weight + bones[input.boneno.y] * (1.0f - input.weight);
-
 	ret.pos = mul(world, mul(skinMat,input.pos));
+	
 	ret.svpos = mul(viewproj, ret.pos);
 
 	ret.lvpos = mul(lightViewProj, ret.pos);

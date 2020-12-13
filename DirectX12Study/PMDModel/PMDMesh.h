@@ -8,17 +8,18 @@
 
 struct PMDSubMesh
 {
-	uint16_t baseIndex;
+	uint32_t baseIndex;
+	uint32_t baseVertex;
 };
 
-struct PMDMeshes
+struct PMDMesh
 {
 	using Indices_t = uint16_t;
 
 	std::vector<PMDVertex> vertices;
 	std::vector<Indices_t> indices;
 
-	std::unordered_map<std::string, PMDSubMesh> meshIndex;
+	std::unordered_map<std::string, PMDSubMesh> DrawArgs;
 
 	D3D12_VERTEX_BUFFER_VIEW vbview;
 	D3D12_INDEX_BUFFER_VIEW ibview;

@@ -26,6 +26,7 @@ namespace
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
+    const char* model_path = "resource/PMD/model/弱音ハク.pmd";
     const char* model1_path = "resource/PMD/model/初音ミク.pmd";
     const char* model3_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
     const char* model2_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
@@ -1150,10 +1151,10 @@ void Dx12Wrapper::CreatePMDModel()
     m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
     m_PMDmanager->SetWorldShadowMap(shadowDepthBuffer_.Get());
-    m_PMDmanager->Add("Miku");
-    auto& mikuModel = m_PMDmanager->Get("Miku");
-    mikuModel.LoadPMD(model1_path);
-    m_PMDmanager->Init();
+    m_PMDmanager->Add("Miku").LoadPMD(model_path);
+    //m_PMDmanager->Add("Hibiki").LoadPMD(model1_path);
+   
+    assert(m_PMDmanager->Init());
 
     return;
 }
@@ -1209,7 +1210,7 @@ bool Dx12Wrapper::Render()
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
-    RenderToShadowDepthBuffer();
+    //RenderToShadowDepthBuffer();
     RenderToPostEffectBuffer();
     RenderToBackBuffer();
     SetResourceStateForNextFrame();
