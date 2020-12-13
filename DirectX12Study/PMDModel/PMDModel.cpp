@@ -55,7 +55,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIn
 		cmdList->DrawIndexedInstanced(m.indices,
 			1,
 			indexOffset,
-			baseVertex,
+			0,
 			0);
 		indexOffset += m.indices;
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);

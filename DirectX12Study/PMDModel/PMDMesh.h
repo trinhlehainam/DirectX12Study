@@ -8,8 +8,8 @@
 
 struct PMDSubMesh
 {
-	uint16_t baseIndex;
-	uint16_t baseVertex;
+	uint32_t StartIndexLocation;
+	uint32_t BaseVertexLocation;
 };
 
 struct PMDMesh

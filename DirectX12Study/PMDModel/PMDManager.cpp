@@ -167,8 +167,8 @@ void PMDManager::InitModels()
 		auto& data = model.second;
 		auto& name = model.first;
 
-		m_mesh.DrawArgs[name].baseIndex = indexCount;
-		m_mesh.DrawArgs[name].baseVertex = vertexCount;
+		m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
+		m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
 		indexCount += data.indices_.size();
 		vertexCount += data.vertices_.size();
 	}
@@ -184,7 +184,7 @@ void PMDManager::InitModels()
 		// When concatenate vertices of all models
 		// => the index of vertex is changed when move to concatenated vertex buffer
 		// => indices need to offset vertex's base index before added to index buffer
-		auto& baseVertexIndex = m_mesh.DrawArgs[name].baseVertex;
+		auto& baseVertexIndex = m_mesh.DrawArgs[name].BaseVertexLocation;
 
 		for (const auto& index : data.indices_)
 			// Need to offset base index of vertex when concatenate indices to index buffer
@@ -236,10 +236,10 @@ void PMDManager::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
-		auto& baseIndex = m_mesh.DrawArgs[name].baseIndex;
-		auto& baseVertex = m_mesh.DrawArgs[name].baseVertex;
-	
-		data.Render(cmdList, baseIndex, baseVertex);
+
+		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
+		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
+		data.Render(cmdList, startIndex, baseVertex);
 	}
 }
 
@@ -259,10 +259,10 @@ void PMDManager::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
-		auto& baseIndex = m_mesh.DrawArgs[name].baseIndex;
-		auto& baseVertex = m_mesh.DrawArgs[name].baseVertex;
+		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
+		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
 	
-		data.RenderDepth(cmdList, baseIndex, baseVertex);
+		data.RenderDepth(cmdList, startIndex, baseVertex);
 	}
 
 }

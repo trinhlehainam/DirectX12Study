@@ -1089,8 +1089,8 @@ void Dx12Wrapper::CreatePMDModel()
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
     m_PMDmanager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_PMDmanager->Add("Miku").LoadPMD(model_path);
-    m_PMDmanager->Add("Hibiki").LoadPMD(model1_path);
-   
+    m_PMDmanager->Add("Hibiki").LoadPMD(model2_path);
+
     assert(m_PMDmanager->Init());
 
     return;
@@ -1104,6 +1104,10 @@ bool Dx12Wrapper::Update(const float& deltaTime)
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
     static float movespeed = 10.f;
 
+    // Test
+    auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
+    m_PMDmanager->Get("Miku").Transform(translate);
+    //
 
     if (m_keyboard.IsPressed(VK_LEFT))
         viewpos.m128_f32[0] -= movespeed * deltaTime;
