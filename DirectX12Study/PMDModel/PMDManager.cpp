@@ -130,7 +130,7 @@ PMDModel& PMDManager::Add(const std::string& name)
 {
 	assert(m_device);
 	assert(!m_models.count(name));
-	m_models[name].m_device = m_device;
+	m_models[name].SetDevice(m_device);
 	return m_models[name];
 }
 
@@ -160,7 +160,7 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 	// Init all models
 	for (auto& model : m_models)
 	{
-		model.second.GetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
+		model.second.SetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
 		model.second.CreateModel();
 	}
 
@@ -175,8 +175,8 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 		m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
 		m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
-		indexCount += data.indices_.size();
-		vertexCount += data.vertices_.size();
+		indexCount += data.Indices().size();
+		vertexCount += data.Vertices().size();
 	}
 
 	m_mesh.indices.reserve(indexCount);
@@ -188,10 +188,10 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 		auto& name = model.first;;
 		auto& data = model.second;
 
-		for (const auto& index : data.indices_)
+		for (const auto& index : data.Indices())
 			m_mesh.indices.push_back(index);
 
-		for (const auto& vertex : data.vertices_)
+		for (const auto& vertex : data.Vertices())
 			m_mesh.vertices.push_back(vertex);
 	}
 

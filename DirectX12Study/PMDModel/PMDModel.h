@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-#include <DirectXMath.h>
-#include <d3d12.h>
-#include <d3dx12.h>
 #include <memory>
+
+#include <DirectXMath.h>
+#include <d3dx12.h>
 
 #include "../common.h"
 #include "../Utility/UploadBuffer.h"
@@ -17,61 +17,36 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
 class VMDMotion;
+class PMDLoader;
 
 class PMDModel
 {
 public:
+	PMDModel();
+	PMDModel(ComPtr<ID3D12Device> pDevice);
+	~PMDModel();
+
 	bool LoadPMD(const char* path);
 	void LoadMotion(const char* path);
-	void GetDefaultTexture(ID3D12Resource* whiteTexture,
+	void SetDefaultTexture(ID3D12Resource* whiteTexture,
 						   ID3D12Resource* blackTexture,
 						   ID3D12Resource* gradTexture);
+
+	void SetDevice(ID3D12Device* pDevice);
+
 	void CreateModel();
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
 	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
-
 	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
 	
-	PMDModel() = default;
-	PMDModel(ComPtr<ID3D12Device> device);
-	~PMDModel();
+	const std::vector<uint16_t>& Indices() const;
+	const std::vector<PMDVertex>& Vertices() const;
 private:
-	friend class PMDManager;
+	std::unique_ptr<PMDLoader> m_pmdLoader;
 
-	struct PMDMaterial
-	{
-		DirectX::XMFLOAT3 diffuse; // diffuse color;
-		float alpha;
-		DirectX::XMFLOAT3 specular;
-		float specularity;
-		DirectX::XMFLOAT3 ambient;
-		uint32_t indices;
-	};
-
-	struct PMDBone
-	{
-		std::string name;
-		std::vector<int> children;
-#ifdef _DEBUG
-		std::vector<std::string> childrenName;
-#endif
-		DirectX::XMFLOAT3 pos;			// rotation at origin position
-	};
-
-	std::vector<PMDVertex> vertices_;
-	std::vector<uint16_t> indices_;
-	std::vector<PMDMaterial> materials_;
-	std::vector<std::string> modelPaths_;
-	std::vector<std::string> toonPaths_;
-	std::vector<PMDBone> m_bones;
-	std::unordered_map<std::string, uint16_t> bonesTable_;
-	std::vector<DirectX::XMMATRIX> boneMatrices_;
-	const char* pmdPath_;
-
-private:
 	ComPtr<ID3D12Device> m_device = nullptr;
 
 	ID3D12Resource* m_whiteTexture;
@@ -91,7 +66,7 @@ private:
 
 	// Bone buffer
 	ComPtr<ID3D12Resource> boneBuffer_;
-	DirectX::XMMATRIX* mappedBoneMatrix_ = nullptr;
+	DirectX::XMMATRIX* m_mappedBoneMatrix = nullptr;
 	bool CreateBoneBuffer();
 
 	std::vector<ComPtr<ID3D12Resource>> textureBuffers_;
@@ -106,7 +81,7 @@ private:
 
 private:
 
-	std::shared_ptr<VMDMotion> vmdMotion_;
+	std::shared_ptr<VMDMotion> m_vmdMotion;
 
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);

@@ -3,6 +3,7 @@
 #include "../VMDLoader/VMDMotion.h"
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
+#include "PMDLoader.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -15,6 +16,26 @@ namespace
 	constexpr unsigned int material_descriptor_count = 5;
 }
 
+PMDModel::PMDModel()
+{
+	m_vmdMotion = std::make_shared<VMDMotion>();
+	m_pmdLoader = std::make_unique<PMDLoader>();
+}
+
+PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
+	m_device(device)
+{
+	m_vmdMotion = std::make_shared<VMDMotion>();
+	m_pmdLoader = std::make_unique<PMDLoader>();
+}
+
+PMDModel::~PMDModel()
+{
+	m_device = nullptr;
+	m_whiteTexture = nullptr;
+	m_blackTexture = nullptr;
+	m_gradTexture = nullptr;
+}
 
 void PMDModel::CreateModel()
 {
@@ -30,7 +51,7 @@ void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 
 void PMDModel::LoadMotion(const char* path)
 {
-	vmdMotion_->Load(path);
+	m_vmdMotion->Load(path);
 }
 
 void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
@@ -49,7 +70,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartI
 	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
 	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	uint32_t indexOffset = StartIndexLocation;
-	for (auto& m : materials_)
+	for (auto& m : m_pmdLoader->m_materials)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 
@@ -71,10 +92,20 @@ void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& S
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 
-	cmdList->DrawIndexedInstanced(indices_.size(), 1, StartIndexLocation, BaseVertexLocation, 0);
+	cmdList->DrawIndexedInstanced(m_pmdLoader->m_indices.size(), 1, StartIndexLocation, BaseVertexLocation, 0);
 }
 
-void PMDModel::GetDefaultTexture(ID3D12Resource* whiteTexture, 
+const std::vector<uint16_t>& PMDModel::Indices() const
+{
+	return m_pmdLoader->m_indices;
+}
+
+const std::vector<PMDVertex>& PMDModel::Vertices() const
+{
+	return m_pmdLoader->m_vertices;
+}
+
+void PMDModel::SetDefaultTexture(ID3D12Resource* whiteTexture, 
 	ID3D12Resource* blackTexture, ID3D12Resource* gradTexture)
 {
 	m_whiteTexture = whiteTexture;
@@ -82,193 +113,14 @@ void PMDModel::GetDefaultTexture(ID3D12Resource* whiteTexture,
 	m_gradTexture = gradTexture;
 }
 
-PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
-	m_device(device)
+void PMDModel::SetDevice(ID3D12Device* pDevice)
 {
-	vmdMotion_ = std::make_shared<VMDMotion>();
-}
-
-PMDModel::~PMDModel()
-{
-	m_device = nullptr;
-	m_whiteTexture = nullptr;
-	m_blackTexture = nullptr;
-	m_gradTexture = nullptr;
+	m_device = pDevice;
 }
 
 bool PMDModel::LoadPMD(const char* path)
 {
-	pmdPath_ = path;
-
-	//Ž¯•ÊŽq"pmd"
-	FILE* fp = nullptr;
-	auto err = fopen_s(&fp, path, "rb");
-	if (fp == nullptr || err != 0)
-	{
-		char cerr[256];
-		strerror_s(cerr, _countof(cerr), err);
-		OutputDebugStringA(cerr);
-	}
-#pragma pack(1)
-	struct PMDHeader {
-		char id[3];
-		// padding
-		float version;
-		char name[20];
-		char comment[256];
-	};
-
-	struct Vertex
-	{
-		DirectX::XMFLOAT3 pos;
-		DirectX::XMFLOAT3 normal_vec;
-		DirectX::XMFLOAT2 uv;
-		WORD bone_num[2];
-		// 36 bytes
-		BYTE bone_weight;
-		BYTE edge_flag;
-		// 38 bytes
-		// padding 2 bytes
-	};
-
-	struct Material
-	{
-		DirectX::XMFLOAT3 diffuse;
-		FLOAT alpha;
-		FLOAT specularity;
-		DirectX::XMFLOAT3 specular_color;
-		DirectX::XMFLOAT3 mirror_color;
-		BYTE toon_index;
-		BYTE edge_flag;
-		DWORD face_vert_count;
-		char textureFileName[20];
-	};
-
-	struct BoneData
-	{
-		char boneName[20];
-		uint16_t parentNo;
-		uint16_t tailNo;
-		uint8_t type;
-		uint16_t ikParentNo;
-		DirectX::XMFLOAT3 pos;
-	}; // 39 bytes
-#pragma pack()
-
-	PMDHeader header;
-	fread_s(&header, sizeof(header), sizeof(header), 1, fp);
-	uint32_t cVertex = 0;
-	fread_s(&cVertex, sizeof(cVertex), sizeof(cVertex), 1, fp);
-	std::vector<Vertex> vertices(cVertex);
-	fread_s(vertices.data(), vertices.size() * sizeof(Vertex), vertices.size() *  sizeof(Vertex), 1, fp);
-	vertices_.resize(cVertex);
-	for (int i = 0; i < cVertex; ++i)
-	{
-		vertices_[i].pos = vertices[i].pos;
-		vertices_[i].normal = vertices[i].normal_vec;
-		vertices_[i].uv = vertices[i].uv;
-		std::copy(std::begin(vertices[i].bone_num),
-			std::end(vertices[i].bone_num), vertices_[i].boneNo);
-		vertices_[i].weight = static_cast<float>(vertices[i].bone_weight) / 100.0f;
-	}
-	uint32_t cIndex = 0;
-	fread_s(&cIndex, sizeof(cIndex), sizeof(cIndex), 1, fp);
-	indices_.resize(cIndex);
-	fread_s(indices_.data(), sizeof(indices_[0])* indices_.size(), sizeof(indices_[0])* indices_.size(), 1, fp);
-	uint32_t cMaterial = 0;
-	fread_s(&cMaterial, sizeof(cMaterial), sizeof(cMaterial), 1, fp);
-	std::vector<Material> materials(cMaterial);
-	fread_s(materials.data(), sizeof(materials[0])* materials.size(), sizeof(materials[0])* materials.size(), 1, fp);
-
-	uint16_t boneNum = 0;
-	fread_s(&boneNum, sizeof(boneNum), sizeof(boneNum), 1, fp);
-
-	// Bone
-	std::vector<BoneData> boneData(boneNum);
-	fread_s(boneData.data(), sizeof(boneData[0])* boneData.size(), sizeof(boneData[0])* boneData.size(), 1, fp);
-	m_bones.resize(boneNum);
-	for (int i = 0; i < boneNum; ++i)
-	{
-		m_bones[i].name = boneData[i].boneName;
-		m_bones[i].pos = boneData[i].pos;
-		bonesTable_[boneData[i].boneName] = i;
-	}
-	boneMatrices_.resize(512);
-	std::fill(boneMatrices_.begin(), boneMatrices_.end(), DirectX::XMMatrixIdentity());
-
-	for (int i = 0; i < boneNum; ++i)
-	{
-		if (boneData[i].parentNo == 0xffff) continue;
-		auto pno = boneData[i].parentNo;
-		m_bones[pno].children.push_back(i);
-#ifdef _DEBUG
-		m_bones[pno].childrenName.push_back(boneData[i].boneName);
-#endif
-	}
-
-	// IK(inverse kematic)
-	uint16_t ikNum = 0;
-	fread_s(&ikNum, sizeof(ikNum), sizeof(ikNum), 1, fp);
-	for (int i = 0; i < ikNum; ++i)
-	{
-		fseek(fp, 4, SEEK_CUR);
-		uint8_t chainNum;
-		fread_s(&chainNum, sizeof(chainNum), sizeof(chainNum), 1, fp);
-		fseek(fp, sizeof(uint16_t) + sizeof(float), SEEK_CUR);
-		fseek(fp, sizeof(uint16_t) * chainNum, SEEK_CUR);
-	}
-
-	uint16_t skinNum = 0;
-	fread_s(&skinNum, sizeof(skinNum), sizeof(skinNum), 1, fp);
-	for (int i = 0; i < skinNum; ++i)
-	{
-		fseek(fp, 20, SEEK_CUR);	// Name of facial skin
-		uint32_t skinVertCnt = 0;		// number of facial vertex
-		fread_s(&skinVertCnt, sizeof(skinVertCnt), sizeof(skinVertCnt), 1, fp);
-		fseek(fp, 1, SEEK_CUR);		// kind of facial
-		fseek(fp, 16 * skinVertCnt, SEEK_CUR); // position of vertices
-	}
-
-	uint8_t skinDispNum = 0;
-	fread_s(&skinDispNum, sizeof(skinDispNum), sizeof(skinDispNum), 1, fp);
-	fseek(fp, sizeof(uint16_t)* skinDispNum, SEEK_CUR);
-
-	uint8_t ikNameNum = 0;
-	fread_s(&ikNameNum, sizeof(ikNameNum), sizeof(ikNameNum), 1, fp);
-	fseek(fp, 50 * ikNameNum, SEEK_CUR);
-
-	uint32_t boneDispNum = 0;
-	fread_s(&boneDispNum, sizeof(boneDispNum), sizeof(boneDispNum), 1, fp);
-	fseek(fp, 
-		(sizeof(uint16_t) + sizeof(uint8_t)) * boneDispNum, 
-		SEEK_CUR);
-
-	uint8_t isEngAvalable = 0;
-	fread_s(&isEngAvalable, sizeof(isEngAvalable), sizeof(isEngAvalable), 1, fp);
-	if (isEngAvalable)
-	{
-		fseek(fp, 276, SEEK_CUR);
-		fseek(fp, boneNum * 20, SEEK_CUR);
-		fseek(fp, (skinNum-1) * 20, SEEK_CUR);		// list of facial skin's English name
-		fseek(fp, ikNameNum * 50, SEEK_CUR);
-	}
-	
-	std::array<char[100], 10> toonNames;
-	fread_s(toonNames.data(), sizeof(toonNames[0])* toonNames.size(), sizeof(toonNames[0])* toonNames.size(), 1, fp);
-
-	for (auto& m : materials)
-	{
-		if(m.toon_index > toonNames.size() - 1)
-			toonPaths_.push_back(toonNames[0]);
-		else
-			toonPaths_.push_back(toonNames[m.toon_index]);
-
-		modelPaths_.push_back(m.textureFileName);
-		materials_.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color,m.face_vert_count });
-	}
-
-	fclose(fp);
-
+	m_pmdLoader->Load(path);
 	return true;
 }
 
@@ -279,7 +131,7 @@ bool PMDModel::CreateBoneBuffer()
 
 	boneBuffer_ = D12Helper::CreateBuffer(m_device.Get(),
 		D12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
-	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
+	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedBoneMatrix));
 
 	UpdateMotionTransform();
 
@@ -308,7 +160,7 @@ bool PMDModel::CreateTransformConstant()
 
 	auto& data = m_transformBuffer.MappedData();
 	data.world = XMMatrixIdentity();
-	auto bones = boneMatrices_;
+	auto bones = m_pmdLoader->m_boneMatrices;
 	std::copy(bones.begin(), bones.end(), data.bones);
 
 	return true;
@@ -334,9 +186,9 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 	auto strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
 
-	materialBuffer_ = D12Helper::CreateBuffer(m_device.Get(), materials_.size() * strideBytes);
+	materialBuffer_ = D12Helper::CreateBuffer(m_device.Get(), m_pmdLoader->m_materials.size() * strideBytes);
 
-	D12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, m_pmdLoader->m_materials.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -349,14 +201,14 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 	uint8_t* mappedMaterial = nullptr;
 	result = materialBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedMaterial));
 	assert(SUCCEEDED(result));
-	for (int i = 0; i < materials_.size(); ++i)
+	for (int i = 0; i < m_pmdLoader->m_materials.size(); ++i)
 	{
 		BasicMaterial* materialData = (BasicMaterial*)mappedMaterial;
-		materialData->diffuse = materials_[i].diffuse;
-		materialData->alpha = materials_[i].alpha;
-		materialData->specular = materials_[i].specular;
-		materialData->specularity = materials_[i].specularity;
-		materialData->ambient = materials_[i].ambient;
+		materialData->diffuse = m_pmdLoader->m_materials[i].diffuse;
+		materialData->alpha = m_pmdLoader->m_materials[i].alpha;
+		materialData->specular = m_pmdLoader->m_materials[i].specular;
+		materialData->specularity = m_pmdLoader->m_materials[i].specularity;
+		materialData->ambient = m_pmdLoader->m_materials[i].ambient;
 		cbvDesc.BufferLocation = gpuAddress;
 		m_device->CreateConstantBufferView(
 			&cbvDesc,
@@ -417,44 +269,44 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 
 void PMDModel::LoadTextureToBuffer()
 {
-	textureBuffers_.resize(modelPaths_.size());
-	sphBuffers_.resize(modelPaths_.size());
-	spaBuffers_.resize(modelPaths_.size());
-	toonBuffers_.resize(toonPaths_.size());
+	textureBuffers_.resize(m_pmdLoader->m_modelPaths.size());
+	sphBuffers_.resize(m_pmdLoader->m_modelPaths.size());
+	spaBuffers_.resize(m_pmdLoader->m_modelPaths.size());
+	toonBuffers_.resize(m_pmdLoader->m_toonPaths.size());
 
-	for (int i = 0; i < modelPaths_.size(); ++i)
+	for (int i = 0; i < textureBuffers_.size(); ++i)
 	{
-		if (!toonPaths_[i].empty())
+		if (!m_pmdLoader->m_toonPaths[i].empty())
 		{
 			std::string toonPath;
 			
-			toonPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, toonPaths_[i].c_str());
+			toonPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, m_pmdLoader->m_toonPaths[i].c_str());
 			toonBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			if (!toonBuffers_[i])
 			{
-				toonPath = std::string(pmd_path) + "toon/" + toonPaths_[i];
+				toonPath = std::string(pmd_path) + "toon/" + m_pmdLoader->m_toonPaths[i];
 				toonBuffers_[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
-		if (!modelPaths_[i].empty())
+		if (!m_pmdLoader->m_toonPaths[i].empty())
 		{
-			auto splittedPaths = StringHelper::SplitFilePath(modelPaths_[i]);
+			auto splittedPaths = StringHelper::SplitFilePath(m_pmdLoader->m_modelPaths[i]);
 			for (auto& path : splittedPaths)
 			{
 				auto ext = StringHelper::GetFileExtension(path);
 				if (ext == "sph")
 				{
-					auto sphPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					auto sphPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
 					sphBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
-					auto spaPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					auto spaPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
 					spaBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
-					auto texPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
+					auto texPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
 					textureBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
@@ -465,7 +317,7 @@ void PMDModel::LoadTextureToBuffer()
 
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 {
-	auto& motionData = vmdMotion_->GetVMDMotionData();
+	/*auto& motionData = vmdMotion_->GetVMDMotionData();
 	auto mats = boneMatrices_;
 
 	for (auto& motion : motionData)
@@ -501,7 +353,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	}
 
 	RecursiveCalculate(m_bones, mats, 0);
-	std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);
+	std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);*/
 }
 
 float PMDModel::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)
