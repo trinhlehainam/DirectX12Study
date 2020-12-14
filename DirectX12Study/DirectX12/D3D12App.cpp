@@ -1101,14 +1101,13 @@ bool D3D12App::Update(const float& deltaTime)
 {
     angle = 0;
     
-
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
     static float movespeed = 10.f;
 
     // Test
     auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
-    m_PMDmanager->Get("Miku").Transform(translate);
-    //
+    if (m_keyboard.IsPressed('M'))
+        m_PMDmanager->Get("Miku").Transform(translate);
 
     if (m_keyboard.IsPressed(VK_LEFT))
         viewpos.m128_f32[0] -= movespeed * deltaTime;
@@ -1181,7 +1180,7 @@ bool D3D12App::Render()
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
-    //RenderToShadowDepthBuffer();
+    RenderToShadowDepthBuffer();
     RenderToPostEffectBuffer();
     RenderToBackBuffer();
     SetResourceStateForNextFrame();

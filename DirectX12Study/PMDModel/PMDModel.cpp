@@ -85,14 +85,14 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartI
 	/*-------------------------------------------*/
 }
 
-void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& IndexCount, const uint32_t& StartIndexLocation,
 	const uint32_t& BaseVertexLocation)
 {
 	// Object constant
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 
-	cmdList->DrawIndexedInstanced(m_pmdLoader->m_indices.size(), 1, StartIndexLocation, BaseVertexLocation, 0);
+	cmdList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }
 
 const std::vector<uint16_t>& PMDModel::Indices() const

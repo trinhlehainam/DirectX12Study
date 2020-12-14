@@ -44,7 +44,7 @@ public:
 
 	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
-	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& IndexCount, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
 private:
 	std::unique_ptr<PMDLoader> m_pmdLoader;

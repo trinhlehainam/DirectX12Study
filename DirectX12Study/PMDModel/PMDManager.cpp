@@ -177,6 +177,7 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 		m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
 		m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
+		m_mesh.DrawArgs[name].IndexCount = data.Indices().size();
 		indexCount += data.Indices().size();
 		vertexCount += data.Vertices().size();
 	}
@@ -262,10 +263,11 @@ void PMDManager::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
+		auto& indexCount = m_mesh.DrawArgs[name].IndexCount;
 		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
 		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
 	
-		data.RenderDepth(cmdList, startIndex, baseVertex);
+		data.RenderDepth(cmdList, indexCount, startIndex, baseVertex);
 	}
 
 }
