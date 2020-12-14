@@ -13,14 +13,19 @@ public:
 	ID3D12Resource* Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
-	void SetUpSubresource(const void* pData, LONG_PTR RowPitch, LONG_PTR SlicePitch,
-		bool IsShaderResourceBuffer = false);
+	bool CreateBuffer(ID3D12Device* pDevice, size_t SyteInBytes);
+
+	bool CreateTexture2D(ID3D12Device* pDevice, UINT64 width, UINT height, DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
+		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ,
+		const D3D12_CLEAR_VALUE* = nullptr);
+
+	void SetUpSubresource(const void* pData, LONG_PTR RowPitch, LONG_PTR SlicePitch);
 
 	// Only use for NON-TEXTURE buffer
-	void SetUpSubresource(const void* pData, size_t SizeInBytes);
+	bool SetUpSubresource(const void* pData, size_t SizeInBytes);
 
 	// Update subresource to default buffer will be processed by GPU
-	// Need set up this method at GPU 
+	// Need set up this method at GPU time line
 	bool UpdateSubresource(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList);
 
 	// When subresource is updated to default buffer

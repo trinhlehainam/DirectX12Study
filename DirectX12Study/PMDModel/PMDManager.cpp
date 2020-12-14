@@ -60,6 +60,8 @@ bool PMDManager::Init(ID3D12GraphicsCommandList* cmdList)
 bool PMDManager::ClearSubresources()
 {
 	m_mesh.ClearSubresource();
+	for (auto& model : m_models)
+		model.second.ClearSubresources();
 	return true;
 }
 
@@ -161,7 +163,7 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 	for (auto& model : m_models)
 	{
 		model.second.SetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
-		model.second.CreateModel();
+		model.second.CreateModel(cmdList);
 	}
 
 	uint32_t indexCount = 0;
@@ -196,6 +198,7 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 	}
 
 	m_mesh.CreateBuffers(m_device, cmdList);
+	m_mesh.CreateViews();
 }
 
 void PMDManager::SleepUpdate(const float& deltaTime)

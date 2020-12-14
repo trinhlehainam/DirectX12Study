@@ -17,7 +17,11 @@ struct PMDMaterial
 	DirectX::XMFLOAT3 specular;
 	float specularity;
 	DirectX::XMFLOAT3 ambient;
-	uint32_t indices;
+};
+
+struct PMDSubMaterial
+{
+	uint32_t indexCount;
 };
 
 struct PMDBone

@@ -33,7 +33,7 @@ struct PMDMesh
 	DefaultBuffer indexBuffer;
 
 	bool CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList);
-	bool CreateBufferViews();
+	bool CreateViews();
 	bool ClearSubresource();
 };
 

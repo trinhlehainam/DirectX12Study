@@ -11,6 +11,7 @@
 
 #include "../common.h"
 #include "../Utility/UploadBuffer.h"
+#include "../Utility/DefaultBuffer.h"
 #include "PMDCommon.h"
 
 using Microsoft::WRL::ComPtr;
@@ -26,40 +27,41 @@ public:
 	PMDModel(ComPtr<ID3D12Device> pDevice);
 	~PMDModel();
 
+	void SetDevice(ID3D12Device* pDevice);
 	bool LoadPMD(const char* path);
 	void LoadMotion(const char* path);
 	void SetDefaultTexture(ID3D12Resource* whiteTexture,
 						   ID3D12Resource* blackTexture,
 						   ID3D12Resource* gradTexture);
+	void CreateModel(ID3D12GraphicsCommandList* cmdList);
 
-	void SetDevice(ID3D12Device* pDevice);
+	const std::vector<uint16_t>& Indices() const;
+	const std::vector<PMDVertex>& Vertices() const;
 
-	void CreateModel();
+	void ClearSubresources();
+public:
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
 	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
 	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
-	
-	const std::vector<uint16_t>& Indices() const;
-	const std::vector<PMDVertex>& Vertices() const;
 private:
 	std::unique_ptr<PMDLoader> m_pmdLoader;
-
+	std::vector<PMDSubMaterial> m_subMaterials;
+private:
+	// Resource from PMD Manager
 	ComPtr<ID3D12Device> m_device = nullptr;
-
-	ID3D12Resource* m_whiteTexture;
-	ID3D12Resource* m_blackTexture;
-	ID3D12Resource* m_gradTexture;
-
+	ID3D12Resource* m_whiteTexture = nullptr;
+	ID3D12Resource* m_blackTexture = nullptr;
+	ID3D12Resource* m_gradTexture = nullptr;
+	
+	// Object Constant
 	struct ObjectConstant
 	{
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX bones[512];
 	};
-
-	// Object Constant
 	UploadBuffer<ObjectConstant> m_transformBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_transformDescHeap;
 	bool CreateTransformConstant();
@@ -69,18 +71,19 @@ private:
 	DirectX::XMMATRIX* m_mappedBoneMatrix = nullptr;
 	bool CreateBoneBuffer();
 
-	std::vector<ComPtr<ID3D12Resource>> textureBuffers_;
-	std::vector<ComPtr<ID3D12Resource>> sphBuffers_;
-	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;
-	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;
+	// Materials
+	std::vector<ComPtr<ID3D12Resource>> m_textureBuffer;
+	std::vector<ComPtr<ID3D12Resource>> m_sphBuffers;
+	std::vector<ComPtr<ID3D12Resource>> m_spaBuffers;
+	std::vector<ComPtr<ID3D12Resource>> m_toonBuffers;
 	// Create texture from PMD file
 	void LoadTextureToBuffer();
-	ComPtr<ID3D12Resource> materialBuffer_;
-	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;
-	bool CreateMaterialAndTextureBuffer();
+	
+	ComPtr<ID3D12Resource> m_materialBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_materialDescHeap;
+	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList);
 
 private:
-
 	std::shared_ptr<VMDMotion> m_vmdMotion;
 
 	void UpdateMotionTransform(const size_t& keyframe = 0);

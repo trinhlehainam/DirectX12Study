@@ -17,6 +17,7 @@ private:
 	std::vector<PMDVertex> m_vertices;
 	std::vector<uint16_t> m_indices;
 	std::vector<PMDMaterial> m_materials;
+	std::vector<PMDSubMaterial> m_subMaterials;
 	std::vector<std::string> m_modelPaths;
 	std::vector<std::string> m_toonPaths;
 	std::vector<PMDBone> m_bones;

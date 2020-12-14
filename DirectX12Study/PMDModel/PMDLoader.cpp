@@ -163,6 +163,10 @@ bool PMDLoader::Load(const char* path)
 	std::array<char[100], 10> toonNames;
 	fread_s(toonNames.data(), sizeof(toonNames[0]) * toonNames.size(), sizeof(toonNames[0]) * toonNames.size(), 1, fp);
 
+	// Load materials
+	m_materials.reserve(materials.size());
+	m_subMaterials.reserve(materials.size());
+	m_modelPaths.reserve(materials.size());
 	for (auto& m : materials)
 	{
 		if (m.toon_index > toonNames.size() - 1)
@@ -171,7 +175,8 @@ bool PMDLoader::Load(const char* path)
 			m_toonPaths.push_back(toonNames[m.toon_index]);
 
 		m_modelPaths.push_back(m.textureFileName);
-		m_materials.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color,m.face_vert_count });
+		m_materials.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color });
+		m_subMaterials.push_back({ m.face_vert_count });
 	}
 
 	fclose(fp);

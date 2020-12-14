@@ -37,11 +37,11 @@ PMDModel::~PMDModel()
 	m_gradTexture = nullptr;
 }
 
-void PMDModel::CreateModel()
+void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 {
 	CreateTransformConstant();
 	LoadTextureToBuffer();
-	CreateMaterialAndTextureBuffer();
+	CreateMaterialAndTextureBuffer(cmdList);
 }
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
@@ -66,20 +66,20 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartI
 	/*-------------------------------------------*/
 
 	/*-------------Set up material and texture-------------*/
-	cmdList->SetDescriptorHeaps(1, materialDescHeap_.GetAddressOf());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, m_materialDescHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(m_materialDescHeap->GetGPUDescriptorHandleForHeapStart());
 	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	uint32_t indexOffset = StartIndexLocation;
-	for (auto& m : m_pmdLoader->m_materials)
+	for (auto& m : m_subMaterials)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 
-		cmdList->DrawIndexedInstanced(m.indices,
+		cmdList->DrawIndexedInstanced(m.indexCount,
 			1,
 			indexOffset,
 			BaseVertexLocation,
 			0);
-		indexOffset += m.indices;
+		indexOffset += m.indexCount;
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);
 	}
 	/*-------------------------------------------*/
@@ -105,6 +105,11 @@ const std::vector<PMDVertex>& PMDModel::Vertices() const
 	return m_pmdLoader->m_vertices;
 }
 
+void PMDModel::ClearSubresources()
+{
+	m_pmdLoader.reset();
+}
+
 void PMDModel::SetDefaultTexture(ID3D12Resource* whiteTexture, 
 	ID3D12Resource* blackTexture, ID3D12Resource* gradTexture)
 {
@@ -121,6 +126,7 @@ void PMDModel::SetDevice(ID3D12Device* pDevice)
 bool PMDModel::LoadPMD(const char* path)
 {
 	m_pmdLoader->Load(path);
+	m_subMaterials = std::move(m_pmdLoader->m_subMaterials);
 	return true;
 }
 
@@ -180,41 +186,42 @@ void PMDModel::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<Direc
 	}
 }
 
-bool PMDModel::CreateMaterialAndTextureBuffer()
+bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList)
 {
 	HRESULT result = S_OK;
 
-	auto strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
+	size_t strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(PMDMaterial));
+	size_t sizeInBytes = m_pmdLoader->m_materials.size() * strideBytes;
 
-	materialBuffer_ = D12Helper::CreateBuffer(m_device.Get(), m_pmdLoader->m_materials.size() * strideBytes);
+	m_materialBuffer = D12Helper::CreateBuffer(m_device.Get(), sizeInBytes);
 
-	D12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, m_pmdLoader->m_materials.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(m_device.Get(), m_materialDescHeap, m_pmdLoader->m_materials.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-	auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
+	auto gpuAddress = m_materialBuffer->GetGPUVirtualAddress();
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(materialDescHeap_->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(m_materialDescHeap->GetCPUDescriptorHandleForHeapStart());
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = strideBytes;
 	cbvDesc.BufferLocation = gpuAddress;
 
-	// Need to re-watch mapping data
-	uint8_t* mappedMaterial = nullptr;
-	result = materialBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedMaterial));
+	// Map materials data to materials default buffer
+	uint8_t* m_mappedMaterial = nullptr;
+	result = m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedMaterial));
 	assert(SUCCEEDED(result));
 	for (int i = 0; i < m_pmdLoader->m_materials.size(); ++i)
 	{
-		BasicMaterial* materialData = (BasicMaterial*)mappedMaterial;
-		materialData->diffuse = m_pmdLoader->m_materials[i].diffuse;
-		materialData->alpha = m_pmdLoader->m_materials[i].alpha;
-		materialData->specular = m_pmdLoader->m_materials[i].specular;
-		materialData->specularity = m_pmdLoader->m_materials[i].specularity;
-		materialData->ambient = m_pmdLoader->m_materials[i].ambient;
+		PMDMaterial* mappedData = (PMDMaterial*)m_mappedMaterial;
+		mappedData->diffuse = m_pmdLoader->m_materials[i].diffuse;
+		mappedData->alpha = m_pmdLoader->m_materials[i].alpha;
+		mappedData->specular = m_pmdLoader->m_materials[i].specular;
+		mappedData->specularity = m_pmdLoader->m_materials[i].specularity;
+		mappedData->ambient = m_pmdLoader->m_materials[i].ambient;
 		cbvDesc.BufferLocation = gpuAddress;
 		m_device->CreateConstantBufferView(
 			&cbvDesc,
 			heapAddress);
 		// move memory offset
-		mappedMaterial += strideBytes;
+		m_mappedMaterial += strideBytes;
 		gpuAddress += strideBytes;
 		heapAddress.Offset(1, heapSize);
 
@@ -227,65 +234,65 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 		srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3); // ¦
 
 		// Create SRV for main texture (image)
-		srvDesc.Format = textureBuffers_[i] ? textureBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = m_textureBuffer[i] ? m_textureBuffer[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!textureBuffers_[i].Get() ? m_whiteTexture : textureBuffers_[i].Get(),
+			!m_textureBuffer[i].Get() ? m_whiteTexture : m_textureBuffer[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
 		heapAddress.Offset(1, heapSize);
 
 		// Create SRV for sphere mapping texture (sph)
-		srvDesc.Format = sphBuffers_[i] ? sphBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = m_sphBuffers[i] ? m_sphBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!sphBuffers_[i].Get() ? m_whiteTexture : sphBuffers_[i].Get(),
+			!m_sphBuffers[i].Get() ? m_whiteTexture : m_sphBuffers[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
 		heapAddress.ptr += heapSize;
 
 		// Create SRV for sphere mapping texture (spa)
-		srvDesc.Format = spaBuffers_[i] ? spaBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = m_spaBuffers[i] ? m_spaBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!spaBuffers_[i].Get() ? m_blackTexture : spaBuffers_[i].Get(),
+			!m_spaBuffers[i].Get() ? m_blackTexture : m_spaBuffers[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
 		heapAddress.Offset(1, heapSize);
 
 		// Create SRV for toon map
-		srvDesc.Format = toonBuffers_[i] ? toonBuffers_[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = m_toonBuffers[i] ? m_toonBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!toonBuffers_[i].Get() ? m_gradTexture : toonBuffers_[i].Get(),
+			!m_toonBuffers[i].Get() ? m_gradTexture : m_toonBuffers[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
 		heapAddress.Offset(1, heapSize);
 	}
-	materialBuffer_->Unmap(0, nullptr);
+	m_materialBuffer->Unmap(0, nullptr);
 
 	return true;
 }
 
 void PMDModel::LoadTextureToBuffer()
 {
-	textureBuffers_.resize(m_pmdLoader->m_modelPaths.size());
-	sphBuffers_.resize(m_pmdLoader->m_modelPaths.size());
-	spaBuffers_.resize(m_pmdLoader->m_modelPaths.size());
-	toonBuffers_.resize(m_pmdLoader->m_toonPaths.size());
+	m_textureBuffer.resize(m_pmdLoader->m_modelPaths.size());
+	m_sphBuffers.resize(m_pmdLoader->m_modelPaths.size());
+	m_spaBuffers.resize(m_pmdLoader->m_modelPaths.size());
+	m_toonBuffers.resize(m_pmdLoader->m_toonPaths.size());
 
-	for (int i = 0; i < textureBuffers_.size(); ++i)
+	for (int i = 0; i < m_textureBuffer.size(); ++i)
 	{
 		if (!m_pmdLoader->m_toonPaths[i].empty())
 		{
 			std::string toonPath;
 			
 			toonPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, m_pmdLoader->m_toonPaths[i].c_str());
-			toonBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
-			if (!toonBuffers_[i])
+			m_toonBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+			if (!m_toonBuffers[i])
 			{
 				toonPath = std::string(pmd_path) + "toon/" + m_pmdLoader->m_toonPaths[i];
-				toonBuffers_[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+				m_toonBuffers[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
 		if (!m_pmdLoader->m_toonPaths[i].empty())
@@ -297,17 +304,17 @@ void PMDModel::LoadTextureToBuffer()
 				if (ext == "sph")
 				{
 					auto sphPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
-					sphBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
+					m_sphBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
 					auto spaPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
-					spaBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
+					m_spaBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
 					auto texPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->m_path, path.c_str());
-					textureBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
+					m_textureBuffer[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
 		}
