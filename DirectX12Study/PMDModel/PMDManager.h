@@ -72,7 +72,7 @@ private:
 
 	bool m_isInitDone = false;
 private:
-	friend class Dx12Wrapper;
+	friend class D3D12App;
 
 	bool CreatePipeline();
 	bool CreateRootSignature();

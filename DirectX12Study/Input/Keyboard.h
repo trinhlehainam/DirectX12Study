@@ -10,7 +10,7 @@ private:
 	Keyboard(const Keyboard&) = delete;
 	Keyboard& operator = (const Keyboard&) = delete;
 private:
-	friend class Dx12Wrapper;
+	friend class D3D12App;
 
 	void OnKeyDown(unsigned char keycode);
 	void OnKeyUp(unsigned char keycode);

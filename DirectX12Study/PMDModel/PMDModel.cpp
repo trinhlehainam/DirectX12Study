@@ -1,8 +1,8 @@
 #include "PMDModel.h"
 #include "../Application.h"
 #include "../VMDLoader/VMDMotion.h"
-#include "../DirectX12/Dx12Helper.h"
-#include "../Common/StringHelper.h"
+#include "../Utility/D12Helper.h"
+#include "../Utility/StringHelper.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -277,8 +277,8 @@ bool PMDModel::CreateBoneBuffer()
 	// take bone's name and bone's index to boneTable
 	// <bone's name, bone's index>
 
-	boneBuffer_ = Dx12Helper::CreateBuffer(m_device.Get(),
-		Dx12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
+	boneBuffer_ = D12Helper::CreateBuffer(m_device.Get(),
+		D12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
 	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedBoneMatrix_));
 
 	UpdateMotionTransform();
@@ -296,7 +296,7 @@ bool PMDModel::CreateBoneBuffer()
 
 bool PMDModel::CreateTransformConstant()
 {
-	Dx12Helper::CreateDescriptorHeap(m_device.Get(), m_transformDescHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(m_device.Get(), m_transformDescHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	m_transformBuffer.Create(m_device.Get(), 1, true);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -332,11 +332,11 @@ bool PMDModel::CreateMaterialAndTextureBuffer()
 {
 	HRESULT result = S_OK;
 
-	auto strideBytes = Dx12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
+	auto strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(BasicMaterial));
 
-	materialBuffer_ = Dx12Helper::CreateBuffer(m_device.Get(), materials_.size() * strideBytes);
+	materialBuffer_ = D12Helper::CreateBuffer(m_device.Get(), materials_.size() * strideBytes);
 
-	Dx12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(m_device.Get(), materialDescHeap_, materials_.size() * material_descriptor_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto gpuAddress = materialBuffer_->GetGPUVirtualAddress();
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -429,11 +429,11 @@ void PMDModel::LoadTextureToBuffer()
 			std::string toonPath;
 			
 			toonPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, toonPaths_[i].c_str());
-			toonBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+			toonBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			if (!toonBuffers_[i])
 			{
 				toonPath = std::string(pmd_path) + "toon/" + toonPaths_[i];
-				toonBuffers_[i]= Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+				toonBuffers_[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
 		if (!modelPaths_[i].empty())
@@ -445,17 +445,17 @@ void PMDModel::LoadTextureToBuffer()
 				if (ext == "sph")
 				{
 					auto sphPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					sphBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
+					sphBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
 					auto spaPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					spaBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
+					spaBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
 					auto texPath = StringHelper::GetTexturePathFromModelPath(pmdPath_, path.c_str());
-					textureBuffers_[i] = Dx12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
+					textureBuffers_[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
 		}

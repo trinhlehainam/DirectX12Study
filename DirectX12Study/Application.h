@@ -5,7 +5,7 @@
 #include "common.h"
 #include "Common/Timer.h"
 
-class Dx12Wrapper;
+class D3D12App;
 
 /// <summary>
 /// Application management
@@ -34,7 +34,7 @@ private:
 
 	HINSTANCE inst_;
 	HWND wndHandle_;
-	std::unique_ptr<Dx12Wrapper> dxWrapper_;
+	std::unique_ptr<D3D12App> dxWrapper_;
 	
 	size_t clientWidth_ = 800;
 	size_t clientHeight_ = 600;

@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <cassert>
-#include "../DirectX12/Dx12Helper.h"
+#include "../Utility/D12Helper.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -62,10 +62,10 @@ inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elem
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 	
-	auto bufferSize = isConstantBuffer ? Dx12Helper::AlignedConstantBufferMemory(sizeof(T)) : sizeof(T);
+	auto bufferSize = isConstantBuffer ? D12Helper::AlignedConstantBufferMemory(sizeof(T)) : sizeof(T);
 	bufferSize *= m_elementCount;
 
-	m_buffer = Dx12Helper::CreateBuffer(device, bufferSize);
+	m_buffer = D12Helper::CreateBuffer(device, bufferSize);
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 }
 
@@ -83,7 +83,7 @@ inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint32_t elementCount
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 
-	m_buffer = Dx12Helper::CreateBuffer(pDevice, SizeInBytes());
+	m_buffer = D12Helper::CreateBuffer(pDevice, SizeInBytes());
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 
 	return false;
@@ -112,7 +112,7 @@ template<typename T>
 inline size_t UploadBuffer<T>::ElementSize() const
 {
 	return m_isConstantBuffer ?
-		Dx12Helper::AlignedConstantBufferMemory(sizeof(T))
+		D12Helper::AlignedConstantBufferMemory(sizeof(T))
 		: sizeof(T);
 }
 

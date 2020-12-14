@@ -1,10 +1,10 @@
-#include "Dx12Helper.h"
+#include "D12Helper.h"
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
 using namespace DirectX;
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
+ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
     auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
@@ -19,7 +19,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t si
     return buffer;
 }
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height, 
+ComPtr<ID3D12Resource> D12Helper::CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height, 
      DXGI_FORMAT texFormat, D3D12_RESOURCE_FLAGS flag, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES state,
     const D3D12_CLEAR_VALUE* clearValue)
 {
@@ -40,7 +40,7 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTex2DBuffer(ID3D12Device* pdevice, UINT
     return buffer;
 }
 
-bool Dx12Helper::CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12DescriptorHeap>& pDescriptorHeap,
+bool D12Helper::CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12DescriptorHeap>& pDescriptorHeap,
     UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool isShaderVisible, UINT nodeMask)
 {
     D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
@@ -52,7 +52,7 @@ bool Dx12Helper::CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12Descri
     return false;
 }
 
-void Dx12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
+void D12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
 {
     if (errBlob != nullptr)
     {
@@ -60,27 +60,27 @@ void Dx12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)
     }
 }
 
-size_t Dx12Helper::AlignedValue(size_t value, size_t align)
+size_t D12Helper::AlignedValue(size_t value, size_t align)
 {
     return (value + align - 1) & ~(align - 1);
     return value + (align - (value % align)) % align;
 }
 
-size_t Dx12Helper::AlignedConstantBufferMemory(size_t byteSize)
+size_t D12Helper::AlignedConstantBufferMemory(size_t byteSize)
 {
     return AlignedValue(byteSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 }
 
-void Dx12Helper::ThrowIfFailed(HRESULT hr)
+void D12Helper::ThrowIfFailed(HRESULT hr)
 {
 #if defined (_DEBUG) || defined (DEBUG)
     assert(SUCCEEDED(hr));
 #endif
     if (FAILED(hr))
-        throw Dx12Helper::HrException(hr);
+        throw D12Helper::HrException(hr);
 }
 
-ComPtr<ID3DBlob> Dx12Helper::CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
+ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
 {
     UINT compileFlag1 = 0;
 #if defined (_DEBUG) || defined(DEBUG)
@@ -101,7 +101,7 @@ ComPtr<ID3DBlob> Dx12Helper::CompileShaderFromFile(const wchar_t* filePath, cons
     return byteCode;
 }
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path)
+ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path)
 {
     HRESULT result = S_OK;
     
@@ -154,14 +154,14 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device
     return buffer;
 }
 
-ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
+ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
     ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize)
 {
     ComPtr<ID3D12Resource> buffer = nullptr;
     emptyUploadBuffer.Reset();
 
-    emptyUploadBuffer = Dx12Helper::CreateBuffer(pDevice, dataSize);
-    buffer = Dx12Helper::CreateBuffer(pDevice, dataSize, D3D12_HEAP_TYPE_DEFAULT);
+    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, dataSize);
+    buffer = D12Helper::CreateBuffer(pDevice, dataSize, D3D12_HEAP_TYPE_DEFAULT);
     
     D3D12_SUBRESOURCE_DATA subResource = {};
     subResource.pData = pData;
@@ -176,42 +176,42 @@ ComPtr<ID3D12Resource> Dx12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID
     return buffer;
 }
 
-bool Dx12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
+bool D12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
     ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource)
 {
     emptyUploadBuffer.Reset();
 
     auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, 1);
-    emptyUploadBuffer = Dx12Helper::CreateBuffer(pDevice, uploadBufferSize);
+    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize);
 
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
     UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
-    Dx12Helper::ChangeResourceState(pCmdList, textureBuffer.Get(), 
+    D12Helper::ChangeResourceState(pCmdList, textureBuffer.Get(), 
         D3D12_RESOURCE_STATE_COPY_DEST,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     return true;
 }
 
-void Dx12Helper::ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+void D12Helper::ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
     auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
     pCmdList->ResourceBarrier(1, &resourceBarrier);
 }
 
-std::string Dx12Helper::HrToString(HRESULT hr)
+std::string D12Helper::HrToString(HRESULT hr)
 {
     char s_str[64] = {};
     sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
     return std::string(s_str);
 }
 
-Dx12Helper::HrException::HrException(HRESULT hr):std::runtime_error(Dx12Helper::HrToString(hr)),m_hr(hr)
+D12Helper::HrException::HrException(HRESULT hr):std::runtime_error(D12Helper::HrToString(hr)),m_hr(hr)
 {
 }
 
-HRESULT Dx12Helper::HrException::Error() const
+HRESULT D12Helper::HrException::Error() const
 {
     return m_hr;
 }

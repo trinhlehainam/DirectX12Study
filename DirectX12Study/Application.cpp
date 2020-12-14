@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "DirectX12/Dx12Wrapper.h"
+#include "DirectX12/D3D12App.h"
 #include <string>
 
 namespace
@@ -181,7 +181,7 @@ bool Application::Initialize()
 	ShowWindow(wndHandle_, SW_SHOW);
 	UpdateWindow(wndHandle_);
 
-	dxWrapper_ = std::make_unique<Dx12Wrapper>();
+	dxWrapper_ = std::make_unique<D3D12App>();
 	if (!dxWrapper_->Initialize(wndHandle_))
 		return false;
 

@@ -9,8 +9,8 @@
 
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
-#include "Dx12Helper.h"
-#include "../ResourceHelper/UploadBuffer.h"
+#include "../Utility/D12Helper.h"
+#include "../Utility/UploadBuffer.h"
 #include "../PMDModel/PMDManager.h"
 #include "../common.h"
 
@@ -18,7 +18,7 @@
 /// <summary>
 /// DirectX12 feature
 /// </summary>
-class Dx12Wrapper
+class D3D12App
 {
 public:
 	bool Initialize(const HWND&);

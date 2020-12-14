@@ -21,9 +21,6 @@
     <ClCompile Include="Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\Dx12Wrapper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Loader\BmpLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -31,9 +28,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Common\Timer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX12\Dx12Helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Input\Keyboard.cpp">
@@ -45,9 +39,6 @@
     <ClCompile Include="PMDModel\PMDModel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\StringHelper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PMDModel\PMDManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,15 +48,24 @@
     <ClCompile Include="Geometry\GeometryGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ResourceHelper\UploadBuffer.cpp">
+    <ClCompile Include="DirectX12\D3D12App.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility\D12Helper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility\StringHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility\UploadBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility\DefaultBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX12\Dx12Wrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Loader\BmpLoader.h">
@@ -80,9 +80,6 @@
     <ClInclude Include="Common\Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX12\Dx12Helper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Input\Mouse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -90,9 +87,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PMDModel\PMDModel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\StringHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PMDModel\PMDCommon.h">
@@ -107,7 +101,19 @@
     <ClInclude Include="Geometry\GeometryGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceHelper\UploadBuffer.h">
+    <ClInclude Include="DirectX12\D3D12App.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\D12Helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\StringHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\UploadBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\DefaultBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

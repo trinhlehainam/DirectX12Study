@@ -1,6 +1,6 @@
 ﻿#include "PMDManager.h"
 #include "PMDModel.h"
-#include "../ResourceHelper/UploadBuffer.h"
+#include "../Utility/UploadBuffer.h"
 
 #include <cassert>
 
@@ -71,7 +71,7 @@ bool PMDManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_
 	if (pWorldPassConstant == nullptr) return false;
 	if (bufferSize == 0) return false;
 
-	Dx12Helper::CreateDescriptorHeap(m_device, m_worldPCBHeap, 
+	D12Helper::CreateDescriptorHeap(m_device, m_worldPCBHeap, 
 		1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -89,7 +89,7 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	assert(m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	Dx12Helper::CreateDescriptorHeap(m_device, m_shadowDepthHeap, 1,
+	D12Helper::CreateDescriptorHeap(m_device, m_shadowDepthHeap, 1,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -324,12 +324,12 @@ bool PMDManager::CreateRootSignature()
 
 	ComPtr<ID3DBlob> rootSigBlob;
 	ComPtr<ID3DBlob> errBlob;
-	Dx12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&rtSigDesc,
+	D12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&rtSigDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
 		&rootSigBlob,
 		&errBlob));
-	Dx12Helper::OutputFromErrorBlob(errBlob);
-	Dx12Helper::ThrowIfFailed(m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(),
+	D12Helper::OutputFromErrorBlob(errBlob);
+	D12Helper::ThrowIfFailed(m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(),
 		rootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_rootSig.ReleaseAndGetAddressOf())));
 
 	return true;
@@ -396,13 +396,13 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.InputLayout.pInputElementDescs = layout;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	// Vertex Shader
-	ComPtr<ID3DBlob> vsBlob = Dx12Helper::CompileShaderFromFile(L"shader/vs.hlsl", "VS", "vs_5_1");
+	ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"shader/vs.hlsl", "VS", "vs_5_1");
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 	// Rasterizer
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = Dx12Helper::CompileShaderFromFile(L"shader/ps.hlsl", "PS", "ps_5_1");
+	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"shader/ps.hlsl", "PS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 	// Other set up
 	// Depth/Stencil
@@ -419,7 +419,7 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	// Root Signature
 	psoDesc.pRootSignature = m_rootSig.Get();
-	Dx12Helper::ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, 
+	D12Helper::ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, 
 		IID_PPV_ARGS(m_pipeline.GetAddressOf())));
 
 	return true;

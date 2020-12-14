@@ -6,7 +6,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class Dx12Helper
+class D12Helper
 {
 public:
 

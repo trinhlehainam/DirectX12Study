@@ -27,7 +27,7 @@ private:
 	Mouse(const Mouse&) = delete;
 	Mouse& operator = (const Mouse&) = delete;
 private:
-	friend class Dx12Wrapper;
+	friend class D3D12App;
 	void OnMove(int x, int y);
 	void OnRightDown(int x, int y);
 	void OnRightUp(int x, int y);
