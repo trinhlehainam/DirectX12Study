@@ -1,6 +1,6 @@
 ﻿#include "PMDManager.h"
 #include "PMDModel.h"
-#include "../DirectX12/UploadBuffer.h"
+#include "../ResourceHelper/UploadBuffer.h"
 
 #include <cassert>
 

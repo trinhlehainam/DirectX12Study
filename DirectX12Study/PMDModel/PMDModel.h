@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "../common.h"
-#include "../DirectX12/UploadBuffer.h"
+#include "../ResourceHelper/UploadBuffer.h"
 #include "PMDCommon.h"
 
 using Microsoft::WRL::ComPtr;

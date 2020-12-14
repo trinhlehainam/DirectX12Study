@@ -4,7 +4,7 @@
 #include <string>
 
 #include "PMDCommon.h"
-#include "../DirectX12/UploadBuffer.h"
+#include "../ResourceHelper/UploadBuffer.h"
 
 struct PMDSubMesh
 {

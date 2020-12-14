@@ -155,7 +155,7 @@
     <ClCompile Include="PMDModel\PMDMesh.cpp" />
     <ClCompile Include="PMDModel\PMDManager.cpp" />
     <ClCompile Include="PMDModel\PMDModel.cpp" />
-    <ClCompile Include="DirectX12\UploadBuffer.cpp" />
+    <ClCompile Include="ResourceHelper\UploadBuffer.cpp" />
     <ClCompile Include="Common\StringHelper.cpp" />
     <ClCompile Include="VMDLoader\VMDMotion.cpp" />
   </ItemGroup>
@@ -173,7 +173,7 @@
     <ClInclude Include="PMDModel\PMDMesh.h" />
     <ClInclude Include="PMDModel\PMDManager.h" />
     <ClInclude Include="PMDModel\PMDModel.h" />
-    <ClInclude Include="DirectX12\UploadBuffer.h" />
+    <ClInclude Include="ResourceHelper\UploadBuffer.h" />
     <ClInclude Include="Common\StringHelper.h" />
     <ClInclude Include="VMDLoader\VMDMotion.h" />
   </ItemGroup>

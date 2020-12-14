@@ -10,7 +10,7 @@
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "Dx12Helper.h"
-#include "UploadBuffer.h"
+#include "../ResourceHelper/UploadBuffer.h"
 #include "../PMDModel/PMDManager.h"
 #include "../common.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <cassert>
-#include "Dx12Helper.h"
+#include "../DirectX12/Dx12Helper.h"
 
 using Microsoft::WRL::ComPtr;
 
