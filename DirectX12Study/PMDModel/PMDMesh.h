@@ -4,9 +4,9 @@
 #include <string>
 
 #include "PMDCommon.h"
-#include "../Utility/UploadBuffer.h"
+#include "../Utility/DefaultBuffer.h"
 
-struct PMDSubMesh
+struct SubMesh
 {
 	// + Index of Index Buffer
 	// start index when GPU accesses Index Buffer
@@ -24,16 +24,16 @@ struct PMDMesh
 	std::vector<PMDVertex> vertices;
 	std::vector<uint16_t> indices;
 
-	std::unordered_map<std::string, PMDSubMesh> DrawArgs;
+	std::unordered_map<std::string, SubMesh> DrawArgs;
 
 	D3D12_VERTEX_BUFFER_VIEW vbview;
 	D3D12_INDEX_BUFFER_VIEW ibview;
 
-	UploadBuffer<PMDVertex> vertexBuffer;
-	UploadBuffer<uint16_t> indexBuffer;
+	DefaultBuffer vertexBuffer;
+	DefaultBuffer indexBuffer;
 
-	bool CreateVertexBufferView(ID3D12Device* pDevice);
-	bool CreateIndexBufferView(ID3D12Device* pDevice);
-
+	bool CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList);
+	bool CreateBufferViews();
+	bool ClearSubresource();
 };
 

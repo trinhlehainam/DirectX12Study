@@ -32,7 +32,9 @@ public:
 		ID3D12Resource* pGradTexture);
 
 	// Need to set up all resource for PMD Manager BEFORE initialize it
-	bool Init();
+	bool Init(ID3D12GraphicsCommandList* cmdList);
+
+	bool ClearSubresources();
 
 	// Use for check PMD Manager is initialized
 	// If PMD Manager isn't initialized, some feature of it won't work right
@@ -51,7 +53,7 @@ public:
 	// client must set pipeline before use this
 	void RenderDepth(ID3D12GraphicsCommandList* cmdList);
 private:
-	void InitModels();
+	void InitModels(ID3D12GraphicsCommandList* cmdList);
 
 	// When Initialization hasn't done
 	// =>Client's Render and Update methods are putted to sleep

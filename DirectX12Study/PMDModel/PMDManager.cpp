@@ -37,7 +37,7 @@ bool PMDManager::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource*
 	return true;
 }
 
-bool PMDManager::Init()
+bool PMDManager::Init(ID3D12GraphicsCommandList* cmdList)
 {
 	if (m_isInitDone) return true;
 	if (!m_device) return false;
@@ -47,13 +47,19 @@ bool PMDManager::Init()
 	if (!CheckDefaultBuffers()) return false;
 	if (!CreatePipeline()) return false;
 
-	InitModels();
+	InitModels(cmdList);
 	
 	m_updateFunc = &PMDManager::NormalUpdate;
 	m_renderFunc = &PMDManager::NormalRender;
 	m_renderDepthFunc = &PMDManager::DepthRender;
 	m_isInitDone = true;
 
+	return true;
+}
+
+bool PMDManager::ClearSubresources()
+{
+	m_mesh.ClearSubresource();
 	return true;
 }
 
@@ -149,7 +155,7 @@ void PMDManager::RenderDepth(ID3D12GraphicsCommandList* cmdList)
 	(this->*m_renderDepthFunc)(cmdList);
 }
 
-void PMDManager::InitModels()
+void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 {
 	// Init all models
 	for (auto& model : m_models)
@@ -189,8 +195,7 @@ void PMDManager::InitModels()
 			m_mesh.vertices.push_back(vertex);
 	}
 
-	m_mesh.CreateVertexBufferView(m_device);
-	m_mesh.CreateIndexBufferView(m_device);
+	m_mesh.CreateBuffers(m_device, cmdList);
 }
 
 void PMDManager::SleepUpdate(const float& deltaTime)

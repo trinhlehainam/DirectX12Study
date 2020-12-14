@@ -1029,6 +1029,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     WaitForGPU();
 
     m_updateBuffers.Clear();
+    m_PMDmanager->ClearSubresources();
 
     return true;
 }
@@ -1091,7 +1092,7 @@ void D3D12App::CreatePMDModel()
     m_PMDmanager->Add("Miku").LoadPMD(model_path);
     m_PMDmanager->Add("Hibiki").LoadPMD(model2_path);
 
-    assert(m_PMDmanager->Init());
+    assert(m_PMDmanager->Init(m_cmdList.Get()));
 
     return;
 }

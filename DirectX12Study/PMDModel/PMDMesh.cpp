@@ -1,25 +1,37 @@
 #include "PMDMesh.h"
 
-bool PMDMesh::CreateVertexBufferView(ID3D12Device* pDevice)
+bool PMDMesh::CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList)
 {
-	vertexBuffer.Create(pDevice, vertices.size());
-	vertexBuffer.CopyData(vertices);
+	size_t sizeOfVertices = sizeof(PMDVertex) * vertices.size();
+	vertexBuffer.SetUpSubresource(vertices.data(), sizeOfVertices);
+	vertexBuffer.UpdateSubresource(pDevice, pCmdList);
 
-	vbview.BufferLocation = vertexBuffer.GetGPUVirtualAddress();
-	vbview.SizeInBytes = vertexBuffer.SizeInBytes();
-	vbview.StrideInBytes = vertexBuffer.ElementSize();
+	size_t sizeOfIndices = sizeof(uint16_t) * indices.size();
+	indexBuffer.SetUpSubresource(indices.data(), sizeOfIndices);
+	indexBuffer.UpdateSubresource(pDevice, pCmdList);
 
 	return true;
 }
 
-bool PMDMesh::CreateIndexBufferView(ID3D12Device* pDevice)
+bool PMDMesh::CreateBufferViews()
 {
-	indexBuffer.Create(pDevice, indices.size());
-	indexBuffer.CopyData(indices);
+	size_t sizeOfVertices = sizeof(PMDVertex) * vertices.size();
+	vbview.BufferLocation = vertexBuffer.GetGPUVirtualAddress();
+	vbview.SizeInBytes = sizeOfVertices;
+	vbview.StrideInBytes = sizeof(PMDVertex);
 
+	size_t sizeOfIndices = sizeof(uint16_t) * indices.size();
 	ibview.BufferLocation = indexBuffer.GetGPUVirtualAddress();
 	ibview.Format = DXGI_FORMAT_R16_UINT;
-	ibview.SizeInBytes = indexBuffer.SizeInBytes();
+	ibview.SizeInBytes = sizeOfIndices;
 
+	return true;
+}
+
+bool PMDMesh::ClearSubresource()
+{
+	CreateBufferViews();
+	vertexBuffer.ClearSubresource();
+	indexBuffer.ClearSubresource();
 	return true;
 }

@@ -30,6 +30,7 @@ public:
 	// - Don't use this method until GPU done updating
 	bool ClearSubresource();
 private:
+	void ResetSubresource();
 	ComPtr<ID3D12Resource> m_buffer = nullptr;
 	ComPtr<ID3D12Resource> m_intermedinateBuffer = nullptr;
 	D3D12_SUBRESOURCE_DATA* m_subresource = nullptr;

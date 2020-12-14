@@ -4,9 +4,7 @@
 
 DefaultBuffer::~DefaultBuffer()
 {
-    if (m_subresource != nullptr)
-        delete m_subresource;
-    m_subresource = nullptr;
+    ResetSubresource();
 }
 
 ID3D12Resource* DefaultBuffer::Resource()
@@ -22,7 +20,7 @@ D3D12_GPU_VIRTUAL_ADDRESS DefaultBuffer::GetGPUVirtualAddress()
 void DefaultBuffer::SetUpSubresource(const void* pData, LONG_PTR RowPitch, LONG_PTR SlicePitch,
     bool IsShaderResourceBuffer)
 {
-    if (m_subresource != nullptr) delete m_subresource;
+    ResetSubresource();
     m_subresource = new D3D12_SUBRESOURCE_DATA();
 
     m_subresource->pData = pData;
@@ -34,7 +32,7 @@ void DefaultBuffer::SetUpSubresource(const void* pData, LONG_PTR RowPitch, LONG_
 
 void DefaultBuffer::SetUpSubresource(const void* pData, size_t SizeInBytes)
 {
-    if (m_subresource != nullptr) delete m_subresource;
+    ResetSubresource();
     m_subresource = new D3D12_SUBRESOURCE_DATA();
 
     m_subresource->pData = pData;
@@ -70,11 +68,19 @@ bool DefaultBuffer::UpdateSubresource(ID3D12Device* pDevice, ID3D12GraphicsComma
 
 bool DefaultBuffer::ClearSubresource()
 {
-    if (m_subresource != nullptr)
-        delete m_subresource;
-
+    ResetSubresource();
+        
     if (!m_intermedinateBuffer) return false;
     m_intermedinateBuffer.Reset();
 
     return true;
+}
+
+void DefaultBuffer::ResetSubresource()
+{
+    if (m_subresource != nullptr)
+    {
+        delete m_subresource;
+        m_subresource = nullptr;
+    }
 }
