@@ -29,9 +29,11 @@ public:
 	void CreateModel();
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
-	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex);
+	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+		const uint32_t& BaseVertexLocation);
 
-	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex);
+	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+		const uint32_t& BaseVertexLocation);
 	
 	PMDModel() = default;
 	PMDModel(ComPtr<ID3D12Device> device);

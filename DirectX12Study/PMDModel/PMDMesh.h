@@ -8,7 +8,14 @@
 
 struct PMDSubMesh
 {
+	// + Index of Index Buffer
+	// start index when GPU accesses Index Buffer
 	uint32_t StartIndexLocation;
+	// + Index of Vertex Buffer
+	// GPU takes this as base index and adds it to value took from Index Buffer
+	// => then use calculated value as index to access Vertex Buffer
+	// - PS : with this the value of indices from other Meshes don't need to change
+	// when concatenated to One Mesh
 	uint32_t BaseVertexLocation;
 };
 

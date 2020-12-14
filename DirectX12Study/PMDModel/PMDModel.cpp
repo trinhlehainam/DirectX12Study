@@ -33,7 +33,8 @@ void PMDModel::LoadMotion(const char* path)
 	vmdMotion_->Load(path);
 }
 
-void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex)
+void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+	const uint32_t& BaseVertexLocation)
 {
 	//auto frame = frameNO % vmdMotion_->GetMaxFrame();
 	//UpdateMotionTransform(frame);
@@ -47,7 +48,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIn
 	cmdList->SetDescriptorHeaps(1, materialDescHeap_.GetAddressOf());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(materialDescHeap_->GetGPUDescriptorHandleForHeapStart());
 	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	uint32_t indexOffset = baseIndex;
+	uint32_t indexOffset = StartIndexLocation;
 	for (auto& m : materials_)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
@@ -55,7 +56,7 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIn
 		cmdList->DrawIndexedInstanced(m.indices,
 			1,
 			indexOffset,
-			0,
+			BaseVertexLocation,
 			0);
 		indexOffset += m.indices;
 		materialHeapHandle.Offset(material_descriptor_count, materialHeapSize);
@@ -63,13 +64,14 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIn
 	/*-------------------------------------------*/
 }
 
-void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& baseIndex, const uint32_t& baseVertex)
+void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
+	const uint32_t& BaseVertexLocation)
 {
 	// Object constant
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
 
-	cmdList->DrawIndexedInstanced(indices_.size(), 1, baseIndex, baseVertex, 0);
+	cmdList->DrawIndexedInstanced(indices_.size(), 1, StartIndexLocation, BaseVertexLocation, 0);
 }
 
 void PMDModel::GetDefaultTexture(ID3D12Resource* whiteTexture, 

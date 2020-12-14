@@ -181,14 +181,9 @@ void PMDManager::InitModels()
 	{
 		auto& name = model.first;;
 		auto& data = model.second;
-		// When concatenate vertices of all models
-		// => the index of vertex is changed when move to concatenated vertex buffer
-		// => indices need to offset vertex's base index before added to index buffer
-		auto& baseVertexIndex = m_mesh.DrawArgs[name].BaseVertexLocation;
 
 		for (const auto& index : data.indices_)
-			// Need to offset base index of vertex when concatenate indices to index buffer
-			m_mesh.indices.push_back(baseVertexIndex + index);
+			m_mesh.indices.push_back(index);
 
 		for (const auto& vertex : data.vertices_)
 			m_mesh.vertices.push_back(vertex);
