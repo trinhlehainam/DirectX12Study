@@ -334,16 +334,19 @@ void D3D12App::EffekseerInit()
 
 void D3D12App::EffekseerUpdate(const float& deltaTime)
 {
-    static constexpr float effect_animation_time = 0.1f;
+    constexpr float effect_animation_time = 0.1f;
     static float timer = effect_animation_time;
+    static auto angle = 0.0f;
 
     if (timer <= 0.0f)
     {
         m_effekHandle = m_effekManager->Play(m_effekEffect, 0, 0, 0);
         timer = effect_animation_time;
     }
+
+    angle += 1.f * deltaTime;
     m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.1f, 0.0f, 0.0f));
-    //m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), XM_PIDIV4);
+    m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), angle);
 
     //m_effekManager->StopEffect(m_effekHandle);
     timer -= deltaTime;

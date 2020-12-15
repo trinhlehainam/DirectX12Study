@@ -1,9 +1,9 @@
 cbuffer passConstant:register (b0)
 {
-	matrix viewproj;		// projecting object to window space matrix
-	vector lightPos;
-	matrix shadow;
-	matrix lightViewProj;
+	matrix g_viewproj;		// projecting object to window space matrix
+	vector g_lightPos;
+	matrix g_shadow;
+	matrix g_lightViewProj;
 }
 
 ///頂点シェーダ出力

@@ -1,9 +1,9 @@
 cbuffer passConstant:register (b0)
 {
-	matrix viewproj;		// projecting object to window space matrix
-	vector lightPos;
-	matrix shadow;
-	matrix lightViewProj;
+	matrix g_viewproj;		// projecting object to window space matrix
+	vector g_lightPos;
+	matrix g_shadow;
+	matrix g_lightViewProj;
 }
 
 struct PrimitiveOut
@@ -41,8 +41,8 @@ PrimitiveOut primitiveVS(PrimitiveInput input)
 	
 	ret.tangent = input.tangent;
 	ret.uv = input.uv;
-	ret.svpos = mul(viewproj, ret.pos);
-	ret.lvpos = mul(lightViewProj, ret.pos);
+	ret.svpos = mul(g_viewproj, ret.pos);
+	ret.lvpos = mul(g_lightViewProj, ret.pos);
 	
 	return ret;
 }

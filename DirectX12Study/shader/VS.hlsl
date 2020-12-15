@@ -12,8 +12,8 @@ struct VsInput
 
 cbuffer objectConstant : register(b1)
 {
-	matrix world; // transform to world space matrix
-	matrix bones[512];
+	matrix g_world; // transform to world space matrix
+	matrix g_bones[512];
 }
 
 /// Vertex shader
@@ -24,15 +24,15 @@ VsOutput VS( VsInput input )
 {
 	VsOutput ret;
 	
-	matrix skinMat = bones[input.boneno.x] * input.weight + bones[input.boneno.y] * (1.0f - input.weight);
-	ret.pos = mul(world, mul(skinMat,input.pos));
+	matrix skinMat = g_bones[input.boneno.x] * input.weight + g_bones[input.boneno.y] * (1.0f - input.weight);
+	ret.pos = mul(g_world, mul(skinMat, input.pos));
 	
-	ret.svpos = mul(viewproj, ret.pos);
+	ret.svpos = mul(g_viewproj, ret.pos);
 
-	ret.lvpos = mul(lightViewProj, ret.pos);
+	ret.lvpos = mul(g_lightViewProj, ret.pos);
 
 	skinMat._14_24_34 = 0.0f;		// ïΩçsà⁄ìÆê¨ï™ñ≥å¯
-	ret.norm = mul(world,mul(skinMat,input.normal));		// normal vector DOESN'T TRANSLATE position
+	ret.norm = mul(g_world, mul(skinMat, input.normal)); // normal vector DOESN'T TRANSLATE position
 
 	ret.uv = input.uv;
 	ret.instanceID = input.instanceID;

@@ -12,17 +12,17 @@ struct VsInput
 
 cbuffer objectConstant : register(b1)
 {
-	matrix world; // transform to world space matrix
-	matrix bones[512];
+	matrix g_world; // transform to world space matrix
+	matrix g_bones[512];
 }
 
 VsOutput ShadowVS(VsInput input)
 {
 	VsOutput ret;
 
-	matrix skinMat = bones[input.boneno.x] * input.weight + bones[input.boneno.y] * (1.0f - input.weight);
-	ret.pos = mul(world, mul(skinMat, input.pos));
-	ret.svpos = mul(lightViewProj, ret.pos);
+	matrix skinMat = g_bones[input.boneno.x] * input.weight + g_bones[input.boneno.y] * (1.0f - input.weight);
+	ret.pos = mul(g_world, mul(skinMat, input.pos));
+	ret.svpos = mul(g_lightViewProj, ret.pos);
 
 	return ret;
 }
