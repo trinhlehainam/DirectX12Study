@@ -38,13 +38,6 @@ float4 PS(VsOutput input) : SV_TARGET
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
 	float4 color = float4(max(ambient, tn * diffuse) + specular * sat, alpha);
-
-	// Test
-	return color
-	* tex.Sample(smp, input.uv)
-	* sph.Sample(smp, sphereUV)
-	+ spa.Sample(smp, sphereUV);
-	//
 	
 	const float bias = 0.005f;
 	float shadowValue = 1.f;

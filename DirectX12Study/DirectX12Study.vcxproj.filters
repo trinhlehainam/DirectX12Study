@@ -66,6 +66,9 @@
     <ClCompile Include="PMDModel\PMDLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX12\D12EffekSeer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -120,6 +123,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PMDModel\PMDLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\D12EffekSeer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

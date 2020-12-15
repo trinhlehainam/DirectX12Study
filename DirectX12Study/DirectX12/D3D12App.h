@@ -1,9 +1,7 @@
 #pragma once
 
-#include <d3d12.h>
 #include <dxgi1_6.h>
 #include <vector>
-#include <DirectXmath.h>
 #include <memory>
 #include <string>
 
@@ -13,7 +11,6 @@
 #include "../Utility/UploadBuffer.h"
 #include "../PMDModel/PMDManager.h"
 #include "../common.h"
-
 
 /// <summary>
 /// DirectX12 feature
@@ -159,5 +156,9 @@ private:
 
 	void SetResourceStateForNextFrame();
 	void SetBackBufferIndexForNextFrame();
+
+private:
+	// Effekseer
+
 };
 

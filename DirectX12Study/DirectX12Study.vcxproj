@@ -118,12 +118,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(DXTEX_DIR)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(EFFEKSEER_INCLUDE)\EffekseerRendererDX12;$(EFFEKSEER_INCLUDE)\Effekseer;$(DXTEX_DIR);$(EFFEKSEER_INCLUDE)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(EFFEKSEER_LIB);$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -143,8 +145,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Application.cpp">
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
     <ClCompile Include="Common\Timer.cpp" />
+    <ClCompile Include="DirectX12\D12EffekSeer.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="Utility\DefaultBuffer.cpp" />
     <ClCompile Include="Utility\D12Helper.cpp" />
@@ -165,6 +170,7 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Common\Timer.h" />
+    <ClInclude Include="DirectX12\D12EffekSeer.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="Utility\DefaultBuffer.h" />
     <ClInclude Include="Utility\D12Helper.h" />

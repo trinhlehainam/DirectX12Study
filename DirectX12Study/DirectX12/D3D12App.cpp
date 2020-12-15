@@ -857,7 +857,8 @@ void D3D12App::CreatePrimitivePipeLine()
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
     // Rasterizer
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    psoDesc.RasterizerState.FrontCounterClockwise = true;
+    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
     psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     // Pixel Shader
     ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
@@ -994,9 +995,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1089,7 +1090,7 @@ void D3D12App::CreatePMDModel()
     m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
     m_PMDmanager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
-    m_PMDmanager->Add("Miku").LoadPMD(model_path);
+    m_PMDmanager->Add("Miku").LoadPMD(model1_path);
     m_PMDmanager->Add("Hibiki").LoadPMD(model2_path);
 
     assert(m_PMDmanager->Init(m_cmdList.Get()));
@@ -1099,7 +1100,7 @@ void D3D12App::CreatePMDModel()
 
 bool D3D12App::Update(const float& deltaTime)
 {
-    angle = 0;
+    angle = 0.1f;
     
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
     static float movespeed = 10.f;
@@ -1108,6 +1109,13 @@ bool D3D12App::Update(const float& deltaTime)
     auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
     if (m_keyboard.IsPressed('M'))
         m_PMDmanager->Get("Miku").Transform(translate);
+
+    angle = 0.5f * deltaTime;
+    auto rotate = XMMatrixRotationY(angle);
+    if (m_keyboard.IsPressed('R'))
+    {
+        m_PMDmanager->Get("Miku").Transform(rotate);
+    }
 
     if (m_keyboard.IsPressed(VK_LEFT))
         viewpos.m128_f32[0] -= movespeed * deltaTime;
