@@ -406,13 +406,13 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.InputLayout.pInputElementDescs = layout;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	// Vertex Shader
-	ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"shader/vs.hlsl", "VS", "vs_5_1");
+	ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1");
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 	// Rasterizer
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"shader/ps.hlsl", "PS", "ps_5_1");
+	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/ps.hlsl", "PS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 	// Other set up
 	// Depth/Stencil

@@ -26,13 +26,13 @@ namespace
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
-    const char* model_path = "resource/PMD/model/弱音ハク.pmd";
-    const char* model1_path = "resource/PMD/model/初音ミク.pmd";
-    const char* model3_path = "resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
-    const char* model2_path = "resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
+    const char* model_path = "Resource/PMD/model/弱音ハク.pmd";
+    const char* model1_path = "Resource/PMD/model/初音ミク.pmd";
+    const char* model3_path = "Resource/PMD/model/柳生/柳生Ver1.12SW.pmd";
+    const char* model2_path = "Resource/PMD/model/hibiki/我那覇響v1_グラビアミズギ.pmd";
 
-    const char* motion1_path = "resource/VMD/ヤゴコロダンス.vmd";
-    const char* motion2_path = "resource/VMD/swing2.vmd";
+    const char* motion1_path = "Resource/VMD/ヤゴコロダンス.vmd";
+    const char* motion2_path = "Resource/VMD/swing2.vmd";
 
     size_t frameNO = 0;
     float lastTick = 0;
@@ -170,7 +170,7 @@ void D3D12App::CreateBoardPipeline()
     ComPtr<ID3DBlob> errBlob;
     ComPtr<ID3DBlob> vsBlob;
     result = D3DCompileFromFile(
-        L"shader/boardVS.hlsl",                                  // path to shader file
+        L"Shader/boardVS.hlsl",                                  // path to shader file
         nullptr,                                            // define marcro object 
         D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
         "boardVS",                                               // entry name
@@ -189,7 +189,7 @@ void D3D12App::CreateBoardPipeline()
     // Pixel Shader
     ComPtr<ID3DBlob> psBlob;
     result = D3DCompileFromFile(
-        L"shader/boardPS.hlsl",                              // path to shader file
+        L"Shader/boardPS.hlsl",                              // path to shader file
         nullptr,                                        // define marcro object 
         D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
         "boardPS",                                           // entry name
@@ -242,6 +242,7 @@ void D3D12App::RenderToPostEffectBuffer()
 
     RenderPrimitive();
     m_PMDmanager->Render(m_cmdList.Get());
+    EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -288,9 +289,102 @@ void D3D12App::SetBackBufferIndexForNextFrame()
     m_currentBackBuffer = (m_currentBackBuffer + 1) % back_buffer_count;
 }
 
+void D3D12App::EffekseerInit()
+{
+    // Create renderer
+    auto backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    m_effekRenderer = EffekseerRendererDX12::Create(m_device.Get(), m_cmdQue.Get(), 2, &backBufferFormat, 1,
+        DXGI_FORMAT_UNKNOWN, false, 8000);
+
+    // Create memory pool
+    m_effekPool = EffekseerRendererDX12::CreateSingleFrameMemoryPool(m_effekRenderer);
+
+    // Create commandList
+    m_effekCmdList = EffekseerRendererDX12::CreateCommandList(m_effekRenderer, m_effekPool);
+
+    // Create manager
+    m_effekManager = Effekseer::Manager::Create(8000);
+
+    // Set renderer module for manager
+    m_effekManager->SetSpriteRenderer(m_effekRenderer->CreateSpriteRenderer());
+    m_effekManager->SetRibbonRenderer(m_effekRenderer->CreateRibbonRenderer());
+    m_effekManager->SetRingRenderer(m_effekRenderer->CreateRingRenderer());
+    m_effekManager->SetTrackRenderer(m_effekRenderer->CreateTrackRenderer());
+    m_effekManager->SetModelRenderer(m_effekRenderer->CreateModelRenderer());
+
+    // Set loader for manager
+    m_effekManager->SetTextureLoader(m_effekRenderer->CreateTextureLoader());
+    m_effekManager->SetMaterialLoader(m_effekRenderer->CreateMaterialLoader());
+    m_effekManager->SetModelLoader(m_effekRenderer->CreateModelLoader());
+
+    // Load effect from file path
+    const EFK_CHAR* effect_path = u"Resource/Effekseer/Laser01.efk";
+    m_effekEffect = Effekseer::Effect::Create(m_effekManager, effect_path);
+
+    auto& app = Application::Instance();
+    auto screenSize = app.GetWindowSize();
+
+    auto viewPos = Effekseer::Vector3D(10.0f, 10.0f, 10.0f);
+
+    m_effekRenderer->SetProjectionMatrix(Effekseer::Matrix44().PerspectiveFovRH(XM_PIDIV4, app.GetAspectRatio(), 1.0f, 500.0f));
+
+    m_effekRenderer->SetCameraMatrix(
+        Effekseer::Matrix44().LookAtRH(viewPos, Effekseer::Vector3D(0.0f, 0.0f, 0.0f), Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
+}
+
+void D3D12App::EffekseerUpdate(const float& deltaTime)
+{
+    static constexpr float effect_animation_time = 0.1f;
+    static float timer = effect_animation_time;
+
+    if (timer <= 0.0f)
+    {
+        m_effekHandle = m_effekManager->Play(m_effekEffect, 0, 0, 0);
+        timer = effect_animation_time;
+    }
+    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.1f, 0.0f, 0.0f));
+    //m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), XM_PIDIV4);
+
+    //m_effekManager->StopEffect(m_effekHandle);
+    timer -= deltaTime;
+    
+}
+
+void D3D12App::EffekseerRender()
+{
+    static int frame = 0;
+
+    // Set up frame
+    m_effekPool->NewFrame();
+    EffekseerRendererDX12::BeginCommandList(m_effekCmdList, m_cmdList.Get());
+    m_effekRenderer->SetCommandList(m_effekCmdList);
+    m_effekManager->Update();
+    // Render
+    m_effekRenderer->BeginRendering();
+    m_effekManager->Draw();
+    m_effekRenderer->EndRendering();
+    // End frame
+    m_effekRenderer->SetCommandList(nullptr);
+    EffekseerRendererDX12::EndCommandList(m_effekCmdList);
+
+    ++frame;
+}
+
+void D3D12App::EffekseerTerminate()
+{
+    ES_SAFE_RELEASE(m_effekEffect);
+
+    m_effekManager->Destroy();
+
+    ES_SAFE_RELEASE(m_effekCmdList);
+    ES_SAFE_RELEASE(m_effekPool);
+
+    m_effekRenderer->Destroy();
+}
+
 void D3D12App::CreateNormalMapTexture()
 {
-    normalMapTex_ = D12Helper::CreateTextureFromFilePath(m_device, L"resource/image/normalmap3.png");
+    normalMapTex_ = D12Helper::CreateTextureFromFilePath(m_device, L"Resource/Image/normalmap3.png");
 
     HRESULT result = S_OK;
     auto rsDesc = m_backBuffer[0]->GetDesc();
@@ -632,7 +726,7 @@ void D3D12App::CreateShadowPipelineState()
     ComPtr<ID3DBlob> errBlob;
     ComPtr<ID3DBlob> vsBlob;
     result = D3DCompileFromFile(
-        L"shader/ShadowVS.hlsl",                                  // path to shader file
+        L"Shader/ShadowVS.hlsl",                                  // path to shader file
         nullptr,                                            // define marcro object 
         D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
         "ShadowVS",                                               // entry name
@@ -853,7 +947,7 @@ void D3D12App::CreatePrimitivePipeLine()
     psoDesc.InputLayout.pInputElementDescs = layout;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     // Vertex Shader
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
+    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
     // Rasterizer
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -861,7 +955,7 @@ void D3D12App::CreatePrimitivePipeLine()
     psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
     psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     // Pixel Shader
-    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
+    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
     psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
     // Other set up
     psoDesc.NodeMask = 0;
@@ -1029,6 +1123,8 @@ bool D3D12App::Initialize(const HWND& hwnd)
     m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList*const*>(m_cmdList.GetAddressOf()));
     WaitForGPU();
 
+    EffekseerInit();
+
     m_updateBuffers.Clear();
     m_PMDmanager->ClearSubresources();
 
@@ -1100,6 +1196,9 @@ void D3D12App::CreatePMDModel()
 
 bool D3D12App::Update(const float& deltaTime)
 {
+    // Effekseert
+    EffekseerUpdate(deltaTime);
+
     angle = 0.1f;
     
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
@@ -1205,7 +1304,7 @@ bool D3D12App::Render()
 
 void D3D12App::Terminate()
 {
-    
+    EffekseerTerminate();
 }
 
 void D3D12App::ClearKeyState()

@@ -5,6 +5,9 @@
 #include <memory>
 #include <string>
 
+#include <Effekseer/Effekseer.h>
+#include <EffekseerRendererDX12/EffekseerRendererDX12.h>
+
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "../Utility/D12Helper.h"
@@ -159,6 +162,16 @@ private:
 
 private:
 	// Effekseer
+	EffekseerRenderer::Renderer* m_effekRenderer = nullptr;
+	EffekseerRenderer::SingleFrameMemoryPool* m_effekPool = nullptr;
+	Effekseer::Manager* m_effekManager = nullptr;
+	EffekseerRenderer::CommandList* m_effekCmdList = nullptr;
+	Effekseer::Effect* m_effekEffect = nullptr;
+	Effekseer::Handle m_effekHandle = -1;
 
+	void EffekseerInit();
+	void EffekseerUpdate(const float& deltaTime);
+	void EffekseerRender();
+	void EffekseerTerminate();
 };
 
