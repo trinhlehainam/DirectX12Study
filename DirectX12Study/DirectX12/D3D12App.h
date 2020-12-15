@@ -91,7 +91,7 @@ private:
 private:
 	UpdateTextureBuffers m_updateBuffers;
 	
-	std::unique_ptr<PMDManager> m_PMDmanager;
+	std::unique_ptr<PMDManager> m_pmdManager;
 	void CreatePMDModel();
 
 	// Post effect rendering

@@ -1,6 +1,6 @@
 ﻿#include "PMDManager.h"
 #include "PMDModel.h"
-#include "../Utility/UploadBuffer.h"
+#include "VMD/VMDMotion.h"
 
 #include <cassert>
 
@@ -128,18 +128,21 @@ bool PMDManager::IsInitialized()
 	return m_isInitDone;
 }
 
-PMDModel& PMDManager::Add(const std::string& name)
+bool PMDManager::CreateModel(const std::string& modelName, const char* modelFilePath)
 {
-	assert(m_device);
-	assert(!m_models.count(name));
-	m_models[name].SetDevice(m_device);
-	return m_models[name];
+	assert(!m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	m_models[modelName].SetDevice(m_device);
+	m_models[modelName].Load(modelFilePath);
+	return true;
 }
 
-PMDModel& PMDManager::Get(const std::string& name)
+bool PMDManager::CreateAnimation(const std::string& animationName, const char* animationFilePath)
 {
-	assert(m_models.count(name));
-	return m_models[name];
+	assert(!m_animations.count(animationName));
+	if (m_animations.count(animationName)) return false;
+	m_animations[animationName].Load(animationFilePath);
+	return true;
 }
 
 void PMDManager::Update(const float& deltaTime)
@@ -155,6 +158,58 @@ void PMDManager::Render(ID3D12GraphicsCommandList* cmdList)
 void PMDManager::RenderDepth(ID3D12GraphicsCommandList* cmdList)
 {
 	(this->*m_renderDepthFunc)(cmdList);
+}
+
+bool PMDManager::Play(const std::string& modelName, const std::string& animationName)
+{
+	if (!m_isInitDone) return false;
+	assert(m_models.count(modelName));
+	if (!m_models.count(modelName)) return false;
+	assert(m_animations.count(animationName));
+	if (!m_animations.count(animationName)) return false;
+
+	m_models[modelName].Play(&m_animations[animationName]);
+
+	return true;
+}
+
+bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, float moveZ)
+{
+	assert(m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	return true;
+}
+
+bool PMDManager::RotateX(const std::string& modelName, float angle)
+{
+	assert(m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	m_models[modelName].RotateX(angle);
+	return true;
+}
+
+bool PMDManager::RotateY(const std::string& modelName, float angle)
+{
+	assert(m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	m_models[modelName].RotateY(angle);
+	return true;
+}
+
+bool PMDManager::RotateZ(const std::string& modelName, float angle)
+{
+	assert(m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	m_models[modelName].RotateZ(angle);
+	return true;
+}
+
+bool PMDManager::Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ)
+{
+	assert(m_models.count(modelName));
+	if (m_models.count(modelName)) return false;
+	m_models[modelName].Scale(scaleX, scaleY, scaleZ);
+	return true;
 }
 
 void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
@@ -214,7 +269,10 @@ void PMDManager::SleepRender(ID3D12GraphicsCommandList* cmdList)
 
 void PMDManager::NormalUpdate(const float& deltaTime)
 {
-
+	for (auto& model : m_models)
+	{
+		model.second.Update(deltaTime);
+	}
 }
 
 void PMDManager::NormalRender(ID3D12GraphicsCommandList* cmdList)

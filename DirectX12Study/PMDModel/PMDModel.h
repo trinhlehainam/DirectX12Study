@@ -6,10 +6,6 @@
 #include <unordered_map>
 #include <memory>
 
-#include <DirectXMath.h>
-#include <d3dx12.h>
-
-#include "../common.h"
 #include "../Utility/UploadBuffer.h"
 #include "../Utility/DefaultBuffer.h"
 #include "PMDCommon.h"
@@ -28,8 +24,7 @@ public:
 	~PMDModel();
 
 	void SetDevice(ID3D12Device* pDevice);
-	bool LoadPMD(const char* path);
-	void LoadMotion(const char* path);
+	bool Load(const char* path);
 	void SetDefaultTexture(ID3D12Resource* whiteTexture,
 						   ID3D12Resource* blackTexture,
 						   ID3D12Resource* gradTexture);
@@ -42,13 +37,19 @@ public:
 public:
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
+	void Play(VMDMotion* animation);
+	void Move(const float& moveX, const float& moveY, const float& moveZ);
+	void RotateX(const float& angle);
+	void RotateY(const float& angle);
+	void RotateZ(const float& angle);
+	void Scale(const float& scaleX, const float& scaleY, const float& scaleZ);
+
 	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
 	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& IndexCount, const uint32_t& StartIndexLocation, 
 		const uint32_t& BaseVertexLocation);
-private:
-	std::unique_ptr<PMDLoader> m_pmdLoader;
-	std::vector<PMDSubMaterial> m_subMaterials;
+
+	void Update(const float& deltaTime);
 private:
 	// Resource from PMD Manager
 	ComPtr<ID3D12Device> m_device = nullptr;
@@ -56,7 +57,9 @@ private:
 	ID3D12Resource* m_blackTexture = nullptr;
 	ID3D12Resource* m_gradTexture = nullptr;
 	
+	//
 	// Object Constant
+	//
 	struct ObjectConstant
 	{
 		DirectX::XMMATRIX world;
@@ -64,14 +67,11 @@ private:
 	};
 	UploadBuffer<ObjectConstant> m_transformBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_transformDescHeap;
-	bool CreateTransformConstant();
+	bool CreateTransformConstantBuffer();
 
-	// Bone buffer
-	ComPtr<ID3D12Resource> boneBuffer_;
-	DirectX::XMMATRIX* m_mappedBoneMatrix = nullptr;
-	bool CreateBoneBuffer();
-
+	//
 	// Materials
+	//
 	std::vector<ComPtr<ID3D12Resource>> m_textureBuffer;
 	std::vector<ComPtr<ID3D12Resource>> m_sphBuffers;
 	std::vector<ComPtr<ID3D12Resource>> m_spaBuffers;
@@ -84,7 +84,14 @@ private:
 	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList);
 
 private:
-	std::shared_ptr<VMDMotion> m_vmdMotion;
+	std::unique_ptr<PMDLoader> m_pmdLoader;
+	std::vector<PMDSubMaterial> m_subMaterials;
+
+	// Vairables for animation
+	std::vector<PMDBone> m_bones;
+	std::unordered_map<std::string, uint16_t> m_bonesTable;
+	std::vector<DirectX::XMMATRIX> m_boneMatrices;
+	VMDMotion* m_vmdMotion = nullptr;
 
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);

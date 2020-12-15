@@ -100,8 +100,6 @@ bool PMDLoader::Load(const char* path)
 		m_bones[i].pos = boneData[i].pos;
 		m_bonesTable[boneData[i].boneName] = i;
 	}
-	m_boneMatrices.resize(512);
-	std::fill(m_boneMatrices.begin(), m_boneMatrices.end(), DirectX::XMMatrixIdentity());
 
 	for (int i = 0; i < boneNum; ++i)
 	{

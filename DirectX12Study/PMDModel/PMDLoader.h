@@ -22,7 +22,6 @@ private:
 	std::vector<std::string> m_toonPaths;
 	std::vector<PMDBone> m_bones;
 	std::unordered_map<std::string, uint16_t> m_bonesTable;
-	std::vector<DirectX::XMMATRIX> m_boneMatrices;
 	const char* m_path;
 };
 

@@ -1,6 +1,6 @@
 #include "PMDModel.h"
 #include "../Application.h"
-#include "../VMDLoader/VMDMotion.h"
+#include "VMD/VMDMotion.h"
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
 #include "PMDLoader.h"
@@ -18,14 +18,12 @@ namespace
 
 PMDModel::PMDModel()
 {
-	m_vmdMotion = std::make_shared<VMDMotion>();
 	m_pmdLoader = std::make_unique<PMDLoader>();
 }
 
 PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
 	m_device(device)
 {
-	m_vmdMotion = std::make_shared<VMDMotion>();
 	m_pmdLoader = std::make_unique<PMDLoader>();
 }
 
@@ -35,11 +33,12 @@ PMDModel::~PMDModel()
 	m_whiteTexture = nullptr;
 	m_blackTexture = nullptr;
 	m_gradTexture = nullptr;
+	m_vmdMotion = nullptr;
 }
 
 void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 {
-	CreateTransformConstant();
+	CreateTransformConstantBuffer();
 	LoadTextureToBuffer();
 	CreateMaterialAndTextureBuffer(cmdList);
 }
@@ -49,9 +48,31 @@ void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 	m_transformBuffer.MappedData().world *= transformMatrix;
 }
 
-void PMDModel::LoadMotion(const char* path)
+void PMDModel::Play(VMDMotion* animation)
 {
-	m_vmdMotion->Load(path);
+	m_vmdMotion = animation;
+	// Init bones transform;
+	UpdateMotionTransform();
+}
+
+void PMDModel::Move(const float& moveX, const float& moveY, const float& moveZ)
+{
+}
+
+void PMDModel::RotateX(const float& angle)
+{
+}
+
+void PMDModel::RotateY(const float& angle)
+{
+}
+
+void PMDModel::RotateZ(const float& angle)
+{
+}
+
+void PMDModel::Scale(const float& scaleX, const float& scaleY, const float& scaleZ)
+{
 }
 
 void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
@@ -95,6 +116,15 @@ void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& I
 	cmdList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }
 
+void PMDModel::Update(const float& deltaTime)
+{
+	static uint64_t s_engine_frame = 0;
+	static uint64_t s_motion_frame = 0;
+	//if (++s_engine_frame % 1000 == 0)
+		++s_motion_frame;
+	UpdateMotionTransform(s_motion_frame);
+}
+
 const std::vector<uint16_t>& PMDModel::Indices() const
 {
 	return m_pmdLoader->m_indices;
@@ -123,36 +153,19 @@ void PMDModel::SetDevice(ID3D12Device* pDevice)
 	m_device = pDevice;
 }
 
-bool PMDModel::LoadPMD(const char* path)
+bool PMDModel::Load(const char* path)
 {
 	m_pmdLoader->Load(path);
 	m_subMaterials = std::move(m_pmdLoader->m_subMaterials);
+	// Info for animation
+	m_bones = std::move(m_pmdLoader->m_bones);
+	m_bonesTable = std::move(m_pmdLoader->m_bonesTable);
+	m_boneMatrices.resize(512);
+	std::fill(m_boneMatrices.begin(), m_boneMatrices.end(), DirectX::XMMatrixIdentity());
 	return true;
 }
 
-bool PMDModel::CreateBoneBuffer()
-{
-	// take bone's name and bone's index to boneTable
-	// <bone's name, bone's index>
-
-	boneBuffer_ = D12Helper::CreateBuffer(m_device.Get(),
-		D12Helper::AlignedConstantBufferMemory(sizeof(XMMATRIX) * 512));
-	auto result = boneBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedBoneMatrix));
-
-	UpdateMotionTransform();
-
-	auto cbDesc = boneBuffer_->GetDesc();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = boneBuffer_->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = cbDesc.Width;
-	//auto heapPos = transformDescHeap_->GetCPUDescriptorHandleForHeapStart();
-	//auto heapIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	//heapPos.ptr += heapIncreSize;
-	//m_device->CreateConstantBufferView(&cbvDesc, heapPos);
-	return false;
-}
-
-bool PMDModel::CreateTransformConstant()
+bool PMDModel::CreateTransformConstantBuffer()
 {
 	D12Helper::CreateDescriptorHeap(m_device.Get(), m_transformDescHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	m_transformBuffer.Create(m_device.Get(), 1, true);
@@ -164,10 +177,11 @@ bool PMDModel::CreateTransformConstant()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_transformDescHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
-	auto& data = m_transformBuffer.MappedData();
-	data.world = XMMatrixIdentity();
-	auto bones = m_pmdLoader->m_boneMatrices;
-	std::copy(bones.begin(), bones.end(), data.bones);
+	auto& mappedData = m_transformBuffer.MappedData();
+	mappedData.world = XMMatrixIdentity();
+	auto bones = m_boneMatrices;
+
+	std::copy(bones.begin(), bones.end(), mappedData.bones);
 
 	return true;
 }
@@ -324,12 +338,15 @@ void PMDModel::LoadTextureToBuffer()
 
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 {
-	/*auto& motionData = vmdMotion_->GetVMDMotionData();
-	auto mats = boneMatrices_;
+	// If model don't have animtion, don't need to run this method
+	if (!m_vmdMotion) return;
+
+	auto& motionData = m_vmdMotion->GetVMDMotionData();
+	auto mats = m_boneMatrices;
 
 	for (auto& motion : motionData)
 	{
-		auto index = bonesTable_[motion.first];
+		auto index = m_bonesTable[motion.first];
 		auto& rotationOrigin = m_bones[index].pos;
 		auto& keyframe = motion.second;
 
@@ -360,7 +377,8 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	}
 
 	RecursiveCalculate(m_bones, mats, 0);
-	std::copy(mats.begin(), mats.end(), mappedBoneMatrix_);*/
+	auto& mappedBones = m_transformBuffer.MappedData();
+	std::copy(mats.begin(), mats.end(), mappedBones.bones);
 }
 
 float PMDModel::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)

@@ -24,9 +24,6 @@
     <ClCompile Include="Loader\BmpLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="VMDLoader\VMDMotion.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Common\Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,7 +63,7 @@
     <ClCompile Include="PMDModel\PMDLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\D12EffekSeer.cpp">
+    <ClCompile Include="PMDModel\VMD\VMDMotion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -78,9 +75,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VMDLoader\VMDMotion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\Timer.h">
@@ -125,7 +119,7 @@
     <ClInclude Include="PMDModel\PMDLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX12\D12EffekSeer.h">
+    <ClInclude Include="PMDModel\VMD\VMDMotion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

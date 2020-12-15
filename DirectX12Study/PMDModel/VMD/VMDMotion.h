@@ -26,12 +26,13 @@ using VMDData_t = std::unordered_map <std::string,std::vector<VMDData>>;
 
 class VMDMotion
 {
-private:
-	VMDData_t m_vmdDatas;
-	size_t m_maxFrame = 0;
 public:
 	bool Load(const char* path);
 	const VMDData_t& GetVMDMotionData() const;
 	size_t GetMaxFrame() const;
+private:
+	VMDData_t m_vmdDatas;
+	size_t m_maxFrame = 0;
+
 };
 

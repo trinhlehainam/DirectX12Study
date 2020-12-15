@@ -149,7 +149,6 @@
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="Common\Timer.cpp" />
-    <ClCompile Include="DirectX12\D12EffekSeer.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="Utility\DefaultBuffer.cpp" />
     <ClCompile Include="Utility\D12Helper.cpp" />
@@ -164,13 +163,12 @@
     <ClCompile Include="PMDModel\PMDModel.cpp" />
     <ClCompile Include="Utility\UploadBuffer.cpp" />
     <ClCompile Include="Utility\StringHelper.cpp" />
-    <ClCompile Include="VMDLoader\VMDMotion.cpp" />
+    <ClCompile Include="PMDModel\VMD\VMDMotion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Common\Timer.h" />
-    <ClInclude Include="DirectX12\D12EffekSeer.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="Utility\DefaultBuffer.h" />
     <ClInclude Include="Utility\D12Helper.h" />
@@ -185,7 +183,7 @@
     <ClInclude Include="PMDModel\PMDModel.h" />
     <ClInclude Include="Utility\UploadBuffer.h" />
     <ClInclude Include="Utility\StringHelper.h" />
-    <ClInclude Include="VMDLoader\VMDMotion.h" />
+    <ClInclude Include="PMDModel\VMD\VMDMotion.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\primitivePS.hlsl">

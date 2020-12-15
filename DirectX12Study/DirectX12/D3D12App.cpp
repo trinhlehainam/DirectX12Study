@@ -2,7 +2,6 @@
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
-#include "../PMDModel/PMDModel.h"
 #include "../Geometry/GeometryGenerator.h"
 
 #include <cassert>
@@ -241,7 +240,7 @@ void D3D12App::RenderToPostEffectBuffer()
     m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
 
     RenderPrimitive();
-    m_PMDmanager->Render(m_cmdList.Get());
+    m_pmdManager->Render(m_cmdList.Get());
     EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -334,34 +333,32 @@ void D3D12App::EffekseerInit()
 
 void D3D12App::EffekseerUpdate(const float& deltaTime)
 {
-    constexpr float effect_animation_time = 0.1f;
-    static float timer = effect_animation_time;
-    static auto angle = 0.0f;
+    constexpr float effect_animation_time = 10.0f;      // 10 seconds
+    static float s_timer = 0.0f;
+    static auto s_angle = 0.0f;
 
-    if (timer <= 0.0f)
+    if (s_timer <= 0.0f)
     {
         m_effekHandle = m_effekManager->Play(m_effekEffect, 0, 0, 0);
-        timer = effect_animation_time;
+        s_timer = effect_animation_time;
     }
-
-    angle += 1.f * deltaTime;
-    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.1f, 0.0f, 0.0f));
-    m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), angle);
-
+    
+    s_angle += 1.f * deltaTime;
+    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.1f * deltaTime, 0.0f, 0.0f));
+    m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), s_angle);
     //m_effekManager->StopEffect(m_effekHandle);
-    timer -= deltaTime;
+
+    m_effekManager->Update(deltaTime);
+    s_timer -= deltaTime;
     
 }
 
 void D3D12App::EffekseerRender()
 {
-    static int frame = 0;
-
     // Set up frame
     m_effekPool->NewFrame();
     EffekseerRendererDX12::BeginCommandList(m_effekCmdList, m_cmdList.Get());
     m_effekRenderer->SetCommandList(m_effekCmdList);
-    m_effekManager->Update();
     // Render
     m_effekRenderer->BeginRendering();
     m_effekManager->Draw();
@@ -369,8 +366,6 @@ void D3D12App::EffekseerRender()
     // End frame
     m_effekRenderer->SetCommandList(nullptr);
     EffekseerRendererDX12::EndCommandList(m_effekCmdList);
-
-    ++frame;
 }
 
 void D3D12App::EffekseerTerminate()
@@ -784,7 +779,7 @@ void D3D12App::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    m_PMDmanager->RenderDepth(m_cmdList.Get());
+    m_pmdManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1129,7 +1124,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     EffekseerInit();
 
     m_updateBuffers.Clear();
-    m_PMDmanager->ClearSubresources();
+    m_pmdManager->ClearSubresources();
 
     return true;
 }
@@ -1183,16 +1178,18 @@ bool D3D12App::CreateWorldPassConstant()
 
 void D3D12App::CreatePMDModel()
 {
-    m_PMDmanager = std::make_unique<PMDManager>();
+    m_pmdManager = std::make_unique<PMDManager>();
 
-    m_PMDmanager->SetDevice(m_device.Get());
-    m_PMDmanager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
-    m_PMDmanager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
-    m_PMDmanager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
-    m_PMDmanager->Add("Miku").LoadPMD(model1_path);
-    m_PMDmanager->Add("Hibiki").LoadPMD(model2_path);
+    m_pmdManager->SetDevice(m_device.Get());
+    m_pmdManager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
+    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
+    m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
+    m_pmdManager->CreateModel("Miku", model1_path);
+    m_pmdManager->CreateModel("Hibiki", model2_path);
+    m_pmdManager->CreateAnimation("Dancing", motion1_path);
 
-    assert(m_PMDmanager->Init(m_cmdList.Get()));
+    assert(m_pmdManager->Init(m_cmdList.Get()));
+    assert(m_pmdManager->Play("Miku", "Dancing"));
 
     return;
 }
@@ -1201,6 +1198,7 @@ bool D3D12App::Update(const float& deltaTime)
 {
     // Effekseert
     EffekseerUpdate(deltaTime);
+    m_pmdManager->Update(deltaTime);
 
     angle = 0.1f;
     
@@ -1210,13 +1208,13 @@ bool D3D12App::Update(const float& deltaTime)
     // Test
     auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
     if (m_keyboard.IsPressed('M'))
-        m_PMDmanager->Get("Miku").Transform(translate);
+        
 
     angle = 0.5f * deltaTime;
     auto rotate = XMMatrixRotationY(angle);
     if (m_keyboard.IsPressed('R'))
     {
-        m_PMDmanager->Get("Miku").Transform(rotate);
+        
     }
 
     if (m_keyboard.IsPressed(VK_LEFT))
@@ -1242,7 +1240,6 @@ bool D3D12App::Update(const float& deltaTime)
         static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
         0.1f,
         300.0f);
-
 
     auto& worldPassData = m_worldPCBuffer.MappedData();
     worldPassData.viewproj = viewproj;

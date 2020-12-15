@@ -9,6 +9,7 @@ using Microsoft::WRL::ComPtr;
 
 class PMDModel;
 class Timer;
+class VMDMotion;
 
 class PMDManager
 {
@@ -34,17 +35,26 @@ public:
 	// Need to set up all resource for PMD Manager BEFORE initialize it
 	bool Init(ID3D12GraphicsCommandList* cmdList);
 
-	bool ClearSubresources();
-
 	// Use for check PMD Manager is initialized
 	// If PMD Manager isn't initialized, some feature of it won't work right
 	bool IsInitialized();
+
+	/// <param name="modelName: ">name of model</param>
+	/// <param name="modelFilePath: ">path to model's file</param>
+	/// <returns>
+	/// <para>False if given name of model is already created.</para>
+	/// Or path to model file is unvalid
+	/// </returns>
+	bool CreateModel(const std::string& modelName, const char* modelFilePath);
+	bool CreateAnimation(const std::string& animationName, const char* animationFilePath);
+
+	/// <summary>
+	/// <para>Clear all resources that updated to default buffer.</para>
+	/// <para>Call AFTER GPU updated subresources to default buffer.</para>
+	/// </summary>
+	bool ClearSubresources();
 public:
-	PMDModel& Add(const std::string& name);
-	PMDModel& Get(const std::string& name);
-
 	void Update(const float& deltaTime);
-
 	void Render(ID3D12GraphicsCommandList* cmdList);
 
 	// Function use for taking models depth value
@@ -52,6 +62,27 @@ public:
 	// or any pipeline
 	// client must set pipeline before use this
 	void RenderDepth(ID3D12GraphicsCommandList* cmdList);
+
+	/// <summary>
+	/// Play animation
+	/// <para>Need to use after PMDManager is initialized</para>
+	/// </summary>
+	/// <param name="modelName: ">name of model</param>
+	/// <param name="animationName: ">name of animation</param>
+	/// <returns>
+	/// <para> FALSE: if the name in one of the two variable is unvalid </para>
+	/// <para> or miss order between model and animation </para>
+	/// </returns>
+	bool Play(const std::string& modelName, const std::string& animationName);
+
+	// Move models
+	bool Move(const std::string& modelName, float moveX, float moveY, float moveZ);
+	// Rotate Model
+	bool RotateX(const std::string& modelName, float angle);
+	bool RotateY(const std::string& modelName, float angle);
+	bool RotateZ(const std::string& modelName, float angle);
+	// Scale model
+	bool Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ);
 private:
 	void InitModels(ID3D12GraphicsCommandList* cmdList);
 
@@ -74,7 +105,6 @@ private:
 
 	bool m_isInitDone = false;
 private:
-	friend class D3D12App;
 
 	bool CreatePipeline();
 	bool CreateRootSignature();
@@ -86,7 +116,7 @@ private:
 	// Device from engine
 	ID3D12Device* m_device = nullptr;
 
-	// Default resource from engine
+	// Default resources from engine
 	ID3D12Resource* m_whiteTexture = nullptr;
 	ID3D12Resource* m_blackTexture = nullptr;
 	ID3D12Resource* m_gradTexture = nullptr;
@@ -107,6 +137,7 @@ private:
 
 private:
 	std::unordered_map<std::string, PMDModel> m_models;
+	std::unordered_map<std::string, VMDMotion> m_animations;
 	PMDMesh m_mesh;
 };
 
