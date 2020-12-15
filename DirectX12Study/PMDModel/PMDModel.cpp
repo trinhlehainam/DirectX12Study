@@ -4,6 +4,7 @@
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
 #include "PMDLoader.h"
+#include "../common.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -57,30 +58,32 @@ void PMDModel::Play(VMDMotion* animation)
 
 void PMDModel::Move(const float& moveX, const float& moveY, const float& moveZ)
 {
+	Transform(XMMatrixTranslation(moveX, moveY, moveZ));
 }
 
 void PMDModel::RotateX(const float& angle)
 {
+	Transform(XMMatrixRotationX(angle));
 }
 
 void PMDModel::RotateY(const float& angle)
 {
+	Transform(XMMatrixRotationY(angle));
 }
 
 void PMDModel::RotateZ(const float& angle)
 {
+	Transform(XMMatrixRotationZ(angle));
 }
 
 void PMDModel::Scale(const float& scaleX, const float& scaleY, const float& scaleZ)
 {
+	Transform(XMMatrixScaling(scaleX, scaleY, scaleZ));
 }
 
 void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
 	const uint32_t& BaseVertexLocation)
 {
-	//auto frame = frameNO % vmdMotion_->GetMaxFrame();
-	//UpdateMotionTransform(frame);
-
 	/*-------------Set up transform-------------*/
 	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(2, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
@@ -118,11 +121,16 @@ void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& I
 
 void PMDModel::Update(const float& deltaTime)
 {
-	static uint64_t s_engine_frame = 0;
-	static uint64_t s_motion_frame = 0;
-	//if (++s_engine_frame % 1000 == 0)
-		++s_motion_frame;
-	UpdateMotionTransform(s_motion_frame);
+	static float s_timer = 0.0f;
+	static uint64_t s_frame = 0;
+	constexpr float animation_speed = 100.0f/second_to_millisecond;
+	if (s_timer <= 0.0f)
+	{
+		s_timer = animation_speed;
+		++s_frame;
+		UpdateMotionTransform(s_frame);
+	}
+	s_timer -= deltaTime;
 }
 
 const std::vector<uint16_t>& PMDModel::Indices() const
@@ -338,7 +346,7 @@ void PMDModel::LoadTextureToBuffer()
 
 void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 {
-	// If model don't have animtion, don't need to run this method
+	// If model don't have animtion, don't need to do motion
 	if (!m_vmdMotion) return;
 
 	auto& motionData = m_vmdMotion->GetVMDMotionData();

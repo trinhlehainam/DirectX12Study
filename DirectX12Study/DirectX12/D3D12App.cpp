@@ -33,13 +33,7 @@ namespace
     const char* motion1_path = "Resource/VMD/ƒ„ƒSƒRƒƒ_ƒ“ƒX.vmd";
     const char* motion2_path = "Resource/VMD/swing2.vmd";
 
-    size_t frameNO = 0;
-    float lastTick = 0;
-
-    constexpr float animation_speed = millisecond_per_frame / second_to_millisecond;
-    float timer = animation_speed;
-    float angle = 0;
-    float scalar = 0.1;
+    float g_scalar = 0.1;
     constexpr float scale_speed = 1;
 }
 
@@ -1200,7 +1194,8 @@ bool D3D12App::Update(const float& deltaTime)
     EffekseerUpdate(deltaTime);
     m_pmdManager->Update(deltaTime);
 
-    angle = 0.1f;
+    static float s_angle = 0.0f;
+    s_angle = 0.1f;
     
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
     static float movespeed = 10.f;
@@ -1210,8 +1205,8 @@ bool D3D12App::Update(const float& deltaTime)
     if (m_keyboard.IsPressed('M'))
         
 
-    angle = 0.5f * deltaTime;
-    auto rotate = XMMatrixRotationY(angle);
+    s_angle = 0.5f * deltaTime;
+    auto rotate = XMMatrixRotationY(s_angle);
     if (m_keyboard.IsPressed('R'))
     {
         
@@ -1243,18 +1238,9 @@ bool D3D12App::Update(const float& deltaTime)
 
     auto& worldPassData = m_worldPCBuffer.MappedData();
     worldPassData.viewproj = viewproj;
-
-    static float scale = 0;
-    scale = 1;
-    if (m_mouse.IsLeftPressed())
-        scale += 0.2f;
-    if (m_mouse.IsRightPressed())
-        scale -= 0.2f;
         
-    timer -= deltaTime;
-
-    scalar = scalar > 5 ? 0.1 : scalar;
-    m_timeBuffer.CopyData(scalar);
+    g_scalar = g_scalar > 5 ? 0.1 : g_scalar;
+    m_timeBuffer.CopyData(g_scalar);
 
     return true;
 }

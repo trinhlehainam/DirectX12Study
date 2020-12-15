@@ -35,8 +35,6 @@ public:
 
 	void ClearSubresources();
 public:
-	void Transform(const DirectX::XMMATRIX& transformMatrix);
-
 	void Play(VMDMotion* animation);
 	void Move(const float& moveX, const float& moveY, const float& moveZ);
 	void RotateX(const float& angle);
@@ -92,6 +90,8 @@ private:
 	std::unordered_map<std::string, uint16_t> m_bonesTable;
 	std::vector<DirectX::XMMATRIX> m_boneMatrices;
 	VMDMotion* m_vmdMotion = nullptr;
+
+	void Transform(const DirectX::XMMATRIX& transformMatrix);
 
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
