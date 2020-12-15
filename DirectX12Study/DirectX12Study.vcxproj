@@ -118,14 +118,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(EFFEKSEER_INCLUDE)\EffekseerRendererDX12;$(EFFEKSEER_INCLUDE)\Effekseer;$(DXTEX_DIR);$(EFFEKSEER_INCLUDE)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(DXTEX_DIR);$(EFFEKSEER_DIR)\include;$(EFFEKSEER_DIR)\include\Effekseer;$(EFFEKSEER_DIR)\include\EffekseerRendererDX12</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(EFFEKSEER_LIB);$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;$(EFFEKSEER_DIR)\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

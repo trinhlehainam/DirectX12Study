@@ -995,9 +995,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
