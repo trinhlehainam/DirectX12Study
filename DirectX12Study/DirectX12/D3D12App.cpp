@@ -235,7 +235,7 @@ void D3D12App::RenderToPostEffectBuffer()
 
     RenderPrimitive();
     m_pmdManager->Render(m_cmdList.Get());
-    EffekseerRender();
+    //EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -274,6 +274,9 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_cmdList->DrawInstanced(4, 1, 0, 0);
 
+    // Need to render to swap chain RTV
+    EffekseerRender();
+
 }
 
 void D3D12App::SetBackBufferIndexForNextFrame()
@@ -285,7 +288,7 @@ void D3D12App::SetBackBufferIndexForNextFrame()
 void D3D12App::EffekseerInit()
 {
     // Create renderer
-    auto backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    auto backBufferFormat = m_backBuffer[0]->GetDesc().Format;
     m_effekRenderer = EffekseerRendererDX12::Create(m_device.Get(), m_cmdQue.Get(), 2, &backBufferFormat, 1,
         DXGI_FORMAT_UNKNOWN, false, 8000);
 
@@ -311,7 +314,7 @@ void D3D12App::EffekseerInit()
     m_effekManager->SetModelLoader(m_effekRenderer->CreateModelLoader());
 
     // Load effect from file path
-    const EFK_CHAR* effect_path = u"Resource/Effekseer/Laser01.efk";
+    const EFK_CHAR* effect_path = u"Resource/Effekseer/test.efk";
     m_effekEffect = Effekseer::Effect::Create(m_effekManager, effect_path);
 
     auto& app = Application::Instance();
@@ -319,10 +322,11 @@ void D3D12App::EffekseerInit()
 
     auto viewPos = Effekseer::Vector3D(10.0f, 10.0f, 10.0f);
 
-    m_effekRenderer->SetProjectionMatrix(Effekseer::Matrix44().PerspectiveFovRH(XM_PIDIV4, app.GetAspectRatio(), 1.0f, 500.0f));
+    m_effekRenderer->SetProjectionMatrix(Effekseer::Matrix44().PerspectiveFovRH(XM_PIDIV2, app.GetAspectRatio(), 0.1f, 300.0f));
 
     m_effekRenderer->SetCameraMatrix(
         Effekseer::Matrix44().LookAtRH(viewPos, Effekseer::Vector3D(0.0f, 0.0f, 0.0f), Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
+
 }
 
 void D3D12App::EffekseerUpdate(const float& deltaTime)
@@ -330,19 +334,30 @@ void D3D12App::EffekseerUpdate(const float& deltaTime)
     constexpr float effect_animation_time = 10.0f;      // 10 seconds
     static float s_timer = 0.0f;
     static auto s_angle = 0.0f;
+    static bool s_isPlaying = false;
 
     if (s_timer <= 0.0f)
     {
-        m_effekHandle = m_effekManager->Play(m_effekEffect, 0, 0, 0);
         s_timer = effect_animation_time;
+
+        if (!s_isPlaying)
+        {
+            m_effekHandle = m_effekManager->Play(m_effekEffect, 0, 0, 0);
+            s_isPlaying = true;
+        }   
     }
     
     s_angle += 1.f * deltaTime;
-    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.1f * deltaTime, 0.0f, 0.0f));
+    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(1.f * deltaTime, 0.0f, 0.0f));
     m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), s_angle);
-    //m_effekManager->StopEffect(m_effekHandle);
 
-    m_effekManager->Update(deltaTime);
+    if (m_keyboard.IsPressed('S'))
+    {
+        m_effekManager->StopEffect(m_effekHandle);
+        s_isPlaying = false;
+    }
+    
+    m_effekManager->Update(millisecond_per_frame/second_to_millisecond);
     s_timer -= deltaTime;
     
 }
@@ -1081,9 +1096,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1134,7 +1149,7 @@ bool D3D12App::CreateWorldPassConstant()
 
     auto& mappedData = m_worldPCBuffer.MappedData();
 
-    auto wSize = Application::Instance().GetWindowSize();
+    auto& app = Application::Instance();
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
@@ -1144,7 +1159,7 @@ bool D3D12App::CreateWorldPassConstant()
 
     // projection array
     viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
-        static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+        app.GetAspectRatio(),
         0.1f,
         300.0f);
 
@@ -1155,9 +1170,7 @@ bool D3D12App::CreateWorldPassConstant()
     mappedData.shadow = XMMatrixShadow(plane, light);
 
     XMVECTOR lightPos = { -10,30,30,1 };
-    XMVECTOR targetPos = { 10,0,0,1 };
-    auto screenSize = Application::Instance().GetWindowSize();
-    float aspect = static_cast<float>(screenSize.width) / screenSize.height;
+    XMVECTOR targetPos = { 0,0,0,1 };
     mappedData.lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
         XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
 
@@ -1204,7 +1217,6 @@ bool D3D12App::Update(const float& deltaTime)
     auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
     if (m_keyboard.IsPressed('M'))
         
-
     s_angle = 0.5f * deltaTime;
     auto rotate = XMMatrixRotationY(s_angle);
     if (m_keyboard.IsPressed('R'))

@@ -83,3 +83,24 @@ private:
 	using UpdateBuffer_t = std::pair<ComPtr<ID3D12Resource>, D3D12_SUBRESOURCE_DATA>;
 	std::unordered_map<std::string, UpdateBuffer_t> m_updateBuffers;
 };
+
+#define SAFE_RELEASE(x)\
+if(x != nullptr)\
+{\
+x->Release();\
+x = nullptr; \
+}
+
+#define SAFE_DELETE(x)\
+if(x != nullptr)\
+{\
+delete x;\
+x = nullptr; \
+}
+
+#define SAFE_DELETE_ARRAY(x)\
+if(x != nullptr)\
+{\
+delete[] x;\
+x = nullptr; \
+}

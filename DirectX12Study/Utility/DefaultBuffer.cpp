@@ -4,7 +4,7 @@
 
 DefaultBuffer::~DefaultBuffer()
 {
-    ResetSubresource();
+    SAFE_DELETE(m_subresource);
 }
 
 ID3D12Resource* DefaultBuffer::Resource()
@@ -87,19 +87,10 @@ bool DefaultBuffer::UpdateSubresource(ID3D12Device* pDevice, ID3D12GraphicsComma
 
 bool DefaultBuffer::ClearSubresource()
 {
-    ResetSubresource();
+    SAFE_DELETE(m_subresource);
         
     if (!m_intermedinateBuffer) return false;
     m_intermedinateBuffer.Reset();
 
     return true;
-}
-
-void DefaultBuffer::ResetSubresource()
-{
-    if (m_subresource != nullptr)
-    {
-        delete m_subresource;
-        m_subresource = nullptr;
-    }
 }
