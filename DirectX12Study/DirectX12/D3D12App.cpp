@@ -1096,9 +1096,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1210,31 +1210,14 @@ bool D3D12App::Update(const float& deltaTime)
     static float s_angle = 0.0f;
     s_angle = 0.1f;
     
+    if(m_keyboard.IsPressed('R'))
+        m_pmdManager->RotateY("Miku", 0.1f);
+
     static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
     static float movespeed = 10.f;
 
     // Test
     auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
-    if (m_keyboard.IsPressed('M'))
-        
-    s_angle = 0.5f * deltaTime;
-    auto rotate = XMMatrixRotationY(s_angle);
-    if (m_keyboard.IsPressed('R'))
-    {
-        
-    }
-
-    if (m_keyboard.IsPressed(VK_LEFT))
-        viewpos.m128_f32[0] -= movespeed * deltaTime;
-    if (m_keyboard.IsPressed(VK_RIGHT))
-        viewpos.m128_f32[0] += movespeed * deltaTime;
-
-    if(m_keyboard.IsPressed(VK_UP))
-        viewpos.m128_f32[1] += movespeed * deltaTime;
-    if(m_keyboard.IsPressed(VK_DOWN))
-        viewpos.m128_f32[1] -= movespeed * deltaTime;
-
-    auto wSize = Application::Instance().GetWindowSize();
 
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
@@ -1244,7 +1227,7 @@ bool D3D12App::Update(const float& deltaTime)
 
     // projection array
     viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
-        static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+        Application::Instance().GetAspectRatio(),
         0.1f,
         300.0f);
 

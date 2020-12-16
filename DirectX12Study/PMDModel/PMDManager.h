@@ -85,6 +85,8 @@ public:
 	bool Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ);
 private:
 	void InitModels(ID3D12GraphicsCommandList* cmdList);
+	bool HasModel(std::string const& modelName);
+	bool HasAnimation(std::string const& animationName);
 
 	// When Initialization hasn't done
 	// =>Client's Render and Update methods are putted to sleep

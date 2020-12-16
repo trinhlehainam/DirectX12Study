@@ -163,10 +163,10 @@ void PMDManager::RenderDepth(ID3D12GraphicsCommandList* cmdList)
 bool PMDManager::Play(const std::string& modelName, const std::string& animationName)
 {
 	if (!m_isInitDone) return false;
-	assert(m_models.count(modelName));
-	if (!m_models.count(modelName)) return false;
-	assert(m_animations.count(animationName));
-	if (!m_animations.count(animationName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
+	assert(HasAnimation(animationName));
+	if (!HasAnimation(animationName)) return false;
 
 	m_models[modelName].Play(&m_animations[animationName]);
 
@@ -175,39 +175,39 @@ bool PMDManager::Play(const std::string& modelName, const std::string& animation
 
 bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, float moveZ)
 {
-	assert(m_models.count(modelName));
-	if (m_models.count(modelName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
 	return true;
 }
 
 bool PMDManager::RotateX(const std::string& modelName, float angle)
 {
-	assert(m_models.count(modelName));
-	if (m_models.count(modelName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
 	m_models[modelName].RotateX(angle);
 	return true;
 }
 
 bool PMDManager::RotateY(const std::string& modelName, float angle)
 {
-	assert(m_models.count(modelName));
-	if (m_models.count(modelName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
 	m_models[modelName].RotateY(angle);
 	return true;
 }
 
 bool PMDManager::RotateZ(const std::string& modelName, float angle)
 {
-	assert(m_models.count(modelName));
-	if (m_models.count(modelName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
 	m_models[modelName].RotateZ(angle);
 	return true;
 }
 
 bool PMDManager::Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ)
 {
-	assert(m_models.count(modelName));
-	if (m_models.count(modelName)) return false;
+	assert(HasModel(modelName));
+	if (!HasModel(modelName)) return false;
 	m_models[modelName].Scale(scaleX, scaleY, scaleZ);
 	return true;
 }
@@ -255,6 +255,16 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 	m_mesh.CreateBuffers(m_device, cmdList);
 	m_mesh.CreateViews();
+}
+
+bool PMDManager::HasModel(std::string const& modelName)
+{
+	return m_models.count(modelName);
+}
+
+bool PMDManager::HasAnimation(std::string const& animationName)
+{
+	return m_animations.count(animationName);
 }
 
 void PMDManager::SleepUpdate(const float& deltaTime)
@@ -327,7 +337,6 @@ void PMDManager::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	
 		data.RenderDepth(cmdList, indexCount, startIndex, baseVertex);
 	}
-
 }
 
 bool PMDManager::CreatePipeline()
