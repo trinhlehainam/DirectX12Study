@@ -389,6 +389,54 @@ void D3D12App::EffekseerTerminate()
     m_effekRenderer->Destroy();
 }
 
+namespace
+{
+    float Clamp(const float& value, const float& minValue = 0.0f, const float& maxValue = 1.0f)
+    {
+        return max(minValue, min(maxValue, value));
+    }
+}
+
+void D3D12App::UpdateCamera(const float& deltaTime)
+{
+    if (m_mouse.IsRightPressed())
+    {
+        auto dx = XMConvertToRadians(static_cast<float>(m_mouse.GetPosX() - m_lastMousePos.x));
+        auto dy = XMConvertToRadians(static_cast<float>(m_mouse.GetPosY() - m_lastMousePos.y));
+
+        m_camera.Theta += dx;
+        m_camera.Phi += dy;
+    }
+    constexpr float camera_move_speed = 10.0f;
+    if (m_keyboard.IsPressed(VK_UP))
+    {
+        m_camera.Radius -= camera_move_speed * deltaTime;
+    }
+    if (m_keyboard.IsPressed(VK_DOWN))
+    {
+        m_camera.Radius += camera_move_speed * deltaTime;
+    }
+    m_camera.Radius = Clamp(m_camera.Radius, 0.1f, 100.0f);
+    // Update last mouse position
+    m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
+
+    // Update camera position
+    m_camera.Position.x = m_camera.Radius * sinf(m_camera.Phi) * cosf(m_camera.Theta);
+    m_camera.Position.y = m_camera.Radius * cosf(m_camera.Phi);
+    m_camera.Position.z = m_camera.Radius * sinf(m_camera.Phi) * sinf(m_camera.Theta);
+
+    // camera array (view)
+    XMMATRIX viewproj = XMMatrixLookAtRH(
+        XMLoadFloat3(&m_camera.Position),
+        XMVectorZero(),
+        XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+    // projection array
+    viewproj *= m_projMatrix;
+
+    m_worldPCBuffer.MappedData().viewproj = viewproj;
+}
+
 void D3D12App::CreateNormalMapTexture()
 {
     normalMapTex_ = D12Helper::CreateTextureFromFilePath(m_device, L"Resource/Image/normalmap3.png");
@@ -614,7 +662,7 @@ bool D3D12App::CreateShadowDepthBuffer()
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
         &clearValue);
 
-    D12Helper::CreateDescriptorHeap(m_device.Get(), shadowDSVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    D12Helper::CreateDescriptorHeap(m_device.Get(), m_shadowDSVHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -623,7 +671,7 @@ bool D3D12App::CreateShadowDepthBuffer()
     m_device->CreateDepthStencilView(
         m_shadowDepthBuffer.Get(),
         &dsvDesc,
-        shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
+        m_shadowDSVHeap->GetCPUDescriptorHandleForHeapStart());
 
     return true;
 }
@@ -665,7 +713,7 @@ void D3D12App::CreateShadowRootSignature()
     D12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
     result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
-        IID_PPV_ARGS(shadowRootSig_.GetAddressOf()));
+        IID_PPV_ARGS(m_shadowRootSig.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
@@ -765,21 +813,21 @@ void D3D12App::CreateShadowPipelineState()
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
     // Root Signature
-    psoDesc.pRootSignature = shadowRootSig_.Get();
+    psoDesc.pRootSignature = m_shadowRootSig.Get();
 
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(shadowPipeline_.GetAddressOf()));
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_shadowPipeline.GetAddressOf()));
     assert(SUCCEEDED(result));
 
 }
 
 void D3D12App::RenderToShadowDepthBuffer()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(m_shadowDSVHeap->GetCPUDescriptorHandleForHeapStart());
     m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
-    m_cmdList->SetPipelineState(shadowPipeline_.Get());
-    m_cmdList->SetGraphicsRootSignature(shadowRootSig_.Get());
+    m_cmdList->SetPipelineState(m_shadowPipeline.Get());
+    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
 
     CD3DX12_VIEWPORT vp(m_shadowDepthBuffer.Get());
     m_cmdList->RSSetViewports(1, &vp);
@@ -1151,17 +1199,24 @@ bool D3D12App::CreateWorldPassConstant()
 
     auto& app = Application::Instance();
 
+    // Init camera position
+    m_camera.Position.x = m_camera.Radius * sinf(m_camera.Phi) * cosf(m_camera.Theta);
+    m_camera.Position.y = m_camera.Radius * cosf(m_camera.Phi);
+    m_camera.Position.z = m_camera.Radius * sinf(m_camera.Phi) * sinf(m_camera.Theta);
+
     // camera array (view)
     XMMATRIX viewproj = XMMatrixLookAtRH(
-        { 10.0f, 10.0f, 10.0f, 1.0f },
-        { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 1.0f, 0.0f, 0.0f });
+        XMLoadFloat3(&m_camera.Position),
+        XMVectorZero(),
+        XMVectorSet(0.0f,1.0f,0.0f,0.0f));
 
-    // projection array
-    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
+    m_projMatrix = XMMatrixPerspectiveFovRH(XM_PIDIV2,
         app.GetAspectRatio(),
         0.1f,
         300.0f);
+
+    // projection array
+    viewproj *= m_projMatrix;
 
     mappedData.viewproj = viewproj;
     XMVECTOR plane = { 0,1,0,0 };
@@ -1203,36 +1258,13 @@ void D3D12App::CreatePMDModel()
 
 bool D3D12App::Update(const float& deltaTime)
 {
-    // Effekseert
+    UpdateCamera(deltaTime);
     EffekseerUpdate(deltaTime);
-    m_pmdManager->Update(deltaTime);
 
-    static float s_angle = 0.0f;
-    s_angle = 0.1f;
-    
-    if(m_keyboard.IsPressed('R'))
+    if (m_keyboard.IsPressed('R'))
         m_pmdManager->RotateY("Miku", 0.1f);
-
-    static XMVECTOR viewpos = { 10.0f, 10.0f, 10.0f, 1.0f };
-    static float movespeed = 10.f;
-
-    // Test
-    auto translate = XMMatrixTranslation(5.0f * deltaTime, 0.0f, 0.0f);
-
-    // camera array (view)
-    XMMATRIX viewproj = XMMatrixLookAtRH(
-        viewpos,
-        { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 1.0f, 0.0f, 0.0f });
-
-    // projection array
-    viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2,
-        Application::Instance().GetAspectRatio(),
-        0.1f,
-        300.0f);
-
-    auto& worldPassData = m_worldPCBuffer.MappedData();
-    worldPassData.viewproj = viewproj;
+    m_pmdManager->Update(deltaTime);
+    
         
     g_scalar = g_scalar > 5 ? 0.1 : g_scalar;
     m_timeBuffer.CopyData(g_scalar);

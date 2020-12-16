@@ -15,6 +15,8 @@ public:
 	void GetPos(int& x, int& y);
 	void GetPosX(int& x);
 	void GetPosY(int& y);
+	int GetPosX() const;
+	int GetPosY() const;
 
 	bool IsRightPressed();
 	bool IsRightPressed(int& x, int& y);

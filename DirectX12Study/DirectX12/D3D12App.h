@@ -123,12 +123,12 @@ private:
 	void CreateShadowMapping();
 
 	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
-	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
-	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
+	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
+	ComPtr<ID3D12DescriptorHeap> m_shadowSRVHeap;
 	bool CreateShadowDepthBuffer();
 
-	ComPtr<ID3D12PipelineState> shadowPipeline_;
-	ComPtr<ID3D12RootSignature> shadowRootSig_;
+	ComPtr<ID3D12PipelineState> m_shadowPipeline;
+	ComPtr<ID3D12RootSignature> m_shadowRootSig;
 	void CreateShadowRootSignature();
 	void CreateShadowPipelineState();
 
@@ -173,5 +173,20 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
+private:
+	struct Camera
+	{
+		DirectX::XMFLOAT3 Position = { 0.0f,0.0f,0.0f };
+		float Theta = 0.0f;
+		float Phi = DirectX::XM_PIDIV2;
+		float Radius = 30.0f;
+	};
+
+	Camera m_camera;
+	DirectX::XMMATRIX m_projMatrix;
+	DirectX::XMINT2 m_lastMousePos;
+
+	void UpdateCamera(const float& deltaTime);
+
 };
 

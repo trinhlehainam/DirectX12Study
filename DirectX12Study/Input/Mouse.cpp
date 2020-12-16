@@ -20,6 +20,16 @@ void Mouse::GetPosY(int& y)
 	y = m_pos[MOUSE_STATE_MOVE].y;
 }
 
+int Mouse::GetPosX() const
+{
+	return m_pos[MOUSE_STATE_MOVE].x;
+}
+
+int Mouse::GetPosY() const
+{
+	return m_pos[MOUSE_STATE_MOVE].y;
+}
+
 bool Mouse::IsRightPressed()
 {
 	return m_mouseDown[MOUSE_BUTTON_RIGHT];;
