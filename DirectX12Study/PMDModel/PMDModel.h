@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <memory>
 
-#include "../Utility/UploadBuffer.h"
-#include "../Utility/DefaultBuffer.h"
+#include "../DirectX12/UploadBuffer.h"
+#include "../DirectX12/DefaultBuffer.h"
 #include "PMDCommon.h"
 
 using Microsoft::WRL::ComPtr;

@@ -401,40 +401,26 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 {
     if (m_mouse.IsRightPressed())
     {
-        auto dx = XMConvertToRadians(static_cast<float>(m_mouse.GetPosX() - m_lastMousePos.x));
-        auto dy = XMConvertToRadians(static_cast<float>(m_mouse.GetPosY() - m_lastMousePos.y));
+        auto dx = static_cast<float>(m_mouse.GetPosX() - m_lastMousePos.x);
+        auto dy = static_cast<float>(m_mouse.GetPosY() - m_lastMousePos.y);
 
-        m_camera.Theta += dx;
-        m_camera.Phi += dy;
+        m_camera.RotateAroundTarget(dx, dy);
     }
     constexpr float camera_move_speed = 10.0f;
     if (m_keyboard.IsPressed(VK_UP))
     {
-        m_camera.Radius -= camera_move_speed * deltaTime;
+        m_camera.DollyInTarget(camera_move_speed * deltaTime);
     }
     if (m_keyboard.IsPressed(VK_DOWN))
     {
-        m_camera.Radius += camera_move_speed * deltaTime;
+        m_camera.DollyOutTarget(camera_move_speed * deltaTime);
     }
-    m_camera.Radius = Clamp(m_camera.Radius, 0.1f, 100.0f);
     // Update last mouse position
     m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
+    m_camera.Update();
 
-    // Update camera position
-    m_camera.Position.x = m_camera.Radius * sinf(m_camera.Phi) * cosf(m_camera.Theta);
-    m_camera.Position.y = m_camera.Radius * cosf(m_camera.Phi);
-    m_camera.Position.z = m_camera.Radius * sinf(m_camera.Phi) * sinf(m_camera.Theta);
-
-    // camera array (view)
-    XMMATRIX viewproj = XMMatrixLookAtRH(
-        XMLoadFloat3(&m_camera.Position),
-        XMVectorZero(),
-        XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-
-    // projection array
-    viewproj *= m_projMatrix;
-
-    m_worldPCBuffer.MappedData().viewproj = viewproj;
+    auto viewproj = m_camera.GetViewProjectionMatrix(); 
+    m_worldPCBuffer.MappedData().viewproj = XMLoadFloat4x4(&viewproj);
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -1199,26 +1185,16 @@ bool D3D12App::CreateWorldPassConstant()
 
     auto& app = Application::Instance();
 
-    // Init camera position
-    m_camera.Position.x = m_camera.Radius * sinf(m_camera.Phi) * cosf(m_camera.Theta);
-    m_camera.Position.y = m_camera.Radius * cosf(m_camera.Phi);
-    m_camera.Position.z = m_camera.Radius * sinf(m_camera.Phi) * sinf(m_camera.Theta);
-
-    // camera array (view)
-    XMMATRIX viewproj = XMMatrixLookAtRH(
-        XMLoadFloat3(&m_camera.Position),
-        XMVectorZero(),
-        XMVectorSet(0.0f,1.0f,0.0f,0.0f));
-
-    m_projMatrix = XMMatrixPerspectiveFovRH(XM_PIDIV2,
-        app.GetAspectRatio(),
-        0.1f,
-        300.0f);
+    m_camera.SetCameraPosition(10.0f, 10.0f, 10.0f);
+    m_camera.SetFOVAngle(XM_PIDIV2);
+    m_camera.SetTargetPosition(0.0f, 0.0f, 0.0f);
+    m_camera.SetAspectRatio(app.GetAspectRatio());
+    m_camera.SetViewFrustum(0.1f, 500.0f);
+    m_camera.Init();
 
     // projection array
-    viewproj *= m_projMatrix;
-
-    mappedData.viewproj = viewproj;
+    auto viewproj = m_camera.GetViewProjectionMatrix();
+    mappedData.viewproj = XMLoadFloat4x4(&viewproj);
     XMVECTOR plane = { 0,1,0,0 };
     XMVECTOR light = { -1,1,-1,0 };
     mappedData.lightPos = light;

@@ -4,7 +4,7 @@
 #include <string>
 
 #include "PMDCommon.h"
-#include "../Utility/DefaultBuffer.h"
+#include "../DirectX12/DefaultBuffer.h"
 
 struct SubMesh
 {

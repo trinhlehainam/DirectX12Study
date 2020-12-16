@@ -8,10 +8,11 @@
 #include <Effekseer/Effekseer.h>
 #include <EffekseerRendererDX12/EffekseerRendererDX12.h>
 
+#include "Camera.h"
+#include "UploadBuffer.h"
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "../Utility/D12Helper.h"
-#include "../Utility/UploadBuffer.h"
 #include "../PMDModel/PMDManager.h"
 #include "../common.h"
 
@@ -43,6 +44,10 @@ public:
 private:
 	Keyboard m_keyboard;
 	Mouse m_mouse;
+	Camera m_camera;
+	DirectX::XMINT2 m_lastMousePos;
+
+	void UpdateCamera(const float& deltaTime);
 private:
 
 	ComPtr<ID3D12Device> m_device;
@@ -173,20 +178,6 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
-private:
-	struct Camera
-	{
-		DirectX::XMFLOAT3 Position = { 0.0f,0.0f,0.0f };
-		float Theta = 0.0f;
-		float Phi = DirectX::XM_PIDIV2;
-		float Radius = 30.0f;
-	};
-
-	Camera m_camera;
-	DirectX::XMMATRIX m_projMatrix;
-	DirectX::XMINT2 m_lastMousePos;
-
-	void UpdateCamera(const float& deltaTime);
 
 };
 
