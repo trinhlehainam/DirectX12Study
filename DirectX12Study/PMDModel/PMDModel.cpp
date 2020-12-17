@@ -46,7 +46,7 @@ void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 {
-	m_transformBuffer.MappedData().world *= transformMatrix;
+	m_transformBuffer.HandleMappedData()->world *= transformMatrix;
 }
 
 void PMDModel::Play(VMDMotion* animation)
@@ -183,11 +183,11 @@ bool PMDModel::CreateTransformConstantBuffer()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_transformDescHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
-	auto& mappedData = m_transformBuffer.MappedData();
-	mappedData.world = XMMatrixIdentity();
+	auto mappedData = m_transformBuffer.HandleMappedData();
+	mappedData->world = XMMatrixIdentity();
 	auto bones = m_boneMatrices;
 
-	std::copy(bones.begin(), bones.end(), mappedData.bones);
+	std::copy(bones.begin(), bones.end(), mappedData->bones);
 
 	return true;
 }
@@ -383,8 +383,8 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	}
 
 	RecursiveCalculate(m_bones, mats, 0);
-	auto& mappedBones = m_transformBuffer.MappedData();
-	std::copy(mats.begin(), mats.end(), mappedBones.bones);
+	auto mappedBones = m_transformBuffer.HandleMappedData();
+	std::copy(mats.begin(), mats.end(), mappedBones->bones);
 }
 
 float PMDModel::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)

@@ -21,9 +21,16 @@ public:
 	size_t SizeInBytes() const;
 	size_t ElementSize() const;
 
-	// If buffer has MULTIPLE elements of data, get data of input index
-	// If buffer has only one element , index is automatically set to default (0)
-	T& MappedData(uint32_t index = 0);
+	/// <summary>
+	/// <para>If buffer has MULTIPLE elements of data, get data of index element</para>
+	/// If buffer has only one element , index is automatically set to default (0)
+	/// </summary>
+	/// <param name="index: "></param>
+	/// <returns>
+	/// <para>pointer to mapped data</para>
+	/// nullptr if Copy is Disable
+	/// </returns>
+	T* HandleMappedData(uint32_t index = 0);
 
 	// If buffer has MULTIPLE elements, copy data to specific index
 	// return false if index is invalid (index is larger than number of element)
@@ -48,7 +55,8 @@ private:
 
 private:
 	ComPtr<ID3D12Resource> m_buffer = nullptr;
-	T* m_mappedData = nullptr;
+	// Pointer to multiple one-byte to do padding
+	uint8_t* m_mappedData = nullptr;
 	// uint16_t max value is 0xffff (65535)
 	// it maybe too small with size of Indices
 	uint32_t m_elementCount = 0;
@@ -126,12 +134,15 @@ inline size_t UploadBuffer<T>::ElementSize() const
 }
 
 template<typename T>
-inline T& UploadBuffer<T>::MappedData(uint32_t index)
+inline T* UploadBuffer<T>::HandleMappedData(uint32_t index)
 {
+	assert(m_isCopyable);
+	if(!m_isCopyable) return nullptr;
+
 	assert(m_buffer.Get());
 	if (index > m_elementCount)
 		index = 0;
-	return m_mappedData[index];
+	return &reinterpret_cast<T*>(m_mappedData)[index];
 }
 
 template<typename T>
@@ -142,7 +153,7 @@ inline bool UploadBuffer<T>::CopyData(const T& data, uint32_t index)
 	if (index >= m_elementCount) 
 		return false;
 
-	m_mappedData[index] = data;
+	reinterpret_cast<T*>(m_mappedData)[index] = data;
 	return true;
 }
 

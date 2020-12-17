@@ -412,8 +412,8 @@ void D3D12App::UpdateCamera(const float& deltaTime)
     m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
     m_camera.Update();
 
-    m_worldPCBuffer.MappedData().viewPos = m_camera.GetCameraPosition();
-    m_worldPCBuffer.MappedData().viewProj = m_camera.GetViewProjectionMatrix();
+    m_worldPCBuffer.HandleMappedData()->viewPos = m_camera.GetCameraPosition();
+    m_worldPCBuffer.HandleMappedData()->viewProj = m_camera.GetViewProjectionMatrix();
 
     auto cameraPos = m_camera.GetCameraPosition();
     auto targetPos = m_camera.GetTargetPosition();
@@ -1167,7 +1167,7 @@ bool D3D12App::CreateWorldPassConstant()
 
     m_worldPCBuffer.Create(m_device.Get(), 1, true);
 
-    auto& mappedData = m_worldPCBuffer.MappedData();
+    auto mappedData = m_worldPCBuffer.HandleMappedData();
 
     auto& app = Application::Instance();
 
@@ -1178,17 +1178,17 @@ bool D3D12App::CreateWorldPassConstant()
     m_camera.SetViewFrustum(0.1f, 500.0f);
     m_camera.Init();
 
-    mappedData.viewPos = m_camera.GetCameraPosition();
-    mappedData.viewProj = m_camera.GetViewProjectionMatrix();
+    mappedData->viewPos = m_camera.GetCameraPosition();
+    mappedData->viewProj = m_camera.GetViewProjectionMatrix();
 
     XMVECTOR light = { -1,1,-1,0 };
-    XMStoreFloat3(&mappedData.lightDir,light);
+    XMStoreFloat3(&mappedData->lightDir,light);
 
     XMVECTOR lightPos = { -10,30,30,1 };
     XMVECTOR targetPos = { 0,0,0,1 };
     auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
         XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
-    XMStoreFloat4x4(&mappedData.lightViewProj, lightViewProj);
+    XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
