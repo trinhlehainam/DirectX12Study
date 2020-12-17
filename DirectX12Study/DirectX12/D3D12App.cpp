@@ -412,7 +412,7 @@ void D3D12App::UpdateCamera(const float& deltaTime)
     m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
     m_camera.Update();
 
-    m_worldPCBuffer.MappedData().viewPos = XMLoadFloat3(&m_camera.GetCameraPosition());
+    m_worldPCBuffer.MappedData().viewPos = m_camera.GetCameraPosition();
     m_worldPCBuffer.MappedData().viewProj = m_camera.GetViewProjectionMatrix();
 
     auto cameraPos = m_camera.GetCameraPosition();
@@ -1131,9 +1131,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1193,8 +1193,7 @@ bool D3D12App::CreateWorldPassConstant()
     m_camera.SetViewFrustum(0.1f, 500.0f);
     m_camera.Init();
 
-    mappedData.viewPos = XMLoadFloat3(&m_camera.GetCameraPosition());
-    //mappedData.viewPos = m_camera.GetCameraPosition();
+    mappedData.viewPos = m_camera.GetCameraPosition();
     mappedData.viewProj = m_camera.GetViewProjectionMatrix();
 
     XMVECTOR light = { -1,1,-1,0 };
@@ -1204,8 +1203,7 @@ bool D3D12App::CreateWorldPassConstant()
     XMVECTOR targetPos = { 0,0,0,1 };
     auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
         XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
-    mappedData.lightViewProj = lightViewProj;
-    //XMStoreFloat4x4(&mappedData.lightViewProj, lightViewProj);
+    XMStoreFloat4x4(&mappedData.lightViewProj, lightViewProj);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();

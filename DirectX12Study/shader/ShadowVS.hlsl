@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "modelcommon.hlsli"
 
 struct VsInput
 {

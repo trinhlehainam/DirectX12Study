@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "modelcommon.hlsli"
 
 Texture2D<float> g_shadowTex : register(t0);
 Texture2D<float4> g_tex:register(t1);			// main texture

@@ -11,7 +11,7 @@ class UploadBuffer
 {
 public:
 	UploadBuffer() = default;
-	UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elementCount = 1, bool isConstantBuffer = false);
+	UploadBuffer(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
 	~UploadBuffer();
 
 	bool Create(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
@@ -57,7 +57,7 @@ private:
 };
 
 template<typename T>
-inline UploadBuffer<T>::UploadBuffer(ComPtr<ID3D12Device>& device, uint32_t elementCount, bool isConstantBuffer)
+inline UploadBuffer<T>::UploadBuffer(ID3D12Device* device, uint32_t elementCount, bool isConstantBuffer)
 {
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
@@ -145,8 +145,10 @@ inline bool UploadBuffer<T>::CopyData(const T* pArrayData, uint32_t elementCount
 	if (elementCount == 0 || elementCount != m_elementCount)
 		return false;
 
+	// Need to change to std::copy for better performance
 	for (uint32_t i = 0; i < m_elementCount; ++i)
 		m_mappedData[i] = pArrayData[i];
+
 	return true;
 }
 

@@ -8,10 +8,10 @@ struct Size
 };
 
 struct WorldPassConstant {
-	DirectX::XMVECTOR viewPos;
 	DirectX::XMFLOAT4X4 viewProj;
+	DirectX::XMFLOAT4X4 lightViewProj;
+	DirectX::XMFLOAT3 viewPos;
 	DirectX::XMFLOAT3 lightDir;
-	DirectX::XMMATRIX lightViewProj;
 };
 
 struct BasicMaterial {

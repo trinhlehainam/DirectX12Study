@@ -246,6 +246,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader\primitiveCommon.hlsli" />
+    <None Include="shader\modelcommon.hlsli" />
     <None Include="shader\common.hlsli" />
     <None Include="shader\boardcommon.hlsli" />
   </ItemGroup>

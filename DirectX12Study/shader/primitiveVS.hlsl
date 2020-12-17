@@ -1,20 +1,5 @@
-cbuffer passConstant:register (b0)
-{
-	vector g_viewPos;
-	float4x4 g_viewproj;		// projecting object to window space matrix
-	float3 g_lightPos;
-	float4x4 g_lightViewProj;
-}
-
-struct PrimitiveOut
-{
-	float4 svpos: SV_POSITION;
-	float4 pos: POSITION;
-	float4 lvpos : POSITION1;
-	float4 normal : NORMAL;
-	float4 tangent : TANGENT;
-	float2 uv : TEXCOORD;
-};
+#include "common.hlsli"
+#include "primitiveCommon.hlsli"
 
 struct PrimitiveInput
 {

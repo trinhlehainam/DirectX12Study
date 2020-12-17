@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "modelcommon.hlsli"
 
 struct VsInput
 {
@@ -31,7 +32,8 @@ VsOutput VS( VsInput input )
 	ret.norm = mul(g_world, mul(skinMat, input.normal)); // normal vector DOESN'T TRANSLATE position
 
 	// Offset models to create outline
-	ret.pos.xyz += ret.norm.xyz;
+	//ret.pos.xyz += ret.norm.xyz;
+	//
 
 	ret.svpos = mul(g_viewproj, ret.pos);
 	ret.lvpos = mul(g_lightViewProj, ret.pos);

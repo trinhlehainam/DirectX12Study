@@ -1,15 +1,7 @@
+#include "primitiveCommon.hlsli"
+
 Texture2D<float> g_shadowTex:register(t0);
 SamplerState g_smpBorder:register(s0);
-
-struct PrimitiveOut
-{
-	float4 svpos : SV_POSITION;
-	float4 pos : POSITION;
-	float4 lvpos : POSITION1;
-	float4 normal : NORMAL;
-	float4 tangent : TANGENT;
-	float2 uv : TEXCOORD;
-};
 
 float4 primitivePS(PrimitiveOut input) : SV_TARGET
 {
