@@ -446,20 +446,6 @@ void D3D12App::CreateNormalMapTexture()
     m_device->CreateShaderResourceView(m_normalMapTex.Get(), &srvDesc, heapHandle);
 }
 
-void D3D12App::CreateTimeBuffer()
-{
-    m_timeBuffer.Create(m_device.Get(),1,true);
-
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_timeBuffer.SizeInBytes();
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_passSRVHeap->GetCPUDescriptorHandleForHeapStart());
-    heapHandle.Offset(2, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-
-    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
-}
-
 void D3D12App::CreateBoardRootSignature()
 {
     HRESULT result = S_OK;
@@ -1079,7 +1065,6 @@ void D3D12App::CreatePostEffectTexture()
 
     CreateViewForRenderTargetTexture();
     CreateNormalMapTexture();
-    CreateTimeBuffer();
 
     CreateBoardRootSignature();
     CreateBoardPipeline();
@@ -1243,7 +1228,6 @@ bool D3D12App::Update(const float& deltaTime)
     m_pmdManager->Update(deltaTime);
     
     g_scalar = g_scalar > 5 ? 0.1 : g_scalar;
-    m_timeBuffer.CopyData(g_scalar);
 
     return true;
 }

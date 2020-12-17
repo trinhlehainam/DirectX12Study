@@ -154,10 +154,7 @@ inline bool UploadBuffer<T>::CopyData(const T* pArrayData, uint32_t elementCount
 	if (elementCount == 0 || elementCount != m_elementCount)
 		return false;
 
-	// Need to change to std::copy for better performance
-	for (uint32_t i = 0; i < m_elementCount; ++i)
-		m_mappedData[i] = pArrayData[i];
-
+	std::copy(pArrayData, pArrayData + elementCount, m_mappedData);
 	return true;
 }
 

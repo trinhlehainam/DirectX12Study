@@ -116,9 +116,6 @@ private:
 	ComPtr<ID3D12Resource> m_normalMapTex;
 	void CreateNormalMapTexture();
 
-	UploadBuffer<float> m_timeBuffer;
-	void CreateTimeBuffer();
-
 	ComPtr<ID3D12RootSignature> m_boardRootSig;
 	ComPtr<ID3D12PipelineState> m_boardPipeline;
 	void CreateBoardRootSignature();
