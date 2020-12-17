@@ -269,7 +269,62 @@ GeometryGenerator::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t s
 	return mesh;
 }
 
-void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float& height, 
+GeometryGenerator::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t num_grid_x, uint32_t num_grid_z)
+{
+	Mesh mesh;
+
+	const uint32_t num_vertices_x = num_grid_x + 1;
+	const uint32_t num_vertices_z = num_grid_z + 1;
+
+	mesh.vertices.reserve(num_vertices_x * num_vertices_z);
+	uint32_t faceCount = (num_grid_x) * (num_grid_z) * 2; // number of triangles
+
+	const float quad_width = width / num_grid_x;
+	const float quad_depth = depth / num_grid_z;
+
+	const float half_width = width / 2.0f;
+	const float half_depth = depth / 2.0f;
+
+	float du = 1.0f / num_vertices_x;
+	float dv = 1.0f / num_vertices_z;
+
+	for (int i = 0; i < num_vertices_x; ++i)
+	{
+		float posX = half_width - i * quad_width;
+		for (int j = 0; j < num_vertices_z; ++j)
+		{
+			Vertex vertex;
+
+			vertex.position = { posX, 0.0f, half_depth - j * quad_depth };
+			vertex.normal = { 0.0f,1.0f,0.0f };
+			vertex.texCoord = { i * du, j * dv };
+			vertex.tangentU = { 1.0f,0.0f,0.0f };
+
+			mesh.vertices.push_back(std::move(vertex));
+		}
+	}
+
+	const uint32_t vertices_per_quad = 6;
+	mesh.indices.reserve(faceCount * vertices_per_quad);
+
+	for (int i = 0; i < num_grid_x; ++i)
+	{
+		for (int j = 0; j < num_grid_z; ++j)
+		{
+			mesh.indices.push_back((i + 1) * num_vertices_z + j);
+			mesh.indices.push_back(i * num_vertices_z + j);
+			mesh.indices.push_back(i * num_vertices_z + j + 1);
+
+			mesh.indices.push_back((i + 1) * num_vertices_z + j);
+			mesh.indices.push_back(i * num_vertices_z + j + 1);
+			mesh.indices.push_back((i + 1) * num_vertices_z + j + 1);
+		}
+	}
+
+	return mesh;
+}
+
+void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float& height,
 	const uint32_t& verticesPerRing, Mesh& mesh)
 {
 	auto baseIndex = mesh.vertices.size();

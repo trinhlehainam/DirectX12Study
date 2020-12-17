@@ -837,7 +837,7 @@ void D3D12App::CreatePrimitiveBuffer()
 
 namespace
 {
-    auto g_primitive = GeometryGenerator::CreateSphere(10.f,20,20);
+    auto g_primitive = GeometryGenerator::CreateGrid(200.0f, 100.0f, 20, 10);
 }
 
 void D3D12App::CreatePrimitiveVertexBuffer()
