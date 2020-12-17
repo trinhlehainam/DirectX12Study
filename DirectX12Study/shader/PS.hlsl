@@ -30,7 +30,7 @@ float4 PS(VsOutput input) : SV_TARGET
 	float brightness = dot(input.norm.xyz, lightRay);			
 
 	float4 toon = g_toon.Sample(g_toonSmp, brightness);	// toon
-	float3 eyePos = float3(10.0f, 10.0f, 10.0f);
+	float3 eyePos = g_viewPos;
 	float3 eyeRay = normalize(input.pos.xyz - eyePos);
 	float3 refectLight = reflect(lightRay, input.norm.xyz);
 	float sat = saturate(pow(saturate(dot(eyeRay, -refectLight)), g_specularity));	// saturate

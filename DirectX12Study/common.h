@@ -8,9 +8,9 @@ struct Size
 };
 
 struct WorldPassConstant {
-	DirectX::XMMATRIX viewproj;
-	DirectX::XMVECTOR lightPos;
-	DirectX::XMMATRIX shadow;
+	DirectX::XMVECTOR viewPos;
+	DirectX::XMFLOAT4X4 viewProj;
+	DirectX::XMFLOAT3 lightDir;
 	DirectX::XMMATRIX lightViewProj;
 };
 
@@ -20,11 +20,6 @@ struct BasicMaterial {
 	DirectX::XMFLOAT3 specular;
 	float specularity;
 	DirectX::XMFLOAT3 ambient;
-};
-
-struct PrimitiveVertex
-{
-	DirectX::XMFLOAT3 vertex;
 };
 
 constexpr float second_to_millisecond = 1000.0f;

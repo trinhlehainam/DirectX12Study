@@ -32,6 +32,7 @@ public:
 	DirectX::XMFLOAT4X4 GetCameraSpaceMatrix() const;
 	DirectX::XMFLOAT4X4 GetViewProjectionMatrix() const;
 	DirectX::XMFLOAT3 GetCameraPosition() const;
+	DirectX::XMFLOAT3 GetTargetPosition() const;
 
 	/// <summary>
 	/// rotate camera around target position

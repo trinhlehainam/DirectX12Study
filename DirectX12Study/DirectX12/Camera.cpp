@@ -59,6 +59,13 @@ DirectX::XMFLOAT3 Camera::GetCameraPosition() const
 	return cameraPos;
 }
 
+DirectX::XMFLOAT3 Camera::GetTargetPosition() const
+{
+	XMFLOAT3 targetPos;
+	XMStoreFloat3(&targetPos, m_targetPos);
+	return targetPos;
+}
+
 void Camera::RotateAroundTarget(float deltaMouseX, float deltaMouseY, float t)
 {
 	m_theta += XMConvertToRadians(t*deltaMouseX);

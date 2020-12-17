@@ -103,24 +103,24 @@ private:
 	void CreatePostEffectTexture();
 
 	ComPtr<ID3D12Resource> rtTexture_ = nullptr;
-	ComPtr<ID3D12DescriptorHeap> passRTVHeap_ = nullptr;
-	ComPtr<ID3D12DescriptorHeap> passSRVHeap_ = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_passRTVHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_passSRVHeap = nullptr;
 	void CreateViewForRenderTargetTexture();
 
 	// ‚Ø‚çƒ|ƒŠ’¸“_
 	// TRIANGLESTRIP
-	ComPtr<ID3D12Resource> boardPolyVert_;
-	D3D12_VERTEX_BUFFER_VIEW boardVBV_;
+	ComPtr<ID3D12Resource> m_boardPolyVert;
+	D3D12_VERTEX_BUFFER_VIEW m_boardVBV;
 	void CreateBoardPolygonVertices();
 
-	ComPtr<ID3D12Resource> normalMapTex_;
+	ComPtr<ID3D12Resource> m_normalMapTex;
 	void CreateNormalMapTexture();
 
 	UploadBuffer<float> m_timeBuffer;
 	void CreateTimeBuffer();
 
-	ComPtr<ID3D12RootSignature> boardRootSig_;
-	ComPtr<ID3D12PipelineState> boardPipeline_;
+	ComPtr<ID3D12RootSignature> m_boardRootSig;
+	ComPtr<ID3D12PipelineState> m_boardPipeline;
 	void CreateBoardRootSignature();
 	void CreateBoardPipeline();
 
@@ -158,7 +158,7 @@ private:
 private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();
-	void RenderToPostEffectBuffer();
+	void RenderToRenderTargetTexture();
 	void RenderToBackBuffer();
 	void RenderPrimitive();
 

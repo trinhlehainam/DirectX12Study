@@ -90,6 +90,8 @@ private:
 	std::unordered_map<std::string, uint16_t> m_bonesTable;
 	std::vector<DirectX::XMMATRIX> m_boneMatrices;
 	VMDMotion* m_vmdMotion = nullptr;
+	float m_timer = 0.0f;
+	uint64_t m_frameCnt = 0.0f;
 
 	void Transform(const DirectX::XMMATRIX& transformMatrix);
 

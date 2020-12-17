@@ -42,9 +42,9 @@ void D3D12App::CreateDefaultTexture()
     HRESULT result = S_OK;
 
     // “]‘—æ
-    m_whiteTexture = D12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
-    m_blackTexture = D12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
-    m_gradTexture = D12Helper::CreateTex2DBuffer(m_device.Get(),4, 4);
+    m_whiteTexture = D12Helper::CreateTexture2D(m_device.Get(),4, 4);
+    m_blackTexture = D12Helper::CreateTexture2D(m_device.Get(),4, 4);
+    m_gradTexture = D12Helper::CreateTexture2D(m_device.Get(),4, 4);
 
     struct Color
     {
@@ -88,22 +88,22 @@ void D3D12App::CreateViewForRenderTargetTexture()
     auto rsDesc = m_backBuffer[0]->GetDesc();
     float color[] = { 0.f,0.0f,0.0f,1.0f };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    rtTexture_ = D12Helper::CreateTex2DBuffer(m_device.Get(),
+    rtTexture_ = D12Helper::CreateTexture2D(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    D12Helper::CreateDescriptorHeap(m_device.Get(),passRTVHeap_, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    D12Helper::CreateDescriptorHeap(m_device.Get(),m_passRTVHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Format = rsDesc.Format;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
-    m_device->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, passRTVHeap_->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, m_passRTVHeap->GetCPUDescriptorHandleForHeapStart());
 
     // SRV
-    D12Helper::CreateDescriptorHeap(m_device.Get(),passSRVHeap_, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    D12Helper::CreateDescriptorHeap(m_device.Get(),m_passSRVHeap, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -113,7 +113,7 @@ void D3D12App::CreateViewForRenderTargetTexture()
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
     srvDesc.Format = rsDesc.Format;
-    auto heapHandle = passSRVHeap_->GetCPUDescriptorHandleForHeapStart();
+    auto heapHandle = m_passSRVHeap->GetCPUDescriptorHandleForHeapStart();
     m_device->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, heapHandle);
 }
 
@@ -123,16 +123,16 @@ void D3D12App::CreateBoardPolygonVertices()
                         {1.0f,-1.0f,0},                 // bottom right
                         {-1.0f,1.0f,0},                 // top left
                         {1.0f,1.0f,0} };                // top right
-    boardPolyVert_ = D12Helper::CreateBuffer(m_device.Get(),sizeof(vert));
+    m_boardPolyVert = D12Helper::CreateBuffer(m_device.Get(),sizeof(vert));
 
     XMFLOAT3* mappedData = nullptr;
-    auto result = boardPolyVert_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+    auto result = m_boardPolyVert->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
     std::copy(std::begin(vert), std::end(vert), mappedData);
-    boardPolyVert_->Unmap(0, nullptr);
+    m_boardPolyVert->Unmap(0, nullptr);
 
-    boardVBV_.BufferLocation = boardPolyVert_->GetGPUVirtualAddress();
-    boardVBV_.SizeInBytes = sizeof(vert);
-    boardVBV_.StrideInBytes = sizeof(XMFLOAT3);
+    m_boardVBV.BufferLocation = m_boardPolyVert->GetGPUVirtualAddress();
+    m_boardVBV.SizeInBytes = sizeof(vert);
+    m_boardVBV.StrideInBytes = sizeof(XMFLOAT3);
 
 }
 
@@ -210,14 +210,14 @@ void D3D12App::CreateBoardPipeline()
     psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0b1111;     //¦ color : ABGR
 
     // Root Signature
-    psoDesc.pRootSignature = boardRootSig_.Get();
+    psoDesc.pRootSignature = m_boardRootSig.Get();
 
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(boardPipeline_.GetAddressOf()));
+    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_boardPipeline.GetAddressOf()));
     assert(SUCCEEDED(result));
 
 }
 
-void D3D12App::RenderToPostEffectBuffer()
+void D3D12App::RenderToRenderTargetTexture()
 {
     auto wsize = Application::Instance().GetWindowSize();
     CD3DX12_VIEWPORT vp(m_backBuffer[m_currentBackBuffer].Get());
@@ -226,12 +226,12 @@ void D3D12App::RenderToPostEffectBuffer()
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    float peDefaultColor[4] = { 1.0f,0.0f,0.0f,0.0f };
-    auto postEffectHeap = passRTVHeap_->GetCPUDescriptorHandleForHeapStart();
+    float rtTexDefaultColor[4] = { 1.0f,0.0f,0.0f,0.0f };
+    auto rtTexHeap = m_passRTVHeap->GetCPUDescriptorHandleForHeapStart();
     auto dsvHeap = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    m_cmdList->OMSetRenderTargets(1, &postEffectHeap, false, &dsvHeap);
+    m_cmdList->OMSetRenderTargets(1, &rtTexHeap, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    m_cmdList->ClearRenderTargetView(postEffectHeap, peDefaultColor, 0, nullptr);
+    m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
 
     RenderPrimitive();
     m_pmdManager->Render(m_cmdList.Get());
@@ -263,18 +263,17 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
     m_cmdList->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
 
-    m_cmdList->SetPipelineState(boardPipeline_.Get());
-    m_cmdList->SetGraphicsRootSignature(boardRootSig_.Get());
+    m_cmdList->SetPipelineState(m_boardPipeline.Get());
+    m_cmdList->SetGraphicsRootSignature(m_boardRootSig.Get());
 
-    m_cmdList->SetDescriptorHeaps(1, passSRVHeap_.GetAddressOf());
-    CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(passSRVHeap_->GetGPUDescriptorHandleForHeapStart());
+    m_cmdList->SetDescriptorHeaps(1, m_passSRVHeap.GetAddressOf());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(m_passSRVHeap->GetGPUDescriptorHandleForHeapStart());
     m_cmdList->SetGraphicsRootDescriptorTable(0, shaderHeap);
 
-    m_cmdList->IASetVertexBuffers(0, 1, &boardVBV_);
+    m_cmdList->IASetVertexBuffers(0, 1, &m_boardVBV);
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_cmdList->DrawInstanced(4, 1, 0, 0);
 
-    // Need to render to swap chain RTV
     EffekseerRender();
 
 }
@@ -320,13 +319,15 @@ void D3D12App::EffekseerInit()
     auto& app = Application::Instance();
     auto screenSize = app.GetWindowSize();
 
-    auto viewPos = Effekseer::Vector3D(10.0f, 10.0f, 10.0f);
-
-    m_effekRenderer->SetProjectionMatrix(Effekseer::Matrix44().PerspectiveFovRH(XM_PIDIV2, app.GetAspectRatio(), 0.1f, 300.0f));
-
+    auto cameraPos = m_camera.GetCameraPosition();
+    auto targetPos = m_camera.GetTargetPosition();
     m_effekRenderer->SetCameraMatrix(
-        Effekseer::Matrix44().LookAtRH(viewPos, Effekseer::Vector3D(0.0f, 0.0f, 0.0f), Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
+        Effekseer::Matrix44().LookAtRH(
+            Effekseer::Vector3D(cameraPos.x, cameraPos.y, cameraPos.z),
+            Effekseer::Vector3D(targetPos.x, targetPos.y, targetPos.z),
+            Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
 
+    m_effekRenderer->SetProjectionMatrix(Effekseer::Matrix44().PerspectiveFovRH(XM_PIDIV2, app.GetAspectRatio(), 1.0f, 500.0f));
 }
 
 void D3D12App::EffekseerUpdate(const float& deltaTime)
@@ -389,14 +390,6 @@ void D3D12App::EffekseerTerminate()
     m_effekRenderer->Destroy();
 }
 
-namespace
-{
-    float Clamp(const float& value, const float& minValue = 0.0f, const float& maxValue = 1.0f)
-    {
-        return max(minValue, min(maxValue, value));
-    }
-}
-
 void D3D12App::UpdateCamera(const float& deltaTime)
 {
     if (m_mouse.IsRightPressed())
@@ -419,13 +412,21 @@ void D3D12App::UpdateCamera(const float& deltaTime)
     m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
     m_camera.Update();
 
-    auto viewproj = m_camera.GetViewProjectionMatrix(); 
-    m_worldPCBuffer.MappedData().viewproj = XMLoadFloat4x4(&viewproj);
+    m_worldPCBuffer.MappedData().viewPos = XMLoadFloat3(&m_camera.GetCameraPosition());
+    m_worldPCBuffer.MappedData().viewProj = m_camera.GetViewProjectionMatrix();
+
+    auto cameraPos = m_camera.GetCameraPosition();
+    auto targetPos = m_camera.GetTargetPosition();
+    m_effekRenderer->SetCameraMatrix(
+        Effekseer::Matrix44().LookAtRH(
+            Effekseer::Vector3D(cameraPos.x, cameraPos.y, cameraPos.z),
+            Effekseer::Vector3D(targetPos.x, targetPos.y, targetPos.z),
+            Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
 }
 
 void D3D12App::CreateNormalMapTexture()
 {
-    normalMapTex_ = D12Helper::CreateTextureFromFilePath(m_device, L"Resource/Image/normalmap3.png");
+    m_normalMapTex = D12Helper::CreateTextureFromFilePath(m_device, L"Resource/Image/normalmap3.png");
 
     HRESULT result = S_OK;
     auto rsDesc = m_backBuffer[0]->GetDesc();
@@ -437,12 +438,12 @@ void D3D12App::CreateNormalMapTexture()
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
-    srvDesc.Format = normalMapTex_.Get()->GetDesc().Format;
+    srvDesc.Format = m_normalMapTex.Get()->GetDesc().Format;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_passSRVHeap->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-    m_device->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, heapHandle);
+    m_device->CreateShaderResourceView(m_normalMapTex.Get(), &srvDesc, heapHandle);
 }
 
 void D3D12App::CreateTimeBuffer()
@@ -453,7 +454,7 @@ void D3D12App::CreateTimeBuffer()
     cbvDesc.BufferLocation = m_timeBuffer.GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = m_timeBuffer.SizeInBytes();
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(passSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_passSRVHeap->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(2, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
     m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
@@ -502,7 +503,7 @@ void D3D12App::CreateBoardRootSignature()
     D12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
     result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
-        IID_PPV_ARGS(boardRootSig_.GetAddressOf()));
+        IID_PPV_ARGS(m_boardRootSig.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
@@ -604,7 +605,7 @@ bool D3D12App::CreateDepthBuffer()
         ,1.0f                                       // depth
         ,0);                                        // stencil
 
-    m_depthBuffer = D12Helper::CreateTex2DBuffer(m_device.Get(),
+    m_depthBuffer = D12Helper::CreateTexture2D(m_device.Get(),
         rtvDesc.Width, rtvDesc.Height, depth_resource_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -642,7 +643,7 @@ bool D3D12App::CreateShadowDepthBuffer()
         , 1.0f                                       // depth
         , 0);                                        // stencil
 
-    m_shadowDepthBuffer = D12Helper::CreateTex2DBuffer(m_device.Get(),
+    m_shadowDepthBuffer = D12Helper::CreateTexture2D(m_device.Get(),
         1024, 1024, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -1130,9 +1131,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
@@ -1192,18 +1193,19 @@ bool D3D12App::CreateWorldPassConstant()
     m_camera.SetViewFrustum(0.1f, 500.0f);
     m_camera.Init();
 
-    // projection array
-    auto viewproj = m_camera.GetViewProjectionMatrix();
-    mappedData.viewproj = XMLoadFloat4x4(&viewproj);
-    XMVECTOR plane = { 0,1,0,0 };
+    mappedData.viewPos = XMLoadFloat3(&m_camera.GetCameraPosition());
+    //mappedData.viewPos = m_camera.GetCameraPosition();
+    mappedData.viewProj = m_camera.GetViewProjectionMatrix();
+
     XMVECTOR light = { -1,1,-1,0 };
-    mappedData.lightPos = light;
-    mappedData.shadow = XMMatrixShadow(plane, light);
+    XMStoreFloat3(&mappedData.lightDir,light);
 
     XMVECTOR lightPos = { -10,30,30,1 };
     XMVECTOR targetPos = { 0,0,0,1 };
-    mappedData.lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
+    auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
         XMMatrixOrthographicRH(30.f, 30.f, 0.1f, 300.f);
+    mappedData.lightViewProj = lightViewProj;
+    //XMStoreFloat4x4(&mappedData.lightViewProj, lightViewProj);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
@@ -1223,7 +1225,7 @@ void D3D12App::CreatePMDModel()
     m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
     m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_pmdManager->CreateModel("Miku", model1_path);
-    m_pmdManager->CreateModel("Hibiki", model2_path);
+    //m_pmdManager->CreateModel("Hibiki", model2_path);
     m_pmdManager->CreateAnimation("Dancing", motion1_path);
 
     assert(m_pmdManager->Init(m_cmdList.Get()));
@@ -1238,10 +1240,10 @@ bool D3D12App::Update(const float& deltaTime)
     EffekseerUpdate(deltaTime);
 
     if (m_keyboard.IsPressed('R'))
-        m_pmdManager->RotateY("Miku", 0.1f);
+        m_pmdManager->RotateY("Miku", 1.0f*deltaTime);
+
     m_pmdManager->Update(deltaTime);
     
-        
     g_scalar = g_scalar > 5 ? 0.1 : g_scalar;
     m_timeBuffer.CopyData(g_scalar);
 
@@ -1277,7 +1279,7 @@ bool D3D12App::Render()
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
     RenderToShadowDepthBuffer();
-    RenderToPostEffectBuffer();
+    RenderToRenderTargetTexture();
     RenderToBackBuffer();
     SetResourceStateForNextFrame();
     SetBackBufferIndexForNextFrame();

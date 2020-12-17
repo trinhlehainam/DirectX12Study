@@ -19,7 +19,7 @@ ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t siz
     return buffer;
 }
 
-ComPtr<ID3D12Resource> D12Helper::CreateTex2DBuffer(ID3D12Device* pdevice, UINT64 width, UINT height, 
+ComPtr<ID3D12Resource> D12Helper::CreateTexture2D(ID3D12Device* pdevice, UINT64 width, UINT height, 
      DXGI_FORMAT texFormat, D3D12_RESOURCE_FLAGS flag, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES state,
     const D3D12_CLEAR_VALUE* clearValue)
 {

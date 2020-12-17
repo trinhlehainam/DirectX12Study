@@ -121,16 +121,14 @@ void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& I
 
 void PMDModel::Update(const float& deltaTime)
 {
-	static float s_timer = 0.0f;
-	static uint64_t s_frame = 0;
-	constexpr float animation_speed = 100.0f/second_to_millisecond;
-	if (s_timer <= 0.0f)
+	constexpr float animation_speed = 50.0f/second_to_millisecond;
+	if (m_timer <= 0.0f)
 	{
-		s_timer = animation_speed;
-		++s_frame;
-		UpdateMotionTransform(s_frame);
+		m_timer += animation_speed;
+		++m_frameCnt;
+		UpdateMotionTransform(m_frameCnt);
 	}
-	s_timer -= deltaTime;
+	m_timer -= deltaTime;
 }
 
 const std::vector<uint16_t>& PMDModel::Indices() const

@@ -29,7 +29,7 @@ bool DefaultBuffer::CreateTexture2D(ID3D12Device* pDevice, UINT64 Width, UINT He
     D3D12_RESOURCE_FLAGS ResourceFlag, D3D12_RESOURCE_STATES ResourceState, const D3D12_CLEAR_VALUE* ClearValue)
 {
     if (m_buffer != nullptr) return false;
-    m_buffer = D12Helper::CreateTex2DBuffer(pDevice, Width, Height, TextureFormat, ResourceFlag, D3D12_HEAP_TYPE_DEFAULT,
+    m_buffer = D12Helper::CreateTexture2D(pDevice, Width, Height, TextureFormat, ResourceFlag, D3D12_HEAP_TYPE_DEFAULT,
         ResourceState, ClearValue);
     m_isShaderResourceBuffer = true;
     return true;
