@@ -48,7 +48,7 @@ public:
 	/// Create Grid in x-z plane and centered it at origin
 	/// </summary>
 	/// <param name="width: ">length in X-axis</param>
-	/// <param name="depth: ">length in Y-axis</param>
+	/// <param name="depth: ">length in Z-axis</param>
 	/// <param name="num_grid_x: ">number of quads (cels) in X-axis</param>
 	/// <param name="num_grid_z: ">number of quads (cels) in Z-axis</param>
 	/// <returns>Mesh of created grid for rendering</returns>
