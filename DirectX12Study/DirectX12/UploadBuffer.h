@@ -83,6 +83,15 @@ inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint32_t elementCount
 	m_elementCount = elementCount;
 	m_isConstantBuffer = isConstantBuffer;
 
+	// If this is constant buffer
+	// Constant Buffer size must be 16-byte aligned
+	if (m_isConstantBuffer)
+	{
+		size_t checkSize = m_elementCount * sizeof(T);
+		assert(checkSize % 16 == 0);
+	}
+	//
+
 	m_buffer = D12Helper::CreateBuffer(pDevice, SizeInBytes());
 	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
 
