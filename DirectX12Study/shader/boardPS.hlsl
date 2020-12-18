@@ -47,6 +47,7 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	if (input.uv.x < 0.25f && input.uv.y >= 0.25f && input.uv.y < 0.5f)
 	{
 		float3 viewDepthColor = g_viewDepthTex.Sample(smpWrap, input.uv * 4);
+		viewDepthColor = pow(viewDepthColor, 50);
 		return float4(viewDepthColor,1);
 	}
 
@@ -63,10 +64,8 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	{
 		return color;
 	}	
-	else
-	{
-		float div = 100.0f;
-		return float4(0.7, 0.9, 0.9, 1);
-		return float4(fmod(input.uv, 1.0f / div) * div,1, 1);
-	}	
+
+	float div = 100.0f;
+	return float4(0.7, 0.9, 0.9, 1);
+	return float4(fmod(input.uv, 1.0f / div) * div, 1, 1);
 }

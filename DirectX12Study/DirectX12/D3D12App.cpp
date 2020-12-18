@@ -304,12 +304,17 @@ void D3D12App::RenderToRenderTargetTexture()
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    float rtTexDefaultColor[4] = { 1.0f,0.0f,0.0f,0.0f };
+    float rtTexDefaultColor[4] = { 0.0f,0.0f,0.0f,0.0f };
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtNormalTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
+    rtNormalTexHeap.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtHeapHandle[] = { rtTexHeap , rtNormalTexHeap };
     auto dsvHeap = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    m_cmdList->OMSetRenderTargets(1, &rtTexHeap, false, &dsvHeap);
+    m_cmdList->OMSetRenderTargets(2, rtHeapHandle, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
+    m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
     RenderPrimitive();
     m_pmdManager->Render(m_cmdList.Get());
@@ -1404,9 +1409,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     for (auto& fLevel : featureLevels)
     {
-        result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        //result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         if (FAILED(result)) {
             //IDXGIAdapter4* pAdapter;
             //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));

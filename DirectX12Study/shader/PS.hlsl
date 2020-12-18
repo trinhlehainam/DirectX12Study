@@ -24,8 +24,8 @@ cbuffer Material:register (b2)
 
 struct PSOutput
 {
-	float4 color : SV_TARGET0;
-	float4 color1 : SV_TARGET1;
+	float4 rtTexColor : SV_TARGET0;
+	float4 rtNormalTexColor : SV_TARGET1;
 };
 
 // Pixel Shader
@@ -69,12 +69,12 @@ PSOutput PS(VsOutput input)
 
 	color *= shadowValue;
 	
-	ret.color = color
+	ret.rtTexColor = color
 		* g_tex.Sample(g_smp, input.uv)
 		* g_sph.Sample(g_smp, sphereUV)
 		+ g_spa.Sample(g_smp, sphereUV);
 	
-	ret.color1 = float4(0, 1, 0, 1);
+	ret.rtNormalTexColor = float4(input.norm.xyz, 1);
 
 	return ret;
 }

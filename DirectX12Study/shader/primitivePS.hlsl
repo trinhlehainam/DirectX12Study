@@ -3,27 +3,27 @@
 Texture2D<float> g_shadowTex:register(t0);
 SamplerState g_smpBorder:register(s0);
 
-struct VSOutput
+struct PSOutput
 {
-	float4 color : SV_TARGET0;
-	float4 color1 : SV_TARGET1;
+	float4 rtTexColor : SV_TARGET0;
+	float4 rtNormalTexColor : SV_TARGET1;
 };
 
-VSOutput primitivePS(PrimitiveOut input)
+PSOutput primitivePS(PrimitiveOut input)
 {
-	VSOutput ret;
+	PSOutput ret;
 	float4 color = float4(1,1,1,1);
 	// convert NDC to TEXCOORD
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	
+	ret.rtTexColor = color;
 	const float bias = 0.005f;
 	if (input.lvpos.z - bias > g_shadowTex.Sample(g_smpBorder, uv))
 	{
-		ret.color = float4(color.rgb*0.3, 1);
+		ret.rtTexColor = float4(color.rgb * 0.3, 1);
 	}
-
-	ret.color = color;
-	ret.color1 = float4(0, 0, 1, 1);
+	
+	ret.rtNormalTexColor = float4(input.normal.xyz, 1);
 
 	return ret;
 }

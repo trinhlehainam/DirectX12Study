@@ -8,3 +8,5 @@ cbuffer worldPass:register (b0)
 	float padding1;
 }
 
+
+
