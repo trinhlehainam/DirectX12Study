@@ -1,8 +1,9 @@
 #include "D3D12App.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
-#include "../PMDModel/PMDManager.h"
 #include "../Geometry/GeometryGenerator.h"
+#include "../PMDModel/PMDManager.h"
+#include "../Geometry/PrimitiveManager.h"
 
 #include <cassert>
 #include <algorithm>
@@ -316,8 +317,8 @@ void D3D12App::RenderToRenderTargetTexture()
     m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
-    RenderPrimitive();
-    m_pmdManager->Render(m_cmdList.Get());
+    //m_pmdManager->Render(m_cmdList.Get());
+    m_primitiveManager->Render(m_cmdList.Get());
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1112,223 +1113,6 @@ void D3D12App::RenderToViewDepthBuffer()
     m_cmdList->ResourceBarrier(1, &barrier);
 }
 
-void D3D12App::CreatePrimitive()
-{
-    CreatePrimitiveBuffer();
-    CreateDescriptorForPrimitive();
-    CreatePrimitiveRootSignature();
-    CreatePrimitivePipeLine();
-}
-
-void D3D12App::CreatePrimitiveBuffer()
-{
-    CreatePrimitiveVertexBuffer();
-    CreatePrimitiveIndexBuffer();
-}
-
-namespace
-{
-    auto g_primitive = GeometryGenerator::CreateGrid(200.0f, 100.0f, 50, 50);
-}
-
-void D3D12App::CreatePrimitiveVertexBuffer()
-{
-    auto byteSize = sizeof(g_primitive.vertices[0]) * g_primitive.vertices.size();
-    m_primitiveVB = D12Helper::CreateBuffer(m_device.Get(), byteSize);
-    
-    m_primitiveVBV.BufferLocation = m_primitiveVB->GetGPUVirtualAddress();
-    m_primitiveVBV.SizeInBytes = byteSize;
-    m_primitiveVBV.StrideInBytes = sizeof(g_primitive.vertices[0]);
-
-    auto type = g_primitive.vertices[0];
-    decltype(type)* mappedVertices = nullptr;
-
-    D12Helper::ThrowIfFailed(m_primitiveVB->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertices)));
-    std::copy(g_primitive.vertices.begin(), g_primitive.vertices.end(), mappedVertices);
-    m_primitiveVB->Unmap(0, nullptr);
-
-}
-
-void D3D12App::CreatePrimitiveIndexBuffer()
-{
-    auto byteSize = sizeof(g_primitive.indices[0]) * g_primitive.indices.size();
-    m_primitiveIB = D12Helper::CreateBuffer(m_device.Get(), byteSize);
-
-    uint16_t* mappedData = nullptr;
-    D12Helper::ThrowIfFailed(m_primitiveIB->Map(0, nullptr, reinterpret_cast<void**>(&mappedData)));
-    std::copy(g_primitive.indices.begin(), g_primitive.indices.end(), mappedData);
-    m_primitiveIB->Unmap(0, nullptr);
-
-    m_primitiveIBV.BufferLocation = m_primitiveIB->GetGPUVirtualAddress();
-    m_primitiveIBV.SizeInBytes = byteSize;
-    m_primitiveIBV.Format = DXGI_FORMAT_R16_UINT;
-}
-
-void D3D12App::CreatePrimitiveRootSignature()
-{
-    HRESULT result = S_OK;
-    //Root Signature
-    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[2] = {};
-
-    // world pass constant
-    range[0] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
-        0);                                     // base shader register
-
-    // shadow depth buffer
-    range[1] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
-        1,                                      // number of descriptors
-        0);                                     // base shader register
-
-    // object constant
-
-    D3D12_ROOT_PARAMETER parameter[1] = {};
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 2, &range[0], D3D12_SHADER_VISIBILITY_ALL);
-
-    rtSigDesc.pParameters = parameter;
-    rtSigDesc.NumParameters = _countof(parameter);
-
-    D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER);
-    
-    rtSigDesc.pStaticSamplers = samplerDesc;
-    rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
-
-    ComPtr<ID3DBlob> rootSigBlob;
-    ComPtr<ID3DBlob> errBlob;
-    result = D3D12SerializeRootSignature(&rtSigDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-        &rootSigBlob,
-        &errBlob);
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
-        IID_PPV_ARGS(m_primitiveRootSig.GetAddressOf()));
-    assert(SUCCEEDED(result));
-}
-
-void D3D12App::CreatePrimitivePipeLine()
-{
-    HRESULT result = S_OK;
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    //IA(Input-Assembler...つまり頂点入力)
-    //まず入力レイアウト（ちょうてんのフォーマット）
-
-    D3D12_INPUT_ELEMENT_DESC layout[] = {
-    {
-    "POSITION",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    0,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0},
-    {
-    "NORMAL",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0 
-    },
-{
-    "TANGENT",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0
-    },
-    {
-    "TEXCOORD",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0
-    },
-    };
-
-    // Input Assembler
-    psoDesc.InputLayout.NumElements = _countof(layout);
-    psoDesc.InputLayout.pInputElementDescs = layout;
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    // Vertex Shader
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
-    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-    // Rasterizer
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.FrontCounterClockwise = true;
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-    psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-    // Pixel Shader
-    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
-    psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-    // Other set up
-    psoDesc.NodeMask = 0;
-    psoDesc.SampleDesc.Count = 1;
-    psoDesc.SampleDesc.Quality = 0;
-    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-    // Output set up
-    psoDesc.NumRenderTargets = 2;
-    psoDesc.RTVFormats[0] = DEFAULT_BACK_BUFFER_FORMAT;     // main render target
-    psoDesc.RTVFormats[1] = DEFAULT_BACK_BUFFER_FORMAT;     // normal render target
-    // Blend
-    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    psoDesc.DSVFormat = DEFAULT_DEPTH_BUFFER_FORMAT;
-    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    // Root Signature
-    psoDesc.pRootSignature = m_primitiveRootSig.Get();
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_primitivePipeline.GetAddressOf()));
-    assert(SUCCEEDED(result));
-}
-
-void D3D12App::RenderPrimitive()
-{
-    m_cmdList->SetPipelineState(m_primitivePipeline.Get());
-    m_cmdList->SetGraphicsRootSignature(m_primitiveRootSig.Get());
-
-    m_cmdList->IASetVertexBuffers(0, 1, &m_primitiveVBV);
-    m_cmdList->IASetIndexBuffer(&m_primitiveIBV);
-    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    
-    m_cmdList->SetDescriptorHeaps(1, m_primitiveHeap.GetAddressOf());
-    CD3DX12_GPU_DESCRIPTOR_HANDLE primitiveHeap(m_primitiveHeap->GetGPUDescriptorHandleForHeapStart());
-    m_cmdList->SetGraphicsRootDescriptorTable(0, primitiveHeap);
-    m_cmdList->DrawIndexedInstanced(g_primitive.indices.size(), 1, 0, 0, 0);
-}
-
-void D3D12App::CreateDescriptorForPrimitive()
-{
-    D12Helper::CreateDescriptorHeap(m_device.Get(), m_primitiveHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_primitiveHeap->GetCPUDescriptorHandleForHeapStart());
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_worldPCBuffer.SizeInBytes();
-    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
-
-    heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    m_device->CreateShaderResourceView(m_shadowDepthBuffer.Get(), &srvDesc, heapHandle);
-}
-
 void D3D12App::WaitForGPU()
 {
     // Set current GPU target fence value to next process frame
@@ -1361,6 +1145,14 @@ void D3D12App::CreatePostEffect()
 
     CreateBoardRootSignature();
     CreateBoardPipeline();
+}
+
+D3D12App::D3D12App()
+{
+}
+
+D3D12App::~D3D12App()
+{
 }
 
 bool D3D12App::Initialize(const HWND& hwnd)
@@ -1448,6 +1240,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     m_updateBuffers.Clear();
     m_pmdManager->ClearSubresources();
+    m_primitiveManager->ClearSubresources();
 
     return true;
 }
@@ -1499,7 +1292,7 @@ void D3D12App::CreatePMDModel()
 
     m_pmdManager->SetDevice(m_device.Get());
     m_pmdManager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
-    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Resource(), m_worldPCBuffer.SizeInBytes());
+    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.SizeInBytes());
     m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_pmdManager->CreateModel("Miku", model1_path);
     m_pmdManager->CreateModel("Hibiki", model2_path);
@@ -1512,6 +1305,19 @@ void D3D12App::CreatePMDModel()
     assert(m_pmdManager->Play("Hibiki", "Dancing1"));
 
     return;
+}
+
+void D3D12App::CreatePrimitive()
+{
+    m_primitiveManager = std::make_unique<PrimitiveManager>();
+
+    m_primitiveManager->SetDevice(m_device.Get());
+    m_primitiveManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.SizeInBytes());
+    m_primitiveManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
+    //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
+    m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40));
+    m_primitiveManager->Create("sphere", GeometryGenerator::CreateSphere(20.0f, 20, 20));
+    assert(m_primitiveManager->Init(m_cmdList.Get()));
 }
 
 bool D3D12App::Update(const float& deltaTime)

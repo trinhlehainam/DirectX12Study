@@ -2,27 +2,10 @@
 
 using namespace DirectX;
 
-GeometryGenerator::Vertex::Vertex(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& normal, 
-	const DirectX::XMFLOAT3& tangentU, const DirectX::XMFLOAT2& uv):
-	position(position),normal(normal),tangentU(tangentU),texCoord(uv)
-{
-}
-
-GeometryGenerator::Vertex::Vertex(float positionX, float positionY, float positionZ, 
-	float normalX, float normalY, float normalZ, 
-	float tangentX, float tangentY, float tangentZ, 
-	float u, float v):
-	position(positionX,positionY,positionZ),
-	normal(normalX,normalY,normalZ),
-	tangentU(tangentX, tangentY, tangentZ),
-	texCoord(u,v)
-{
-}
-
-GeometryGenerator::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, 
+Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius,
 	float height, uint32_t sliceCount, uint32_t stackCount)
 {
-	Mesh mesh;
+	Geometry::Mesh mesh;
 
 	const uint32_t& vertices_per_ring = sliceCount;
 
@@ -57,7 +40,7 @@ GeometryGenerator::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, fl
 
 		for (uint32_t j = 0; j < vertices_per_ring; ++j)
 		{
-			Vertex vertex;
+			Geometry::Vertex vertex;
 
 			float c = cosf(j * theta);	// sin
 			float s = sinf(j * theta);	// cos
@@ -127,9 +110,9 @@ GeometryGenerator::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, fl
 	return mesh;
 }
 
-GeometryGenerator::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount, uint32_t sliceCount)
+Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount, uint32_t sliceCount)
 {
-	Mesh mesh;
+	Geometry::Mesh mesh;
 
 	//
 	/* COMPUTE VERTICES */
@@ -163,7 +146,7 @@ GeometryGenerator::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t s
 
 		for (uint32_t j = 0; j < vertices_per_ring; ++j)
 		{
-			Vertex vertex;
+			Geometry::Vertex vertex;
 			float phi = j * deltaPhi;
 
 			float c = cosf(phi);
@@ -192,11 +175,11 @@ GeometryGenerator::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t s
 	// Poles: note that there will be texture coordinate distortion as there is
 	// not a unique point on the texture map to assign to the pole when mapping
 	// a rectangular texture onto a sphere.
-	Vertex topVertex(0.0f, +radius, 0.0f,
+	Geometry::Vertex topVertex(0.0f, +radius, 0.0f,
 		0.0f, +1.0f, 0.0f,
 		1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f);
-	Vertex bottomVertex(0.0f, -radius, 0.0f,
+	Geometry::Vertex bottomVertex(0.0f, -radius, 0.0f,
 		0.0f, -1.0f, 0.0f,
 		1.0f, 0.0f, 0.0f,
 		0.0f, 1.0f);
@@ -269,9 +252,9 @@ GeometryGenerator::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t s
 	return mesh;
 }
 
-GeometryGenerator::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t num_grid_x, uint32_t num_grid_z)
+Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t num_grid_x, uint32_t num_grid_z)
 {
-	Mesh mesh;
+	Geometry::Mesh mesh;
 
 	const uint32_t num_vertices_x = num_grid_x + 1;
 	const uint32_t num_vertices_z = num_grid_z + 1;
@@ -293,7 +276,7 @@ GeometryGenerator::Mesh GeometryGenerator::CreateGrid(float width, float depth, 
 		float posX = half_width - i * quad_width;
 		for (int j = 0; j < num_vertices_z; ++j)
 		{
-			Vertex vertex;
+			Geometry::Vertex vertex;
 
 			vertex.position = { posX, 0.0f, half_depth - j * quad_depth };
 			vertex.normal = { 0.0f,1.0f,0.0f };
@@ -325,7 +308,7 @@ GeometryGenerator::Mesh GeometryGenerator::CreateGrid(float width, float depth, 
 }
 
 void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float& height,
-	const uint32_t& verticesPerRing, Mesh& mesh)
+	const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
 {
 	auto baseIndex = mesh.vertices.size();
 
@@ -341,7 +324,7 @@ void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float&
 		float u = x / height + 0.5f;
 		float v = z / height + 0.5f;
 
-		mesh.vertices.push_back(Vertex(
+		mesh.vertices.push_back(Geometry::Vertex(
 			x, y, z, 
 			0.0f, 1.0f, 0.0f, 
 			1.0f, 0.0f, 0.0f, 
@@ -349,7 +332,7 @@ void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float&
 	}
 
 	// Vertex of cap center
-	mesh.vertices.push_back(Vertex(
+	mesh.vertices.push_back(Geometry::Vertex(
 		0.0f, y, 0.0f,
 		0.0f, 1.0f, 0.0f,
 		1.f, 0.0f, 0.0f,
@@ -370,7 +353,7 @@ void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float&
 }
 
 void GeometryGenerator::BuildCylinderBottomCap(const float& bottomRadius, const float& height, 
-	const uint32_t& verticesPerRing, Mesh& mesh)
+	const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
 {
 	auto baseIndex = mesh.vertices.size();
 
@@ -386,7 +369,7 @@ void GeometryGenerator::BuildCylinderBottomCap(const float& bottomRadius, const 
 		float u = x / height + 0.5f;
 		float v = z / height + 0.5f;
 
-		mesh.vertices.push_back(Vertex(
+		mesh.vertices.push_back(Geometry::Vertex(
 			x, y, z,
 			0, 1.f, 0,
 			1.f, 0, 0,
@@ -394,7 +377,7 @@ void GeometryGenerator::BuildCylinderBottomCap(const float& bottomRadius, const 
 	}
 
 	// Vertex of cap center
-	mesh.vertices.push_back(Vertex(
+	mesh.vertices.push_back(Geometry::Vertex(
 		0, y, 0,
 		0, 1.f, 0,
 		1.f, 0, 0,
@@ -413,3 +396,4 @@ void GeometryGenerator::BuildCylinderBottomCap(const float& bottomRadius, const 
 		mesh.indices.push_back(baseIndex + nextIndex);
 	}
 }
+

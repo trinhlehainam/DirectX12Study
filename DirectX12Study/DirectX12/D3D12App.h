@@ -13,10 +13,12 @@
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "../Utility/D12Helper.h"
-#include "../PMDModel/PMDManager.h"
 #include "../common.h"
 
 using Microsoft::WRL::ComPtr;
+
+class PrimitiveManager;
+class PMDManager;
 
 /// <summary>
 /// DirectX12 feature
@@ -24,6 +26,9 @@ using Microsoft::WRL::ComPtr;
 class D3D12App
 {
 public:
+	D3D12App();
+	~D3D12App();
+
 	bool Initialize(const HWND&);
 	
 	// Update Direct3D12
@@ -103,6 +108,8 @@ private:
 	std::unique_ptr<PMDManager> m_pmdManager;
 	void CreatePMDModel();
 
+	std::unique_ptr<PrimitiveManager> m_primitiveManager;
+	void CreatePrimitive();
 private:
 	//
 	// Post effect
@@ -155,23 +162,6 @@ private:
 	ComPtr<ID3D12RootSignature> m_viewDepthRootSig;
 	void CreateViewDepthRootSignature();
 	void CreateViewDepthPipelineState();
-private:
-	ComPtr<ID3D12Resource> m_primitiveVB;
-	D3D12_VERTEX_BUFFER_VIEW m_primitiveVBV;
-	ComPtr<ID3D12Resource> m_primitiveIB;
-	D3D12_INDEX_BUFFER_VIEW m_primitiveIBV;
-	ComPtr<ID3D12PipelineState> m_primitivePipeline;
-	ComPtr<ID3D12RootSignature> m_primitiveRootSig;
-	
-	void CreatePrimitive();
-	void CreatePrimitiveBuffer();
-	void CreatePrimitiveVertexBuffer();
-	void CreatePrimitiveIndexBuffer();
-	void CreatePrimitiveRootSignature();
-	void CreatePrimitivePipeLine();
-	
-	ComPtr<ID3D12DescriptorHeap> m_primitiveHeap;
-	void CreateDescriptorForPrimitive();
 
 private:
 	// Function for Render
@@ -179,7 +169,6 @@ private:
 	void RenderToViewDepthBuffer();
 	void RenderToRenderTargetTexture();
 	void RenderToBackBuffer();
-	void RenderPrimitive();
 
 	void SetResourceStateForNextFrame();
 	void SetBackBufferIndexForNextFrame();

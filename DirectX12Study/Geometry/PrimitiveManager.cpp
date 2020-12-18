@@ -48,7 +48,7 @@ bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	assert(m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	D12Helper::CreateDescriptorHeap(m_device, m_shadowDepthHeap, 1,
+	D12Helper::CreateDescriptorHeap(m_device, m_depthHeap, 1,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -68,9 +68,45 @@ bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_shadowDepthHeap->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
 
+	return true;
+}
+
+bool PrimitiveManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
+{
+	assert(m_device);
+	if (pViewDepthBuffer == nullptr) return false;
+
+	auto rsDes = pViewDepthBuffer->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+	/*--------------EASY TO BECOME BUG----------------*/
+	// the type of shadow depth buffer is R32_TYPELESS
+	// In able to shader resource view to read shadow depth buffer
+	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	/*-------------------------------------------------*/
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
+
+	return true;
+}
+
+bool PrimitiveManager::Create(const std::string name, Geometry::Mesh primitive)
+{
+	assert(!m_primitives.count(name));
+	m_primitives[name] = primitive;
 	return true;
 }
 
@@ -79,9 +115,83 @@ bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
 	if (m_isInitDone) return true;
 	if (!m_device) return false;
 	if (!m_worldPCBHeap) return false;
-	if (!m_shadowDepthHeap) return false;
+	if (!m_depthHeap) return false;
+	if (!CreatePipeline()) return false;
+
+	uint32_t indexCount = 0;
+	uint32_t vertexCount = 0;
+	for (auto& primitive : m_primitives)
+	{
+		auto& data = primitive.second;
+		auto& name = primitive.first;
+
+		m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
+		m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
+		m_mesh.DrawArgs[name].IndexCount = data.indices.size();
+		indexCount += data.indices.size();
+		vertexCount += data.vertices.size();
+	}
+
+	m_mesh.Indices16.reserve(indexCount);
+	m_mesh.Vertices.reserve(vertexCount);
+
+	// Add all vertices and indices
+	for (auto& primitive : m_primitives)
+	{
+		auto& name = primitive.first;;
+		auto& data = primitive.second;
+
+		for (const auto& index : data.indices)
+			m_mesh.Indices16.push_back(index);
+
+		for (const auto& vertex : data.vertices)
+			m_mesh.Vertices.push_back(vertex);
+	}
+
+	m_mesh.CreateBuffers(m_device, cmdList);
+	m_mesh.CreateViews();
 
 	return true;
+}
+
+bool PrimitiveManager::ClearSubresources()
+{
+	m_mesh.ClearSubresource();
+	return true;
+}
+
+void PrimitiveManager::Update(const float& deltaTime)
+{
+}
+
+void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
+{
+	pCmdList->SetPipelineState(m_pipeline.Get());
+	pCmdList->SetGraphicsRootSignature(m_rootSig.Get());
+
+	// Set Input Assembler
+	pCmdList->IASetVertexBuffers(0, 0, &m_mesh.VertexBufferView);
+	pCmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// World constant
+	pCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+	
+	// Depth buffers
+	pCmdList->SetDescriptorHeaps(1, m_depthHeap.GetAddressOf());
+	pCmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
+
+	for (auto& primitive : m_mesh.DrawArgs)
+	{
+		auto& drawArgs = primitive.second;
+		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
+	}
+		
+}
+
+void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
+{
 }
 
 bool PrimitiveManager::CreatePipeline()
@@ -100,23 +210,25 @@ bool PrimitiveManager::CreateRootSignature()
 
 	// Descriptor table
 	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	D3D12_ROOT_PARAMETER parameter[2] = {};
 
 	// world pass constant
 	range[0] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
 		1,                                      // number of descriptors
 		0);                                     // base shader register
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
 
 	// shadow depth buffer
 	range[1] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
 		1,                                      // number of descriptors
 		0);                                     // base shader register
-
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
 	// object constant
 
-	D3D12_ROOT_PARAMETER parameter[1] = {};
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 2, &range[0], D3D12_SHADER_VISIBILITY_ALL);
+	
+	
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -211,8 +323,9 @@ bool PrimitiveManager::CreatePipelineStateObject()
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	// Output set up
-	psoDesc.NumRenderTargets = 1;
+	psoDesc.NumRenderTargets = 2;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	// Blend
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;

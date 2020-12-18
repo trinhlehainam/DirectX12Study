@@ -13,7 +13,7 @@ public:
 	~UploadBuffer();
 
 	bool Create(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
-	ID3D12Resource* Resource();
+	ID3D12Resource* Get();
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
 	size_t SizeInBytes() const;
@@ -105,7 +105,7 @@ inline bool UploadBuffer<T>::Create(ID3D12Device* pDevice, uint32_t elementCount
 }
 
 template<typename T>
-inline ID3D12Resource* UploadBuffer<T>::Resource()
+inline ID3D12Resource* UploadBuffer<T>::Get()
 {
 	return m_buffer.Get();
 }

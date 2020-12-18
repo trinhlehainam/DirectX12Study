@@ -267,8 +267,8 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 		vertexCount += data.Vertices().size();
 	}
 
-	m_mesh.indices.reserve(indexCount);
-	m_mesh.vertices.reserve(vertexCount);
+	m_mesh.Indices16.reserve(indexCount);
+	m_mesh.Vertices.reserve(vertexCount);
 
 	// Add all vertices and indices to PMDMeshes
 	for (auto& model : m_models)
@@ -277,10 +277,10 @@ void PMDManager::InitModels(ID3D12GraphicsCommandList* cmdList)
 		auto& data = model.second;
 
 		for (const auto& index : data.Indices())
-			m_mesh.indices.push_back(index);
+			m_mesh.Indices16.push_back(index);
 
 		for (const auto& vertex : data.Vertices())
-			m_mesh.vertices.push_back(vertex);
+			m_mesh.Vertices.push_back(vertex);
 	}
 
 	m_mesh.CreateBuffers(m_device, cmdList);
@@ -321,8 +321,8 @@ void PMDManager::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootSignature(m_rootSig.Get());
 
 	// Set Input Assembler
-	cmdList->IASetVertexBuffers(0, 1, &m_mesh.vbview);
-	cmdList->IASetIndexBuffer(&m_mesh.ibview);
+	cmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
+	cmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Set world pass constant
@@ -348,8 +348,8 @@ void PMDManager::NormalRender(ID3D12GraphicsCommandList* cmdList)
 void PMDManager::DepthRender(ID3D12GraphicsCommandList* cmdList)
 {
 	// Set Input Assembler
-	cmdList->IASetVertexBuffers(0, 1, &m_mesh.vbview);
-	cmdList->IASetIndexBuffer(&m_mesh.ibview);
+	cmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
+	cmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Set world pass constant
