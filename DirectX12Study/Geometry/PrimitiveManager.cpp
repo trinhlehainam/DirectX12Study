@@ -170,7 +170,7 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->SetGraphicsRootSignature(m_rootSig.Get());
 
 	// Set Input Assembler
-	pCmdList->IASetVertexBuffers(0, 0, &m_mesh.VertexBufferView);
+	pCmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
 	pCmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -192,6 +192,20 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 
 void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 {
+	// World constant
+	pCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
+	pCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Set Input Assembler
+	pCmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
+	pCmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (auto& primitive : m_mesh.DrawArgs)
+	{
+		auto& drawArgs = primitive.second;
+		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
+	}
 }
 
 bool PrimitiveManager::CreatePipeline()

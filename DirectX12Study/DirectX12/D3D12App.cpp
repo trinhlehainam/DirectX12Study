@@ -317,7 +317,7 @@ void D3D12App::RenderToRenderTargetTexture()
     m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
-    //m_pmdManager->Render(m_cmdList.Get());
+    m_pmdManager->Render(m_cmdList.Get());
     m_primitiveManager->Render(m_cmdList.Get());
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -1317,6 +1317,7 @@ void D3D12App::CreatePrimitive()
     //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
     m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40));
     m_primitiveManager->Create("sphere", GeometryGenerator::CreateSphere(20.0f, 20, 20));
+    m_primitiveManager->Create("cylinder", GeometryGenerator::CreateCylinder(10.0f, 10.0f, 50.0f, 20, 1));
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 }
 
