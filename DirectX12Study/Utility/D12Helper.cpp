@@ -3,6 +3,7 @@
 #include <DirectXTex.h>
 
 using namespace DirectX;
+using Microsoft::WRL::ComPtr;
 
 ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
 {

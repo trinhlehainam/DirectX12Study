@@ -4,22 +4,20 @@
 #include <stdexcept>
 #include <unordered_map>
 
-using Microsoft::WRL::ComPtr;
-
 class D12Helper
 {
 public:
 
-	static ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t sizeInBytes, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t sizeInBytes, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
 
 	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) -> D3D12_RESOURCE_DESC
-	static ComPtr<ID3D12Resource> CreateTexture2D(ID3D12Device* pdevice, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateTexture2D(ID3D12Device* pdevice, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
 		D3D12_RESOURCE_FLAGS = D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ, const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
-	static bool CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12DescriptorHeap>& pDescriptorHeap,
+	static bool CreateDescriptorHeap(ID3D12Device* pDevice, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& pDescriptorHeap,
 		UINT numDesciprtor, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool isShaderVisible = false, UINT nodeMask = 0);
 
-	static void OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob);
+	static void OutputFromErrorBlob(Microsoft::WRL::ComPtr<ID3DBlob>& errBlob);
 
 	static size_t AlignedValue(size_t value, size_t align);
 	
@@ -31,23 +29,23 @@ public:
 
 	// Compile shader file at RUNTIME and convert it to bytecode for PSO (pipeline state object) use it
 	// ->Return shader's bytecode
-	static ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
+	static Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
 
 	// Return nullptr if FAILED to load texture from file
-	static ComPtr<ID3D12Resource> CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path);
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureFromFilePath(Microsoft::WRL::ComPtr<ID3D12Device>& device, const std::wstring& path);
 
 	// Create resource has default heap type (GPU read only)
 	// Use upload buffer to UPDATE resource to default buffer
 	// *** UPLOAD BUFFER SHOULD BE EMPTY
 	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
 	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
-	static ComPtr<ID3D12Resource> CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
-		ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize);
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
+		Microsoft::WRL::ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize);
 
 	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
 	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
 	static bool UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
-		ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource);
+		Microsoft::WRL::ComPtr<ID3D12Resource>& textureBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource);
 
 	// Change resource state at GPU executing time
 	static void ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
@@ -75,12 +73,12 @@ public:
 	bool Add(const std::string& bufferName, const void* pData, LONG_PTR rowPitch, LONG_PTR slicePitch);
 	bool Clear();
 	const D3D12_SUBRESOURCE_DATA& GetSubresource(const std::string& bufferName);
-	ComPtr<ID3D12Resource>& GetBuffer(const std::string& bufferName);
+	Microsoft::WRL::ComPtr<ID3D12Resource>& GetBuffer(const std::string& bufferName);
 private:
 	UpdateTextureBuffers(const UpdateTextureBuffers&) = delete;
 	UpdateTextureBuffers& operator = (const UpdateTextureBuffers&) = delete;
 private:
-	using UpdateBuffer_t = std::pair<ComPtr<ID3D12Resource>, D3D12_SUBRESOURCE_DATA>;
+	using UpdateBuffer_t = std::pair<Microsoft::WRL::ComPtr<ID3D12Resource>, D3D12_SUBRESOURCE_DATA>;
 	std::unordered_map<std::string, UpdateBuffer_t> m_updateBuffers;
 };
 

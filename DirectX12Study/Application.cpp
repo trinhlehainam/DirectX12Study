@@ -15,7 +15,10 @@ Application::Application()
 	SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 }
 
-Application::~Application() = default;
+Application::~Application()
+{
+
+}
 
 void Application::CalculatePerformance()
 {

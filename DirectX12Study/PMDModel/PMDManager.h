@@ -5,8 +5,6 @@
 
 #include "PMDMesh.h"
 
-using Microsoft::WRL::ComPtr;
-
 class PMDModel;
 class Timer;
 class VMDMotion;
@@ -25,6 +23,7 @@ public:
 	bool SetDevice(ID3D12Device* pDevice);
 	bool SetWorldPassConstant(ID3D12Resource* pWorldPassConstant, size_t bufferSize);
 	bool SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer);
+	bool SetViewDepth(ID3D12Resource* pViewDepthBuffer);
 	// The order is 
 	// 1: WHITE TEXTURE
 	// 2: BLACK TEXTURE
@@ -124,18 +123,18 @@ private:
 	ID3D12Resource* m_gradTexture = nullptr;
 	/*-----------------------------------------*/
 
-	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
 	// World pass constant buffer binds only to VERTEX BUFFER
 	// Descriptor heap stores descriptor of world pass constant buffer
 	// Use for binding resource of engine to this pipeline
-	ComPtr<ID3D12DescriptorHeap> m_worldPCBHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_worldPCBHeap = nullptr;
 	
 	// Shadow depth buffer binds only to PIXEL SHADER
 	// Descriptor heap stores descriptor of shadow depth buffer
 	// Use for binding resource of engine to this pipeline
-	ComPtr<ID3D12DescriptorHeap> m_shadowDepthHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
 private:
 	std::unordered_map<std::string, PMDModel> m_models;

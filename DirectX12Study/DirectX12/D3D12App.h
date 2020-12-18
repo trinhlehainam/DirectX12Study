@@ -16,6 +16,8 @@
 #include "../PMDModel/PMDManager.h"
 #include "../common.h"
 
+using Microsoft::WRL::ComPtr;
+
 /// <summary>
 /// DirectX12 feature
 /// </summary>
@@ -69,7 +71,9 @@ private:
 	void CreateSwapChain(const HWND& hwnd);
 
 	// Renter Target View
-	static constexpr unsigned int back_buffer_count = 2;
+	static constexpr unsigned int DEFAULT_BACK_BUFFER_COUNT = 2;
+	static constexpr DXGI_FORMAT DEFAULT_BACK_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
+	static constexpr DXGI_FORMAT DEFAULT_DEPTH_BUFFER_FORMAT = DXGI_FORMAT_D32_FLOAT;
 	uint16_t m_currentBackBuffer = 0;
 	std::vector<ComPtr<ID3D12Resource>> m_backBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_bbRTVHeap;
@@ -99,13 +103,18 @@ private:
 	std::unique_ptr<PMDManager> m_pmdManager;
 	void CreatePMDModel();
 
-	// Post effect rendering
-	void CreatePostEffectTexture();
+private:
+	//
+	// Post effect
+	//
 
-	ComPtr<ID3D12Resource> rtTexture_ = nullptr;
-	ComPtr<ID3D12DescriptorHeap> m_passRTVHeap = nullptr;
-	ComPtr<ID3D12DescriptorHeap> m_passSRVHeap = nullptr;
-	void CreateViewForRenderTargetTexture();
+	void CreatePostEffect();
+
+	ComPtr<ID3D12Resource> m_rtTexture = nullptr;
+	ComPtr<ID3D12Resource> m_rtNormalTexture = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_boardRTVHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_boardSRVHeap = nullptr;
+	void CreateRenderTargetTexture();
 
 	// ‚Ø‚çƒ|ƒŠ’¸“_
 	// TRIANGLESTRIP
@@ -115,18 +124,19 @@ private:
 
 	ComPtr<ID3D12Resource> m_normalMapTex;
 	void CreateNormalMapTexture();
+	void CreateBoardShadowDepthView();
+	void CreateBoardViewDepthView();
 
 	ComPtr<ID3D12RootSignature> m_boardRootSig;
 	ComPtr<ID3D12PipelineState> m_boardPipeline;
 	void CreateBoardRootSignature();
 	void CreateBoardPipeline();
-
+private:
 	// ShadowMapping
 	void CreateShadowMapping();
 
 	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
-	ComPtr<ID3D12DescriptorHeap> m_shadowSRVHeap;
 	bool CreateShadowDepthBuffer();
 
 	ComPtr<ID3D12PipelineState> m_shadowPipeline;
@@ -134,6 +144,17 @@ private:
 	void CreateShadowRootSignature();
 	void CreateShadowPipelineState();
 
+private:
+	void CreateViewDepth();
+
+	ComPtr<ID3D12Resource> m_viewDepthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
+	bool CreateViewDepthBuffer();
+
+	ComPtr<ID3D12PipelineState> m_viewDepthPipeline;
+	ComPtr<ID3D12RootSignature> m_viewDepthRootSig;
+	void CreateViewDepthRootSignature();
+	void CreateViewDepthPipelineState();
 private:
 	ComPtr<ID3D12Resource> m_primitiveVB;
 	D3D12_VERTEX_BUFFER_VIEW m_primitiveVBV;
@@ -155,6 +176,7 @@ private:
 private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();
+	void RenderToViewDepthBuffer();
 	void RenderToRenderTargetTexture();
 	void RenderToBackBuffer();
 	void RenderPrimitive();

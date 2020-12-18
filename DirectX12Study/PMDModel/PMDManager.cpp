@@ -42,7 +42,7 @@ bool PMDManager::Init(ID3D12GraphicsCommandList* cmdList)
 	if (m_isInitDone) return true;
 	if (!m_device) return false;
 	if (!m_worldPCBHeap) return false;
-	if (!m_shadowDepthHeap) return false;
+	if (!m_depthHeap) return false;
 
 	if (!CheckDefaultBuffers()) return false;
 	if (!CreatePipeline()) return false;
@@ -97,7 +97,7 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	assert(m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	D12Helper::CreateDescriptorHeap(m_device, m_shadowDepthHeap, 1,
+	D12Helper::CreateDescriptorHeap(m_device, m_depthHeap, 2,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -117,8 +117,37 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_shadowDepthHeap->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
+
+	return true;
+}
+
+bool PMDManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
+{
+	assert(m_device);
+	if (pViewDepthBuffer == nullptr) return false;
+
+	auto rsDes = pViewDepthBuffer->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+	/*--------------EASY TO BECOME BUG----------------*/
+	// the type of shadow depth buffer is R32_TYPELESS
+	// In able to shader resource view to read shadow depth buffer
+	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	/*-------------------------------------------------*/
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
 
 	return true;
 }
@@ -177,6 +206,7 @@ bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, fl
 {
 	assert(HasModel(modelName));
 	if (!HasModel(modelName)) return false;
+	m_models[modelName].Move(moveX, moveY, moveZ);
 	return true;
 }
 
@@ -299,9 +329,9 @@ void PMDManager::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
 	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
 
-	// Set shadow depth
-	cmdList->SetDescriptorHeaps(1, m_shadowDepthHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(1, m_shadowDepthHeap->GetGPUDescriptorHandleForHeapStart());
+	// Set depth buffers
+	cmdList->SetDescriptorHeaps(1, m_depthHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
 	for (auto& model : m_models)
@@ -360,8 +390,8 @@ bool PMDManager::CreateRootSignature()
 	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	parameter[0].InitAsDescriptorTable(1, &range[0]);
 
-	// Shadow Depth
-	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	// Depth
+	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
 	parameter[1].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	
 	// Object Constant
@@ -370,7 +400,7 @@ bool PMDManager::CreateRootSignature()
 	
 	// Material
 	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-	range[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 1);
+	range[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 2);
 	parameter[3].InitAsDescriptorTable(2, &range[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
 	rtSigDesc.pParameters = parameter;
@@ -490,8 +520,9 @@ bool PMDManager::CreatePipelineStateObject()
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	// Output set up
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.NumRenderTargets = 2;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;			// main render target
+	psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;			// normal render target
 	// Blend
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	// Root Signature

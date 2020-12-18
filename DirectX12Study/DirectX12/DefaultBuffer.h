@@ -1,8 +1,6 @@
 #pragma once
 #include <d3dx12.h>
 
-using Microsoft::WRL::ComPtr;
-
 // GPU read only buffer
 class DefaultBuffer
 {
@@ -36,8 +34,8 @@ public:
 	bool ClearSubresource();
 private:
 
-	ComPtr<ID3D12Resource> m_buffer = nullptr;
-	ComPtr<ID3D12Resource> m_intermedinateBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_buffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_intermedinateBuffer = nullptr;
 	D3D12_SUBRESOURCE_DATA* m_subresource = nullptr;
 	bool m_isShaderResourceBuffer = false;
 };
