@@ -1,13 +1,7 @@
 #pragma once
-#include <unordered_map>
 #include <string>
-#include <d3dx12.h>
-
-#include "PMDMesh.h"
-
-class PMDModel;
-class Timer;
-class VMDMotion;
+#include <memory>
+#include <d3d12.h>
 
 class PMDManager
 {
@@ -83,62 +77,7 @@ public:
 	// Scale model
 	bool Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ);
 private:
-	void InitModels(ID3D12GraphicsCommandList* cmdList);
-	bool HasModel(std::string const& modelName);
-	bool HasAnimation(std::string const& animationName);
-
-	// When Initialization hasn't done
-	// =>Client's Render and Update methods are putted to sleep
-	void SleepUpdate(const float& deltaTime);
-	void SleepRender(ID3D12GraphicsCommandList* cmdList);
-	
-	void NormalUpdate(const float& deltaTime);
-	void NormalRender(ID3D12GraphicsCommandList* cmdList);
-
-	// Function use for taking models depth value
-	void DepthRender(ID3D12GraphicsCommandList* cmdList);
-
-	using UpdateFunc_ptr = void (PMDManager::*)(const float& deltaTime);
-	using RenderFunc_ptr = void (PMDManager::*)(ID3D12GraphicsCommandList* pGraphicsCmdList);
-	UpdateFunc_ptr m_updateFunc;
-	RenderFunc_ptr m_renderFunc;
-	RenderFunc_ptr m_renderDepthFunc;
-
-	bool m_isInitDone = false;
-private:
-
-	bool CreatePipeline();
-	bool CreateRootSignature();
-	bool CreatePipelineStateObject();
-	// check default buffers are initialized or not
-	bool CheckDefaultBuffers();
-
-	/*----------RESOURCE FROM ENGINE----------*/
-	// Device from engine
-	ID3D12Device* m_device = nullptr;
-
-	// Default resources from engine
-	ID3D12Resource* m_whiteTexture = nullptr;
-	ID3D12Resource* m_blackTexture = nullptr;
-	ID3D12Resource* m_gradTexture = nullptr;
-	/*-----------------------------------------*/
-
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
-
-	// World pass constant buffer binds only to VERTEX BUFFER
-	// Descriptor heap stores descriptor of world pass constant buffer
-	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_worldPCBHeap = nullptr;
-	
-	// Shadow depth buffer binds only to PIXEL SHADER
-	// Descriptor heap stores descriptor of shadow depth buffer
-	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
-
-private:
-	std::unordered_map<std::string, PMDModel> m_models;
-	std::unordered_map<std::string, VMDMotion> m_animations;
-	PMDMesh m_mesh;
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
 };
 
