@@ -378,6 +378,15 @@ PMDManager::PMDManager(ID3D12Device* pDevice): m_impl(std::make_unique<Impl>(pDe
 	
 }
 
+PMDManager::PMDManager(const PMDManager&)
+{
+
+}
+
+void PMDManager::operator=(const PMDManager&)
+{
+}
+
 PMDManager::~PMDManager()
 {
 }

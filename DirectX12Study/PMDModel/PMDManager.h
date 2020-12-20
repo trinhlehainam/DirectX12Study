@@ -77,6 +77,10 @@ public:
 	// Scale model
 	bool Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ);
 private:
+	// Don't allow copy semantics
+	PMDManager(const PMDManager&);
+	void operator = (const PMDManager&);
+
 	class Impl;
 	std::unique_ptr<Impl> m_impl;
 };
