@@ -34,7 +34,7 @@ private:
 
 	HINSTANCE inst_;
 	HWND wndHandle_;
-	std::unique_ptr<D3D12App> dxWrapper_;
+	std::unique_ptr<D3D12App> d3d12app;
 	
 	size_t clientWidth_ = 800;
 	size_t clientHeight_ = 600;

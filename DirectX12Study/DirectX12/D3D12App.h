@@ -34,14 +34,14 @@ public:
 	// Update Direct3D12
 	// true: no problem
 	// false: error
+	bool ProcessMessage();
 	bool Update(const float& deltaTime);
 	bool Render();
 	void Terminate();
 public:
 	// function to receive keyboard input from Windows system
 	void ClearKeyState();
-	void OnKeyDown(uint8_t keycode);
-	void OnKeyUp(uint8_t keycode);
+	void OnWindowsKeyboardMessage(uint32_t msg, WPARAM keycode, LPARAM lparam);
 public:
 	void OnMouseMove(int x, int y);
 	void OnMouseRightDown(int x, int y);

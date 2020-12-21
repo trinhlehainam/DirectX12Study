@@ -63,24 +63,14 @@ LRESULT Application::ProcessMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 
 		/*******************KEY BOARD*******************/
 	case WM_KILLFOCUS:
-		dxWrapper_->ClearKeyState();
+		d3d12app->ClearKeyState();
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
-		
-		dxWrapper_->OnKeyDown(static_cast<uint8_t>(wParam));
-
-		// Bitwise with 30th bit of lParam to find previous key state
-		if (lParam & 0x40000000)
-		{
-			
-		}
-
-		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
-		dxWrapper_->OnKeyUp(static_cast<uint8_t>(wParam));
-		
+	case WM_CHAR:
+		d3d12app->OnWindowsKeyboardMessage(Msg, wParam, lParam);
 		break;
 		/**************************************************/
 
@@ -88,31 +78,31 @@ LRESULT Application::ProcessMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	case WM_MOUSEMOVE:
 	{
 		const POINTS p = MAKEPOINTS(lParam);
-		dxWrapper_->OnMouseMove(static_cast<int>(p.x), static_cast<int>(p.y));
+		d3d12app->OnMouseMove(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
 	break;
 	case WM_LBUTTONDOWN:
 	{
 		const POINTS p = MAKEPOINTS(lParam);
-		dxWrapper_->OnMouseLeftDown(static_cast<int>(p.x), static_cast<int>(p.y));
+		d3d12app->OnMouseLeftDown(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
 	break;
 	case WM_RBUTTONDOWN:
 	{
 		const POINTS p = MAKEPOINTS(lParam);
-		dxWrapper_->OnMouseRightDown(static_cast<int>(p.x), static_cast<int>(p.y));
+		d3d12app->OnMouseRightDown(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
 	break;
 	case WM_LBUTTONUP:
 	{
 		const POINTS p = MAKEPOINTS(lParam);
-		dxWrapper_->OnMouseLeftUp(static_cast<int>(p.x), static_cast<int>(p.y));
+		d3d12app->OnMouseLeftUp(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
 	break;
 	case WM_RBUTTONUP:
 	{
 		const POINTS p = MAKEPOINTS(lParam);
-		dxWrapper_->OnMouseRightUp(static_cast<int>(p.x), static_cast<int>(p.y));
+		d3d12app->OnMouseRightUp(static_cast<int>(p.x), static_cast<int>(p.y));
 	}
 	break;
 	case WM_MBUTTONDOWN:
@@ -184,8 +174,8 @@ bool Application::Initialize()
 	ShowWindow(wndHandle_, SW_SHOW);
 	UpdateWindow(wndHandle_);
 
-	dxWrapper_ = std::make_unique<D3D12App>();
-	if (!dxWrapper_->Initialize(wndHandle_))
+	d3d12app = std::make_unique<D3D12App>();
+	if (!d3d12app->Initialize(wndHandle_))
 		return false;
 
 	return true;
@@ -214,14 +204,15 @@ void Application::Run()
 			break;
 		timer_.Tick();
 		CalculatePerformance();
-		dxWrapper_->Update(timer_.DeltaTime());
-		dxWrapper_->Render();
+		d3d12app->ProcessMessage();
+		d3d12app->Update(timer_.DeltaTime());
+		d3d12app->Render();
 	}
 }
 
 void Application::Terminate()
 {
-	dxWrapper_->Terminate();
+	d3d12app->Terminate();
 	UnregisterClassW(className, inst_);
 }
 

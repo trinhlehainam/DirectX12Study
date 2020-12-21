@@ -1321,6 +1321,12 @@ void D3D12App::CreatePrimitive()
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 }
 
+bool D3D12App::ProcessMessage()
+{
+    m_keyboard.Update();
+    return true;
+}
+
 bool D3D12App::Update(const float& deltaTime)
 {
     UpdateCamera(deltaTime);
@@ -1395,14 +1401,9 @@ void D3D12App::ClearKeyState()
     m_keyboard.Reset();
 }
 
-void D3D12App::OnKeyDown(uint8_t keycode)
+void D3D12App::OnWindowsKeyboardMessage(uint32_t msg, WPARAM keycode, LPARAM lparam)
 {
-    m_keyboard.OnKeyDown(keycode);
-}
-
-void D3D12App::OnKeyUp(uint8_t keycode)
-{
-    m_keyboard.OnKeyUp(keycode);
+    m_keyboard.OnWindowsMessage(msg, keycode, lparam);
 }
 
 void D3D12App::OnMouseMove(int x, int y)

@@ -76,6 +76,7 @@ private:
 
 	DirectX::XMVECTOR m_pos = DirectX::XMVectorZero();
 	DirectX::XMVECTOR m_targetPos = DEFAULT_TARGET_POSITION;
+	DirectX::XMVECTOR m_direction = DirectX::XMVector4Normalize(DirectX::XMVectorSubtract(m_targetPos, m_pos));
 	// Matrix covert to camera space (coordinate)
 	DirectX::XMMATRIX m_view = DirectX::XMMatrixIdentity();
 	// Matrix use for projecting models to camera view
