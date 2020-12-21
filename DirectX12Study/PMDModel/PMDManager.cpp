@@ -7,7 +7,7 @@
 #include <cassert>
 #include <d3dx12.h>
 
-#define IMPL m_impl
+#define IMPL (*m_impl)
 
 class PMDManager::Impl
 {
@@ -395,56 +395,56 @@ bool PMDManager::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource*
 {
 	if (!pWhiteTexture || !pBlackTexture || !pGradTexture) return false;
 
-	IMPL->m_whiteTexture = pWhiteTexture;
-	IMPL->m_blackTexture = pBlackTexture;
-	IMPL->m_gradTexture = pGradTexture;
+	IMPL.m_whiteTexture = pWhiteTexture;
+	IMPL.m_blackTexture = pBlackTexture;
+	IMPL.m_gradTexture = pGradTexture;
 
 	return true;
 }
 
 bool PMDManager::Init(ID3D12GraphicsCommandList* cmdList)
 {
-	return IMPL->Init(cmdList);
+	return IMPL.Init(cmdList);
 }
 
 bool PMDManager::ClearSubresources()
 {
-	return IMPL->ClearSubresource();
+	return IMPL.ClearSubresource();
 }
 
 bool PMDManager::SetDevice(ID3D12Device* pDevice)
 {
     if (pDevice == nullptr) return false;
-	IMPL->m_device = pDevice;
+	IMPL.m_device = pDevice;
     return false;
 }
 
 bool PMDManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_t bufferSize)
 {
-	assert(IMPL->m_device);
-	if (IMPL->m_device == nullptr) return false;
+	assert(IMPL.m_device);
+	if (IMPL.m_device == nullptr) return false;
 	if (pWorldPassConstant == nullptr) return false;
 	if (bufferSize == 0) return false;
 
-	D12Helper::CreateDescriptorHeap(IMPL->m_device, IMPL->m_worldPCBHeap,
+	D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_worldPCBHeap,
 		1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = pWorldPassConstant->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = bufferSize;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL->m_worldPCBHeap->GetCPUDescriptorHandleForHeapStart());
-	IMPL->m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_worldPCBHeap->GetCPUDescriptorHandleForHeapStart());
+	IMPL.m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
 	return true;
 }
 
 bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 {
-	assert(IMPL->m_device);
+	assert(IMPL.m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	D12Helper::CreateDescriptorHeap(IMPL->m_device, m_impl->m_depthHeap, 2,
+	D12Helper::CreateDescriptorHeap(IMPL.m_device, m_impl->m_depthHeap, 2,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -464,15 +464,15 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL->m_depthHeap->GetCPUDescriptorHandleForHeapStart());
-	IMPL->m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	IMPL.m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
 
 	return true;
 }
 
 bool PMDManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
 {
-	assert(IMPL->m_device);
+	assert(IMPL.m_device);
 	if (pViewDepthBuffer == nullptr) return false;
 
 	auto rsDes = pViewDepthBuffer->GetDesc();
@@ -492,100 +492,100 @@ bool PMDManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
 	srvDesc.Texture2D.PlaneSlice = 0;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL->m_depthHeap->GetCPUDescriptorHandleForHeapStart());
-	heapHandle.Offset(1, IMPL->m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-	IMPL->m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	heapHandle.Offset(1, IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	IMPL.m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
 
 	return true;
 }
 
 bool PMDManager::IsInitialized()
 {
-	return IMPL->m_isInitDone;
+	return IMPL.m_isInitDone;
 }
 
 bool PMDManager::CreateModel(const std::string& modelName, const char* modelFilePath)
 {
-	assert(!IMPL->HasModel(modelName));
-	if (IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].SetDevice(IMPL->m_device);
-	IMPL->m_models[modelName].Load(modelFilePath);
+	assert(!IMPL.HasModel(modelName));
+	if (IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].SetDevice(IMPL.m_device);
+	IMPL.m_models[modelName].Load(modelFilePath);
 	return true;
 }
 
 bool PMDManager::CreateAnimation(const std::string& animationName, const char* animationFilePath)
 {
-	assert(!IMPL->HasAnimation(animationName));
-	if (IMPL->HasAnimation(animationName)) return false;
-	IMPL->m_animations[animationName].Load(animationFilePath);
+	assert(!IMPL.HasAnimation(animationName));
+	if (IMPL.HasAnimation(animationName)) return false;
+	IMPL.m_animations[animationName].Load(animationFilePath);
 	return true;
 }
 
 void PMDManager::Update(const float& deltaTime)
 {
-	IMPL->Update(deltaTime);
+	IMPL.Update(deltaTime);
 }
 
 void PMDManager::Render(ID3D12GraphicsCommandList* cmdList)
 {
-	IMPL->Render(cmdList);
+	IMPL.Render(cmdList);
 }
 
 void PMDManager::RenderDepth(ID3D12GraphicsCommandList* cmdList)
 {
-	IMPL->RenderDepth(cmdList);
+	IMPL.RenderDepth(cmdList);
 }
 
 bool PMDManager::Play(const std::string& modelName, const std::string& animationName)
 {
-	if (!IMPL->m_isInitDone) return false;
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	assert(IMPL->HasAnimation(animationName));
-	if (!IMPL->HasAnimation(animationName)) return false;
+	if (!IMPL.m_isInitDone) return false;
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	assert(IMPL.HasAnimation(animationName));
+	if (!IMPL.HasAnimation(animationName)) return false;
 
-	IMPL->m_models[modelName].Play(&IMPL->m_animations[animationName]);
+	IMPL.m_models[modelName].Play(&IMPL.m_animations[animationName]);
 
 	return true;
 }
 
 bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, float moveZ)
 {
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].Move(moveX, moveY, moveZ);
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].Move(moveX, moveY, moveZ);
 	return true;
 }
 
 bool PMDManager::RotateX(const std::string& modelName, float angle)
 {
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].RotateX(angle);
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].RotateX(angle);
 	return true;
 }
 
 bool PMDManager::RotateY(const std::string& modelName, float angle)
 {
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].RotateY(angle);
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].RotateY(angle);
 	return true;
 }
 
 bool PMDManager::RotateZ(const std::string& modelName, float angle)
 {
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].RotateZ(angle);
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].RotateZ(angle);
 	return true;
 }
 
 bool PMDManager::Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ)
 {
-	assert(IMPL->HasModel(modelName));
-	if (!IMPL->HasModel(modelName)) return false;
-	IMPL->m_models[modelName].Scale(scaleX, scaleY, scaleZ);
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
+	IMPL.m_models[modelName].Scale(scaleX, scaleY, scaleZ);
 	return true;
 }
 
