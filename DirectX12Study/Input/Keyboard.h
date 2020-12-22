@@ -5,7 +5,7 @@ public:
 	bool IsPressed(unsigned char keycode) const;
 	bool IsReleased(unsigned char keycode) const;
 
-	void OnWindowsMessage(unsigned int msg, unsigned char keycode, __int64 lparam);
+	void OnWindowsMessage(unsigned int msg, unsigned char wparam, __int64 lparam);
 	void ProcessMessage();
 	// Release all keys' state when process message changes FOCUS
 	// it means when messages move to another window

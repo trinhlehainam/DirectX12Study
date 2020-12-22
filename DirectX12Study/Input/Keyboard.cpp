@@ -1,5 +1,4 @@
 #include "Keyboard.h"
-#include <windows.h>
 #include <vector>
 #include "KeyboardEvent.h"
 
@@ -63,27 +62,9 @@ bool Keyboard::IsReleased(unsigned char keycode) const
     return !IMPL.m_keyDown[keycode];
 }
 
-void Keyboard::OnWindowsMessage(unsigned int msg, unsigned char keycode, __int64 lparam)
+void Keyboard::OnWindowsMessage(unsigned int msg, unsigned char wparam, __int64 lparam)
 {
-    switch (msg)
-    {
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-        // Bitwise with 30th bit of lParam to find previous key state
-        if (lparam & 0x40000000)
-        {
-
-        }
-        IMPL.m_events[IMPL.m_tail] = KeyboardEvent(keycode, KeyboardEvent::DOWN);
-        break;
-    case WM_KEYUP:
-    case WM_SYSKEYUP:
-        IMPL.m_events[IMPL.m_tail] = KeyboardEvent(keycode, KeyboardEvent::UP);
-        break;
-    case WM_CHAR:
-        IMPL.m_events[IMPL.m_tail] = KeyboardEvent(keycode, KeyboardEvent::CHAR);
-        break;
-    }
+    IMPL.m_events[IMPL.m_tail] = KeyboardEvent(msg, wparam, lparam);
     IMPL.m_tail = (IMPL.m_tail + 1) % IMPL.MAX_NUM_EVENT;
 }
 

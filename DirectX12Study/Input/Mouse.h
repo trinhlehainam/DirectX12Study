@@ -22,8 +22,9 @@ public:
 	Mouse();
 	~Mouse();
 private:
-	Mouse(const Mouse&) = delete;
-	Mouse& operator = (const Mouse&) = delete;
+	// Prevent copy semantics
+	Mouse(const Mouse&);
+	void operator = (const Mouse&);
 private:
 	
 	class Impl;

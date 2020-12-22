@@ -1,16 +1,18 @@
 #include "Mouse.h"
-#include <Windows.h>
 #include <vector>
 #include "MouseEvent.h"
 
 #define IMPL (*mp_impl)
 
-enum
+namespace
 {
-	MOUSE_BUTTON_LEFT = 0,
-	MOUSE_BUTTON_RIGHT = 1,
-	MOUSE_BUTTON_MIDDLE = 2
-};
+	enum
+	{
+		MOUSE_BUTTON_LEFT = 0,
+		MOUSE_BUTTON_RIGHT = 1,
+		MOUSE_BUTTON_MIDDLE = 2
+	};
+}
 
 class Mouse::Impl
 {
@@ -59,6 +61,14 @@ Mouse::~Mouse()
 		delete mp_impl;
 		mp_impl = nullptr;
 	}
+}
+
+Mouse::Mouse(const Mouse&)
+{
+}
+
+void Mouse::operator=(const Mouse&)
+{
 }
 
 void Mouse::GetPos(int& x, int& y)
@@ -125,42 +135,7 @@ bool Mouse::IsMiddlePressed(int& x, int& y)
 
 bool Mouse::OnWindowsMessage(unsigned int msg, unsigned char wparam, __int64 lparam)
 {
-	const POINTS p = MAKEPOINTS(lparam);
-	switch (msg)
-	{
-	case WM_MOUSEMOVE:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::NONE, MouseEvent::STATE::MOVE, p.x, p.y);
-		break;
-	case WM_LBUTTONDOWN:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::LEFT, MouseEvent::STATE::DOWN, p.x, p.y);
-		break;
-	case WM_RBUTTONDOWN:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::RIGHT, MouseEvent::STATE::DOWN, p.x, p.y);
-		break;
-	case WM_MBUTTONDOWN:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::MIDDLE, MouseEvent::STATE::DOWN, p.x, p.y);
-		break;
-	case WM_LBUTTONUP:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::LEFT, MouseEvent::STATE::UP, p.x, p.y);
-		break;
-	case WM_RBUTTONUP:
-		IMPL.m_events[IMPL.m_tail] =
-			MouseEvent(MouseEvent::BUTTON::RIGHT, MouseEvent::STATE::UP, p.x, p.y);
-		break;
-	case WM_MBUTTONUP:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::MIDDLE, MouseEvent::STATE::UP, p.x, p.y);
-		break;
-	case WM_MOUSEWHEEL:
-		IMPL.m_events[IMPL.m_tail] = 
-			MouseEvent(MouseEvent::BUTTON::NONE, MouseEvent::STATE::WHEEL, p.x, p.y);
-		break;
-	}
+	IMPL.m_events[IMPL.m_tail] = MouseEvent(msg, wparam, lparam);
 
 	IMPL.m_tail = (IMPL.m_tail + 1) % IMPL.MAX_NUM_EVENT;
 	return true;

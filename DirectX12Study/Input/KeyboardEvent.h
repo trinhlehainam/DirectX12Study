@@ -13,7 +13,7 @@ public:
 public:
 	~KeyboardEvent();
 	KeyboardEvent();
-	KeyboardEvent(unsigned char keycode, STATE state);
+	KeyboardEvent(unsigned int msg, unsigned char wparam, __int64 lparam);
 	
 private:
 	friend class Keyboard;

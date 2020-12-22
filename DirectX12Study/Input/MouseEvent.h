@@ -21,7 +21,7 @@ public:
 
 public:
 	MouseEvent();
-	MouseEvent(BUTTON button, STATE state, int x, int y);
+	MouseEvent(unsigned int msg, unsigned char wparam, __int64 lparam);
 	~MouseEvent();
 
 private:
