@@ -49,7 +49,7 @@ private:
 		MOUSE_STATE_RIGHT_DOWN = 3,
 		MOUSE_STATE_RIGHT_UP = 4
 	};
-	struct Pos
+	struct MousePos
 	{
 		int x, y;
 	};
@@ -57,7 +57,7 @@ private:
 	// 1 : right pressed, 2 : right released
 	// 3 : left pressed, 4 : left released
 	static constexpr unsigned char num_mouse_state = 5;
-	Pos m_pos[num_mouse_state];
+	MousePos m_pos[num_mouse_state];
 	
 	int m_delta;
 };

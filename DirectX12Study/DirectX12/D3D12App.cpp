@@ -1323,7 +1323,7 @@ void D3D12App::CreatePrimitive()
 
 bool D3D12App::ProcessMessage()
 {
-    m_keyboard.Update();
+    m_keyboard.ProcessMessage();
     return true;
 }
 

@@ -12,9 +12,12 @@ public:
     Impl();
     ~Impl();
 private:
+    static constexpr unsigned char num_keyboard = 255;
+    bool m_keyDown[num_keyboard] = {};
+private:
     uint32_t m_head = 0;
     uint32_t m_tail = 0;
-    static constexpr uint32_t MAX_NUM_EVENT = 5;
+    static constexpr uint32_t MAX_NUM_EVENT = 10;
     std::vector<KeyboardEvent> m_events;
 };
 
@@ -39,14 +42,22 @@ Keyboard::~Keyboard()
     mp_impl = nullptr;
 }
 
+Keyboard::Keyboard(const Keyboard&)
+{
+}
+
+void Keyboard::operator=(const Keyboard&)
+{
+}
+
 bool Keyboard::IsPressed(unsigned char keycode) const
 {
-    return m_keyDown[keycode];
+    return IMPL.m_keyDown[keycode];
 }
 
 bool Keyboard::IsReleased(unsigned char keycode) const
 {
-    return !m_keyDown[keycode];
+    return !IMPL.m_keyDown[keycode];
 }
 
 void Keyboard::OnWindowsMessage(unsigned int msg, unsigned char keycode, __int64 lparam)
@@ -73,7 +84,7 @@ void Keyboard::OnWindowsMessage(unsigned int msg, unsigned char keycode, __int64
     IMPL.m_tail = (IMPL.m_tail + 1) % IMPL.MAX_NUM_EVENT;
 }
 
-void Keyboard::Update()
+void Keyboard::ProcessMessage()
 {
     if (IMPL.m_head == IMPL.m_tail) return;
     while (IMPL.m_head != IMPL.m_tail)
@@ -82,10 +93,10 @@ void Keyboard::Update()
         switch (event.m_state)
         {
         case KeyboardEvent::DOWN:
-            m_keyDown[event.m_keycode] = true;
+            IMPL.m_keyDown[event.m_keycode] = true;
             break;
         case KeyboardEvent::UP:
-            m_keyDown[event.m_keycode] = false;
+            IMPL.m_keyDown[event.m_keycode] = false;
             break;
         case KeyboardEvent::CHAR:
             break;
@@ -96,7 +107,6 @@ void Keyboard::Update()
 
 void Keyboard::Reset()
 {
-    for (auto& state : m_keyDown)
-        state = false;
+    std::memset(IMPL.m_keyDown, 0, sizeof(IMPL.m_keyDown));
 }
 
