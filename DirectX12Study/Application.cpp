@@ -39,7 +39,7 @@ void Application::CalculatePerformance()
 
 		std::wstring windowTitle = window_caption + fpsStr + mspfStr;
 
-		SetWindowText(wndHandle_, windowTitle.c_str());
+		SetWindowText(m_hWnd, windowTitle.c_str());
 
 		frameCnt = 0;
 		elapsedTime += 1.0f;
@@ -76,43 +76,24 @@ LRESULT Application::ProcessMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 
 		/*******************MOUSE INPUT********************/
 	case WM_MOUSEMOVE:
-	{
-		const POINTS p = MAKEPOINTS(lParam);
-		d3d12app->OnMouseMove(static_cast<int>(p.x), static_cast<int>(p.y));
-	}
-	break;
-	case WM_LBUTTONDOWN:
-	{
-		const POINTS p = MAKEPOINTS(lParam);
-		d3d12app->OnMouseLeftDown(static_cast<int>(p.x), static_cast<int>(p.y));
-	}
-	break;
-	case WM_RBUTTONDOWN:
-	{
-		const POINTS p = MAKEPOINTS(lParam);
-		d3d12app->OnMouseRightDown(static_cast<int>(p.x), static_cast<int>(p.y));
-	}
-	break;
-	case WM_LBUTTONUP:
-	{
-		const POINTS p = MAKEPOINTS(lParam);
-		d3d12app->OnMouseLeftUp(static_cast<int>(p.x), static_cast<int>(p.y));
-	}
-	break;
-	case WM_RBUTTONUP:
-	{
-		const POINTS p = MAKEPOINTS(lParam);
-		d3d12app->OnMouseRightUp(static_cast<int>(p.x), static_cast<int>(p.y));
-	}
-	break;
-	case WM_MBUTTONDOWN:
+		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		break;
+	case WM_LBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+	case WM_MBUTTONDOWN:
+		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		::SetCapture(m_hWnd);
+		break;
+	case WM_LBUTTONUP:
+	case WM_RBUTTONUP:
 	case WM_MBUTTONUP:
+		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		::ReleaseCapture();
 		break;
 	case WM_MOUSEWHEEL:
+		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		break;
 		/**************************************************/
-
 	default:
 		return DefWindowProc(hWnd, Msg, wParam, lParam);
 	}
@@ -141,7 +122,7 @@ bool Application::Initialize()
 	auto regCls = RegisterClassEx(&wc);
 	RECT rc = { 0,0,WINDOW_WIDTH, WINDOW_HEIGHT };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
-	wndHandle_ = CreateWindow(
+	m_hWnd = CreateWindow(
 		className,					// 上で登録した身分証のクラス名
 		window_caption,			// ウインドウ実体の名前
 		WS_OVERLAPPEDWINDOW,		// 普通のウインドウ
@@ -154,7 +135,7 @@ bool Application::Initialize()
 		inst_,						// このアプリケーションのインスタント
 		nullptr);					// lparam
 
-	if (wndHandle_ == 0)
+	if (m_hWnd == 0)
 	{
 		LPVOID messageBuffer = nullptr;
 		FormatMessage(
@@ -171,11 +152,11 @@ bool Application::Initialize()
 		return false;
 	}
 
-	ShowWindow(wndHandle_, SW_SHOW);
-	UpdateWindow(wndHandle_);
+	ShowWindow(m_hWnd, SW_SHOW);
+	UpdateWindow(m_hWnd);
 
 	d3d12app = std::make_unique<D3D12App>();
-	if (!d3d12app->Initialize(wndHandle_))
+	if (!d3d12app->Initialize(m_hWnd))
 		return false;
 
 	return true;

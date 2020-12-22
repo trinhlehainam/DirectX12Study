@@ -1,106 +1,221 @@
 #include "Mouse.h"
+#include <Windows.h>
+#include <vector>
+#include "MouseEvent.h"
 
-Mouse::Mouse()
+#define IMPL (*mp_impl)
+
+enum
 {
+	MOUSE_BUTTON_LEFT = 0,
+	MOUSE_BUTTON_RIGHT = 1,
+	MOUSE_BUTTON_MIDDLE = 2
+};
+
+class Mouse::Impl
+{
+public:
+	Impl();
+	~Impl();
+private:
+	friend Mouse;
+
+	// 0 : left , 1 : right, 2: middle
+	static constexpr unsigned char num_mouse_button = 3;
+	bool m_mouseDown[num_mouse_button];
+
+	int m_x, m_y;
+	int m_delta;
+private:
+	static constexpr uint8_t MAX_NUM_EVENT = 10;
+	std::vector<MouseEvent> m_events;
+	uint8_t m_head = 0;
+	uint8_t m_tail = 0;
+};
+
+Mouse::Impl::Impl()
+{
+	m_events.resize(MAX_NUM_EVENT);
+}
+
+Mouse::Impl::~Impl()
+{
+
+}
+
+
+//
+/***********MOUSE PUBLIC METHOD************/
+//
+
+Mouse::Mouse():mp_impl(new Impl())
+{
+}
+
+Mouse::~Mouse()
+{
+	if (mp_impl != nullptr)
+	{
+		delete mp_impl;
+		mp_impl = nullptr;
+	}
 }
 
 void Mouse::GetPos(int& x, int& y)
 {
-	x = m_pos[MOUSE_STATE_MOVE].x;
-	y = m_pos[MOUSE_STATE_MOVE].y;
+	x = IMPL.m_x;
+	y = IMPL.m_y;
 }
 
 void Mouse::GetPosX(int& x)
 {
-	x = m_pos[MOUSE_STATE_MOVE].x;
+	x = IMPL.m_x;
 }
 
 void Mouse::GetPosY(int& y)
 {
-	y = m_pos[MOUSE_STATE_MOVE].y;
+	y = IMPL.m_y;
 }
 
 int Mouse::GetPosX() const
 {
-	return m_pos[MOUSE_STATE_MOVE].x;
+	return IMPL.m_x;
 }
 
 int Mouse::GetPosY() const
 {
-	return m_pos[MOUSE_STATE_MOVE].y;
+	return IMPL.m_y;
 }
 
 bool Mouse::IsRightPressed()
 {
-	return m_mouseDown[MOUSE_BUTTON_RIGHT];;
+	return IMPL.m_mouseDown[MOUSE_BUTTON_RIGHT];;
 }
 
 bool Mouse::IsRightPressed(int& x, int& y)
 {
-	if (!m_mouseDown[MOUSE_BUTTON_RIGHT]) return false;
-	x = m_pos[MOUSE_STATE_RIGHT_DOWN].x;
-	y = m_pos[MOUSE_STATE_RIGHT_DOWN].y;
+	if (!IMPL.m_mouseDown[MOUSE_BUTTON_RIGHT]) return false;
+	x = IMPL.m_x;
+	y = IMPL.m_y;
 	return true;
 }
 
 bool Mouse::IsLeftPressed()
 {
-	return m_mouseDown[MOUSE_BUTTON_LEFT];
+	return IMPL.m_mouseDown[MOUSE_BUTTON_LEFT];
 }
 
 bool Mouse::IsLeftPressed(int& x, int& y)
 {
-	if (!m_mouseDown[MOUSE_BUTTON_LEFT]) return false;
-	x = m_pos[MOUSE_STATE_LEFT_DOWN].x;
-	y = m_pos[MOUSE_STATE_LEFT_DOWN].y;
+	if (!IMPL.m_mouseDown[MOUSE_BUTTON_LEFT]) return false;
+	x = IMPL.m_x;
+	y = IMPL.m_y;
 	return true;
 }
 
 bool Mouse::IsMiddlePressed()
 {
-	return m_mouseDown[MOUSE_BUTTON_LEFT];
+	return IMPL.m_mouseDown[MOUSE_BUTTON_MIDDLE];
 }
 
 bool Mouse::IsMiddlePressed(int& x, int& y)
 {
-	return m_mouseDown[MOUSE_BUTTON_LEFT];
+	return IMPL.m_mouseDown[MOUSE_BUTTON_MIDDLE];
 }
 
-void Mouse::OnMove(int x, int y)
+bool Mouse::OnWindowsMessage(unsigned int msg, unsigned char wparam, __int64 lparam)
 {
-	m_pos[MOUSE_STATE_MOVE].x = x;
-	m_pos[MOUSE_STATE_MOVE].y = y;
+	const POINTS p = MAKEPOINTS(lparam);
+	switch (msg)
+	{
+	case WM_MOUSEMOVE:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::NONE, MouseEvent::STATE::MOVE, p.x, p.y);
+		break;
+	case WM_LBUTTONDOWN:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::LEFT, MouseEvent::STATE::DOWN, p.x, p.y);
+		break;
+	case WM_RBUTTONDOWN:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::RIGHT, MouseEvent::STATE::DOWN, p.x, p.y);
+		break;
+	case WM_MBUTTONDOWN:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::MIDDLE, MouseEvent::STATE::DOWN, p.x, p.y);
+		break;
+	case WM_LBUTTONUP:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::LEFT, MouseEvent::STATE::UP, p.x, p.y);
+		break;
+	case WM_RBUTTONUP:
+		IMPL.m_events[IMPL.m_tail] =
+			MouseEvent(MouseEvent::BUTTON::RIGHT, MouseEvent::STATE::UP, p.x, p.y);
+		break;
+	case WM_MBUTTONUP:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::MIDDLE, MouseEvent::STATE::UP, p.x, p.y);
+		break;
+	case WM_MOUSEWHEEL:
+		IMPL.m_events[IMPL.m_tail] = 
+			MouseEvent(MouseEvent::BUTTON::NONE, MouseEvent::STATE::WHEEL, p.x, p.y);
+		break;
+	}
+
+	IMPL.m_tail = (IMPL.m_tail + 1) % IMPL.MAX_NUM_EVENT;
+	return true;
 }
 
-void Mouse::OnRightUp(int x, int y)
+bool Mouse::ProcessMessage()
 {
-	m_pos[MOUSE_STATE_RIGHT_UP].x = x;
-	m_pos[MOUSE_STATE_RIGHT_UP].y = y;
-	m_mouseDown[MOUSE_BUTTON_RIGHT] = false;
+	if (IMPL.m_head == IMPL.m_tail) return false;
+
+	while (IMPL.m_head != IMPL.m_tail)
+	{
+		const auto& event = IMPL.m_events[IMPL.m_head];
+
+		IMPL.m_x = event.m_x;
+		IMPL.m_y = event.m_y;
+
+		switch (event.m_state)
+		{
+		case MouseEvent::STATE::MOVE:
+			break;
+		case MouseEvent::STATE::DOWN:
+			switch (event.m_button)
+			{
+			case MouseEvent::BUTTON::LEFT:
+				IMPL.m_mouseDown[MOUSE_BUTTON_LEFT] = true;
+				break;
+			case MouseEvent::BUTTON::RIGHT:
+				IMPL.m_mouseDown[MOUSE_BUTTON_RIGHT] = true;
+				break;
+			case MouseEvent::BUTTON::MIDDLE:
+				IMPL.m_mouseDown[MOUSE_BUTTON_MIDDLE] = true;
+				break;
+			}
+			break;
+		case MouseEvent::STATE::UP:
+			switch (event.m_button)
+			{
+			case MouseEvent::BUTTON::LEFT:
+				IMPL.m_mouseDown[MOUSE_BUTTON_LEFT] = false;
+				break;
+			case MouseEvent::BUTTON::RIGHT:
+				IMPL.m_mouseDown[MOUSE_BUTTON_RIGHT] = false;
+				break;
+			case MouseEvent::BUTTON::MIDDLE:
+				IMPL.m_mouseDown[MOUSE_BUTTON_MIDDLE] = false;
+				break;
+			}
+			break;
+		case MouseEvent::STATE::WHEEL:
+			break;
+		}
+
+		IMPL.m_head = (IMPL.m_head + 1) % IMPL.MAX_NUM_EVENT;
+	}
+
+	return true;
 }
 
-void Mouse::OnRightDown(int x, int y)
-{
-	m_pos[MOUSE_STATE_RIGHT_DOWN].x = x;
-	m_pos[MOUSE_STATE_RIGHT_DOWN].y = y;
-	m_mouseDown[MOUSE_BUTTON_RIGHT] = true;
-}
-
-void Mouse::OnLeftDown(int x, int y)
-{
-	m_pos[MOUSE_STATE_LEFT_DOWN].x = x;
-	m_pos[MOUSE_STATE_LEFT_DOWN].y = y;
-	m_mouseDown[MOUSE_BUTTON_LEFT] = true;
-}
-
-void Mouse::OnLeftUp(int x, int y)
-{
-	m_pos[MOUSE_STATE_LEFT_UP].x = x;
-	m_pos[MOUSE_STATE_LEFT_UP].y = y;
-	m_mouseDown[MOUSE_BUTTON_LEFT] = false;
-}
-
-void Mouse::OnMouseWheel(int x, int y, int delta)
-{
-	
-}

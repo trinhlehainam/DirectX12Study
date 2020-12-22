@@ -42,12 +42,7 @@ public:
 	// function to receive keyboard input from Windows system
 	void ClearKeyState();
 	void OnWindowsKeyboardMessage(uint32_t msg, WPARAM keycode, LPARAM lparam);
-public:
-	void OnMouseMove(int x, int y);
-	void OnMouseRightDown(int x, int y);
-	void OnMouseRightUp(int x, int y);
-	void OnMouseLeftDown(int x, int y);
-	void OnMouseLeftUp(int x, int y);
+	void OnWindowsMouseMessage(uint32_t msg, WPARAM keycode, LPARAM lparam);
 private:
 	Keyboard m_keyboard;
 	Mouse m_mouse;

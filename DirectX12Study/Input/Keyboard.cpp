@@ -15,9 +15,9 @@ private:
     static constexpr unsigned char num_keyboard = 255;
     bool m_keyDown[num_keyboard] = {};
 private:
-    uint32_t m_head = 0;
-    uint32_t m_tail = 0;
-    static constexpr uint32_t MAX_NUM_EVENT = 10;
+    uint8_t m_head = 0;
+    uint8_t m_tail = 0;
+    static constexpr uint8_t MAX_NUM_EVENT = 10;
     std::vector<KeyboardEvent> m_events;
 };
 
@@ -38,8 +38,11 @@ Keyboard::Keyboard():mp_impl(new Impl())
 
 Keyboard::~Keyboard()
 {
-    delete mp_impl;
-    mp_impl = nullptr;
+    if (mp_impl != nullptr)
+    {
+        delete mp_impl;
+        mp_impl = nullptr;
+    }
 }
 
 Keyboard::Keyboard(const Keyboard&)

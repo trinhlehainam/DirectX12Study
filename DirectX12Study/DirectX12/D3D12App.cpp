@@ -1324,6 +1324,7 @@ void D3D12App::CreatePrimitive()
 bool D3D12App::ProcessMessage()
 {
     m_keyboard.ProcessMessage();
+    m_mouse.ProcessMessage();
     return true;
 }
 
@@ -1406,27 +1407,7 @@ void D3D12App::OnWindowsKeyboardMessage(uint32_t msg, WPARAM keycode, LPARAM lpa
     m_keyboard.OnWindowsMessage(msg, keycode, lparam);
 }
 
-void D3D12App::OnMouseMove(int x, int y)
+void D3D12App::OnWindowsMouseMessage(uint32_t msg, WPARAM keycode, LPARAM lparam)
 {
-    m_mouse.OnMove(x, y);
-}
-
-void D3D12App::OnMouseRightDown(int x, int y)
-{
-    m_mouse.OnRightDown(x, y);
-}
-
-void D3D12App::OnMouseRightUp(int x, int y)
-{
-    m_mouse.OnRightUp(x, y);
-}
-
-void D3D12App::OnMouseLeftDown(int x, int y)
-{
-    m_mouse.OnLeftDown(x, y);
-}
-
-void D3D12App::OnMouseLeftUp(int x, int y)
-{
-    m_mouse.OnLeftUp(x, y);
+    m_mouse.OnWindowsMessage(msg, keycode, lparam);
 }

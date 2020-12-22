@@ -153,6 +153,7 @@
     <ClCompile Include="Geometry\Mesh.cpp" />
     <ClCompile Include="Geometry\GeometryCommon.cpp" />
     <ClCompile Include="Input\KeyboardEvent.cpp" />
+    <ClCompile Include="Input\MouseEvent.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="DirectX12\DefaultBuffer.cpp" />
     <ClCompile Include="Geometry\PrimitiveManager.cpp" />
@@ -177,6 +178,7 @@
     <ClInclude Include="Geometry\GeometryCommon.h" />
     <ClInclude Include="Geometry\Mesh.h" />
     <ClInclude Include="Input\KeyboardEvent.h" />
+    <ClInclude Include="Input\MouseEvent.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="DirectX12\DefaultBuffer.h" />
     <ClInclude Include="Geometry\PrimitiveManager.h" />
