@@ -166,7 +166,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDModel\PMDManager.cpp" />
     <ClCompile Include="PMDModel\PMDModel.cpp" />
-    <ClCompile Include="DirectX12\UploadBuffer.cpp" />
+    <ClCompile Include="DirectX12\UploadBuffer_impl.h" />
     <ClCompile Include="Utility\StringHelper.cpp" />
     <ClCompile Include="PMDModel\VMD\VMDMotion.cpp" />
   </ItemGroup>

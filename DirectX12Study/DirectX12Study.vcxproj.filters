@@ -60,9 +60,6 @@
     <ClCompile Include="DirectX12\DefaultBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\UploadBuffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX12\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -79,6 +76,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Input\MouseEvent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\UploadBuffer_impl.h">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
