@@ -231,11 +231,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	for (int i = 0; i < m_pmdLoader->m_materials.size(); ++i)
 	{
 		auto mappedData = reinterpret_cast<PMDMaterial*>(m_mappedMaterial);
-		mappedData->diffuse = m_pmdLoader->m_materials[i].diffuse;
-		mappedData->alpha = m_pmdLoader->m_materials[i].alpha;
-		mappedData->specular = m_pmdLoader->m_materials[i].specular;
-		mappedData->specularity = m_pmdLoader->m_materials[i].specularity;
-		mappedData->ambient = m_pmdLoader->m_materials[i].ambient;
+		std::memcpy(mappedData, &m_pmdLoader->m_materials[i], sizeof(PMDMaterial));
 		cbvDesc.BufferLocation = gpuAddress;
 		m_device->CreateConstantBufferView(
 			&cbvDesc,

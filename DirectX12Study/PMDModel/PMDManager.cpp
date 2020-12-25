@@ -13,7 +13,7 @@ class PMDManager::Impl
 {
 public:
 	Impl();
-	Impl(ID3D12Device* pDevice);
+	explicit Impl(ID3D12Device* pDevice);
 	~Impl();
 private:
 	friend PMDManager;
