@@ -1,13 +1,12 @@
 #pragma once
 #include <string>
-#include <memory>
 #include <d3d12.h>
 
 class PMDManager
 {
 public:
 	PMDManager();
-	PMDManager(ID3D12Device* pDevice);
+	explicit PMDManager(ID3D12Device* pDevice);
 	~PMDManager();
 
 	//
@@ -82,6 +81,6 @@ private:
 	void operator = (const PMDManager&);
 
 	class Impl;
-	std::unique_ptr<Impl> m_impl;
+	Impl* m_impl = nullptr;
 };
 

@@ -368,12 +368,12 @@ bool PMDManager::Impl::CheckDefaultBuffers()
 /***************** PMDManager public method *******************/
 //
 
-PMDManager::PMDManager():m_impl(std::make_unique<Impl>())
+PMDManager::PMDManager():m_impl(new Impl())
 {
 	
 }
 
-PMDManager::PMDManager(ID3D12Device* pDevice): m_impl(std::make_unique<Impl>(pDevice))
+PMDManager::PMDManager(ID3D12Device* pDevice): m_impl(new Impl(pDevice))
 {
 	
 }
@@ -389,6 +389,7 @@ void PMDManager::operator=(const PMDManager&)
 
 PMDManager::~PMDManager()
 {
+	SAFE_DELETE(m_impl);
 }
 
 bool PMDManager::SetDefaultBuffer(ID3D12Resource* pWhiteTexture, ID3D12Resource* pBlackTexture, ID3D12Resource* pGradTexture)

@@ -14,7 +14,7 @@ struct VMDData
 	DirectX::XMFLOAT3 location;
 	size_t frameNO;
 	DirectX::XMFLOAT2 b1,b2;		// bezier data
-	VMDData(const size_t& frameNo,
+	explicit VMDData(const size_t& frameNo,
 		const DirectX::XMFLOAT4& quaternion,
 		const DirectX::XMFLOAT3& location,
 		const DirectX::XMFLOAT2& b1,

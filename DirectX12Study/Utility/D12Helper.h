@@ -18,7 +18,7 @@ namespace D12Helper
 
 	void OutputFromErrorBlob(Microsoft::WRL::ComPtr<ID3DBlob>& errBlob);
 
-	 size_t AlignedValue(size_t value, size_t align);
+	size_t AlignedValue(size_t value, size_t align);
 	
 	// Minimum memory block of constant buffer that hardware allows is 256 bits
 	// Multiple constant buffers must be multiple memory blocks of 256 bits
@@ -101,3 +101,4 @@ if(x != nullptr)\
 delete[] x;\
 x = nullptr; \
 }
+

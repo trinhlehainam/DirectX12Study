@@ -7,7 +7,7 @@ class UploadBuffer
 {
 public:
 	UploadBuffer() = default;
-	UploadBuffer(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
+	explicit UploadBuffer(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
 	~UploadBuffer();
 
 	bool Create(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);

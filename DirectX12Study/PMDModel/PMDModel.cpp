@@ -230,7 +230,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	assert(SUCCEEDED(result));
 	for (int i = 0; i < m_pmdLoader->m_materials.size(); ++i)
 	{
-		PMDMaterial* mappedData = (PMDMaterial*)m_mappedMaterial;
+		auto mappedData = reinterpret_cast<PMDMaterial*>(m_mappedMaterial);
 		mappedData->diffuse = m_pmdLoader->m_materials[i].diffuse;
 		mappedData->alpha = m_pmdLoader->m_materials[i].alpha;
 		mappedData->specular = m_pmdLoader->m_materials[i].specular;

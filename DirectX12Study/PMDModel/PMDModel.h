@@ -20,7 +20,7 @@ class PMDModel
 {
 public:
 	PMDModel();
-	PMDModel(ComPtr<ID3D12Device> pDevice);
+	explicit PMDModel(ComPtr<ID3D12Device> pDevice);
 	~PMDModel();
 
 	void SetDevice(ID3D12Device* pDevice);
