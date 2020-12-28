@@ -2,6 +2,7 @@
 #include "PMDModel.h"
 #include "VMD/VMDMotion.h"
 #include "PMDMesh.h"
+#include "../common.h"
 
 #include <unordered_map>
 #include <cassert>
@@ -82,22 +83,39 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
 private:
-	
-	struct Animation
-	{
-		std::vector<PMDBone> m_bones;
-		std::unordered_map<std::string, uint16_t> m_bonesTable;
-		std::vector<DirectX::XMMATRIX> m_boneMatrices;
-		float m_timer = 0.0f;
-		uint64_t m_frameCnt = 0.0f;
-	};
 	std::unordered_map<std::string, PMDModel> m_loaders;
 	std::vector<PMDResource> m_resources;
 	std::vector<PMDRenderResource> m_renderResources;
-	std::unordered_map<std::string, VMDMotion> m_animations;
-	std::unordered_map<std::string, uint16_t> m_indices;
+	std::unordered_map<std::string, VMDMotion> m_motionDatas;
+	std::unordered_map<std::string, uint16_t> m_modelIndices;
 	uint16_t m_count = -1;
 	PMDMesh m_mesh;
+
+private:
+	struct PMDAnimation
+	{
+		VMDMotion* pMotionData = nullptr;
+		std::vector<PMDBone> Bones;
+		std::unordered_map<std::string, uint16_t> BonesTable;
+		float Timer = 0.0f;
+		uint64_t FrameCnt = 0.0f;
+		explicit PMDAnimation(std::vector<PMDBone>&& bones, 
+			std::unordered_map<std::string, uint16_t>&& bonesTable) noexcept
+			:Bones(bones), BonesTable(bonesTable)
+		{
+
+		}
+		~PMDAnimation() { pMotionData = nullptr; };
+
+	};
+	std::vector<DirectX::XMMATRIX> m_defaultMatrices;
+	std::vector<PMDAnimation> m_animations;
+
+	void UpdateMotionTransform(uint16_t index, const size_t& currentFrame = 0);
+	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index);
+	// Root-finding algorithm ( finding ZERO or finding ROOT )
+	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127)->(1,1) respectively
+	float CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n = 8);
 };
 
 PMDManager::Impl::Impl()
@@ -149,7 +167,20 @@ void PMDManager::Impl::SleepRender(ID3D12GraphicsCommandList* cmdList)
 
 void PMDManager::Impl::NormalUpdate(const float& deltaTime)
 {
-	
+	constexpr float animation_speed = 50.0f / second_to_millisecond;
+	for (const auto& index : m_modelIndices)
+	{
+		const auto& name = index.first;
+		const auto& data = index.second;
+		auto& animation = m_animations[data];
+		if (animation.Timer <= 0.0f)
+		{
+			animation.Timer += animation_speed;
+			++animation.FrameCnt;
+			UpdateMotionTransform(data, animation.FrameCnt);
+		}
+		animation.Timer -= deltaTime;
+	}
 }
 
 void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
@@ -171,7 +202,7 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& index : m_indices)
+	for (auto& index : m_modelIndices)
 	{
 		auto& name = index.first;
 		auto& data = m_renderResources[index.second];
@@ -216,7 +247,7 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& index : m_indices)
+	for (auto& index : m_modelIndices)
 	{
 		auto& name = index.first;
 		auto& data = m_renderResources[index.second];
@@ -400,6 +431,98 @@ bool PMDManager::Impl::CheckDefaultBuffers()
 	return m_whiteTexture && m_blackTexture && m_gradTexture;
 }
 
+void PMDManager::Impl::UpdateMotionTransform(uint16_t index, const size_t& currentFrame)
+{
+	// If model don't have animtion, don't need to do motion
+	if (!m_animations[index].pMotionData) return;
+
+	auto& animation = m_animations[index];
+	auto& resource = m_resources[index];
+	auto& motionData = animation.pMotionData->GetVMDMotionData();
+	auto mats = m_defaultMatrices;
+
+	for (auto& motion : motionData)
+	{
+		auto index = animation.BonesTable[motion.first];
+		auto& rotationOrigin = animation.Bones[index].pos;
+		auto& keyframe = motion.second;
+
+		auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
+			[currentFrame](const VMDData& it)
+			{
+				return it.frameNO <= currentFrame;
+			});
+		auto it = rit.base();
+
+		if (rit == keyframe.rend()) continue;
+
+		float t = 0.0f;
+		auto q = XMLoadFloat4(&rit->quaternion);
+		auto move = rit->location;
+
+		if (it != keyframe.end())
+		{
+			t = static_cast<float>(currentFrame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
+			t = CalculateFromBezierByHalfSolve(t, it->b1, it->b2);
+			q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
+			XMStoreFloat3(&move, XMVectorLerp(XMLoadFloat3(&move), XMLoadFloat3(&it->location), t));
+		}
+		mats[index] *= XMMatrixTranslation(-rotationOrigin.x, -rotationOrigin.y, -rotationOrigin.z);
+		mats[index] *= XMMatrixRotationQuaternion(q);
+		mats[index] *= XMMatrixTranslation(rotationOrigin.x, rotationOrigin.y, rotationOrigin.z);
+		mats[index] *= XMMatrixTranslation(move.x, move.y, move.z);
+	}
+
+	RecursiveCalculate(animation.Bones, mats, 0);
+	auto mappedBones = resource.TransformConstant.HandleMappedData();
+	std::copy(mats.begin(), mats.end(), mappedBones->bones);
+}
+
+void PMDManager::Impl::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index)
+// bones : bones' data
+// matrices : matrices use for bone's Transformation
+{
+	auto& bonePos = bones[index].pos;
+	auto& mat = matrices[index];    // parent's matrix 
+
+	for (auto& childIndex : bones[index].children)
+	{
+		matrices[childIndex] *= mat;
+		RecursiveCalculate(bones, matrices, childIndex);
+	}
+}
+
+float PMDManager::Impl::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)
+{
+	// (y = x) is a straight line -> do not need to calculate
+	if (p1.x == p1.y && p2.x == p2.y)
+		return x;
+	// Bezier method
+	float t = x;
+	float k0 = 3 * p1.x - 3 * p2.x + 1;         // t^3
+	float k1 = -6 * p1.x + 3 * p2.x;            // t^2
+	float k2 = 3 * p1.x;                        // t
+
+	constexpr float eplison = 0.00005f;
+	for (int i = 0; i < n; ++i)
+	{
+		// f(t) = t*t*t*k0 + t*t*k1 + t*k2
+		// f = f(t) - x
+		// process [f(t) - x] to reach approximate 0
+		// => f -> ~0
+		// => |f| = ~eplison
+		auto f = t * t * t * k0 + t * t * k1 + t * k2 - x;
+		if (f >= -eplison || f <= eplison) break;
+		t -= f / 2;
+	}
+
+	auto rt = 1 - t;
+	// y = f(t)
+	// t = g(x)
+	// -> y = f(g(x))
+	return t * t * t + 3 * (rt * rt) * t * p1.y + 3 * rt * (t * t) * p2.y;
+}
+
 
 bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 {
@@ -430,9 +553,10 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 		model.second.CreateModel(cmdList);
 	}
 
+	// Load model datas to GPU resources
 	uint16_t index = 0;
-	m_resources.reserve(m_count);
-	m_renderResources.reserve(m_count);
+	m_resources.reserve(m_modelIndices.size());
+	m_renderResources.reserve(m_modelIndices.size());
 	for (auto& model : m_loaders)
 	{
 		auto& name = model.first;
@@ -440,6 +564,20 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 		m_resources.push_back(std::move(data.Resource));
 		m_renderResources.push_back(std::move(data.RenderResource));
 		++index;
+	}
+
+	// Init model animation
+	m_animations.reserve(m_modelIndices.size());
+	for (auto& model : m_loaders)
+	{
+		auto& name = model.first;
+		auto& data = model.second;
+		m_animations.emplace_back(std::move(data.Bones), std::move(data.BonesTable));
+	}
+	m_defaultMatrices.reserve(512);
+	for (uint16_t i = 0; i < 512; ++i)
+	{
+		m_defaultMatrices.push_back(XMMatrixIdentity());
 	}
 
 	uint32_t indexCount = 0;
@@ -482,12 +620,12 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 bool PMDManager::Impl::HasModel(std::string const& modelName)
 {
-	return m_indices.count(modelName);
+	return m_modelIndices.count(modelName);
 }
 
 bool PMDManager::Impl::HasAnimation(std::string const& animationName)
 {
-	return m_animations.count(animationName);
+	return m_motionDatas.count(animationName);
 }
 
 bool PMDManager::Impl::ClearSubresource()
@@ -500,7 +638,7 @@ bool PMDManager::Impl::ClearSubresource()
 
 PMDObjectConstant* PMDManager::Impl::GetObjectConstant(const std::string& modelName)
 {
-	return m_resources[m_indices[modelName]].TransformConstant.HandleMappedData();
+	return m_resources[m_modelIndices[modelName]].TransformConstant.HandleMappedData();
 }
 
 //
@@ -650,7 +788,7 @@ bool PMDManager::CreateModel(const std::string& modelName, const char* modelFile
 	if (IMPL.HasModel(modelName)) return false;
 	IMPL.m_loaders[modelName].SetDevice(IMPL.m_device);
 	IMPL.m_loaders[modelName].Load(modelFilePath);
-	IMPL.m_indices[modelName] = ++IMPL.m_count;
+	IMPL.m_modelIndices[modelName] = ++IMPL.m_count;
 	return true;
 }
 
@@ -658,7 +796,7 @@ bool PMDManager::CreateAnimation(const std::string& animationName, const char* a
 {
 	assert(!IMPL.HasAnimation(animationName));
 	if (IMPL.HasAnimation(animationName)) return false;
-	IMPL.m_animations[animationName].Load(animationFilePath);
+	IMPL.m_motionDatas[animationName].Load(animationFilePath);
 	return true;
 }
 
@@ -685,13 +823,15 @@ bool PMDManager::Play(const std::string& modelName, const std::string& animation
 	assert(IMPL.HasAnimation(animationName));
 	if (!IMPL.HasAnimation(animationName)) return false;
 
-	IMPL.m_loaders[modelName].Play(&IMPL.m_animations[animationName]);
+	IMPL.m_animations[IMPL.m_modelIndices[modelName]].pMotionData = &IMPL.m_motionDatas[animationName];
 
 	return true;
 }
 
 bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, float moveZ)
 {
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
 	auto& world = IMPL.GetObjectConstant(modelName)->world;
 	world *= XMMatrixTranslation(moveX, moveY, moveZ);
 	return true;
@@ -699,6 +839,8 @@ bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, fl
 
 bool PMDManager::RotateX(const std::string& modelName, float angle)
 {
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
 	auto& world = IMPL.GetObjectConstant(modelName)->world;
 	world *= XMMatrixRotationX(angle);
 	return true;
@@ -706,6 +848,8 @@ bool PMDManager::RotateX(const std::string& modelName, float angle)
 
 bool PMDManager::RotateY(const std::string& modelName, float angle)
 {
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
 	auto& world = IMPL.GetObjectConstant(modelName)->world;
 	world *= XMMatrixRotationY(angle);
 	return true;
@@ -713,6 +857,8 @@ bool PMDManager::RotateY(const std::string& modelName, float angle)
 
 bool PMDManager::RotateZ(const std::string& modelName, float angle)
 {
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
 	auto& world = IMPL.GetObjectConstant(modelName)->world;
 	world *= XMMatrixRotationZ(angle);
 	return true;
@@ -720,6 +866,8 @@ bool PMDManager::RotateZ(const std::string& modelName, float angle)
 
 bool PMDManager::Scale(const std::string& modelName, float scaleX, float scaleY, float scaleZ)
 {
+	assert(IMPL.HasModel(modelName));
+	if (!IMPL.HasModel(modelName)) return false;
 	auto& world = IMPL.GetObjectConstant(modelName)->world;
 	world *= XMMatrixScaling(scaleX, scaleY, scaleZ);
 	return true;

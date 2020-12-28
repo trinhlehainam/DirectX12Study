@@ -56,12 +56,12 @@ inline bool Mesh<Vertex>::CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCom
 template<class Vertex>
 inline bool Mesh<Vertex>::CreateViews()
 {
-	size_t sizeOfVertices = sizeof(Vertex) * Vertices.size();
+	uint32_t sizeOfVertices = sizeof(Vertex) * Vertices.size();
 	VertexBufferView.BufferLocation = VertexBuffer.GetGPUVirtualAddress();
 	VertexBufferView.SizeInBytes = sizeOfVertices;
 	VertexBufferView.StrideInBytes = sizeof(Vertex);
 
-	size_t sizeOfIndices = sizeof(uint16_t) * Indices16.size();
+	uint32_t sizeOfIndices = sizeof(uint16_t) * Indices16.size();
 	IndexBufferView.BufferLocation = IndexBuffer.GetGPUVirtualAddress();
 	IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
 	IndexBufferView.SizeInBytes = sizeOfIndices;

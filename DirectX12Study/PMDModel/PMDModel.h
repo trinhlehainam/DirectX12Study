@@ -94,11 +94,12 @@ public:
 
 	void ClearSubresources();
 public:
-	void Play(VMDMotion* animation);
-	void Update(const float& deltaTime);
 	
 	PMDResource Resource;
 	PMDRenderResource RenderResource;
+	std::vector<PMDBone> Bones;
+	std::unordered_map<std::string, uint16_t> BonesTable;
+
 private:
 	// Resource from PMD Manager
 	ID3D12Device* m_device = nullptr;
@@ -107,25 +108,11 @@ private:
 	ID3D12Resource* m_gradTexture = nullptr;
 
 	std::unique_ptr<PMDLoader> m_pmdLoader;
-private:
-	// Vairables for animation
-	std::vector<PMDBone> m_bones;
-	std::unordered_map<std::string, uint16_t> m_bonesTable;
-	std::vector<DirectX::XMMATRIX> m_boneMatrices;
-	VMDMotion* m_vmdMotion = nullptr;
-	float m_timer = 0.0f;
-	uint64_t m_frameCnt = 0.0f;
 
 private:
 	bool CreateTransformConstantBuffer();
 	// Create texture from PMD file
 	void LoadTextureToBuffer();
 	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList);
-private:
-	void UpdateMotionTransform(const size_t& keyframe = 0);
-	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
-	// Root-finding algorithm ( finding ZERO or finding ROOT )
-	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127)->(1,1) respectively
-	float CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n = 8);
 };
 

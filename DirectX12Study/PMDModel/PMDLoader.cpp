@@ -98,7 +98,7 @@ bool PMDLoader::Load(const char* path)
 	{
 		Bones[i].name = boneData[i].boneName;
 		Bones[i].pos = boneData[i].pos;
-		BoneTable[boneData[i].boneName] = i;
+		BonesTable[boneData[i].boneName] = i;
 	}
 
 	for (int i = 0; i < boneNum; ++i)

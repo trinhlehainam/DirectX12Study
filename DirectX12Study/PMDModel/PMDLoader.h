@@ -19,7 +19,7 @@ public:
 	std::vector<std::string> ModelPaths;
 	std::vector<std::string> ToonPaths;
 	std::vector<PMDBone> Bones;
-	std::unordered_map<std::string, uint16_t> BoneTable;
+	std::unordered_map<std::string, uint16_t> BonesTable;
 	const char* Path;
 };
 

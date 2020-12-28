@@ -271,7 +271,7 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 	float du = 1.0f / num_vertices_x;
 	float dv = 1.0f / num_vertices_z;
 
-	for (int i = 0; i < num_vertices_x; ++i)
+	for (uint32_t i = 0; i < num_vertices_x; ++i)
 	{
 		float posX = half_width - i * quad_width;
 		for (int j = 0; j < num_vertices_z; ++j)

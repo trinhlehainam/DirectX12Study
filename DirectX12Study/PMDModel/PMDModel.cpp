@@ -4,7 +4,6 @@
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
 #include "PMDLoader.h"
-#include "../common.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -34,7 +33,6 @@ PMDModel::~PMDModel()
 	m_whiteTexture = nullptr;
 	m_blackTexture = nullptr;
 	m_gradTexture = nullptr;
-	m_vmdMotion = nullptr;
 }
 
 void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
@@ -42,25 +40,6 @@ void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 	CreateTransformConstantBuffer();
 	LoadTextureToBuffer();
 	CreateMaterialAndTextureBuffer(cmdList);
-}
-
-void PMDModel::Play(VMDMotion* animation)
-{
-	m_vmdMotion = animation;
-	// Init bones transform;
-	UpdateMotionTransform();
-}
-
-void PMDModel::Update(const float& deltaTime)
-{
-	constexpr float animation_speed = 50.0f/second_to_millisecond;
-	if (m_timer <= 0.0f)
-	{
-		m_timer += animation_speed;
-		++m_frameCnt;
-		UpdateMotionTransform(m_frameCnt);
-	}
-	m_timer -= deltaTime;
 }
 
 const std::vector<uint16_t>& PMDModel::Indices() const
@@ -95,11 +74,8 @@ bool PMDModel::Load(const char* path)
 {
 	m_pmdLoader->Load(path);
 	RenderResource.SubMaterials = std::move(m_pmdLoader->SubMaterials);
-	// Info for animation
-	m_bones = std::move(m_pmdLoader->Bones);
-	m_bonesTable = std::move(m_pmdLoader->BoneTable);
-	m_boneMatrices.resize(512);
-	std::fill(m_boneMatrices.begin(), m_boneMatrices.end(), DirectX::XMMatrixIdentity());
+	Bones = std::move(m_pmdLoader->Bones);
+	BonesTable = std::move(m_pmdLoader->BonesTable);
 	return true;
 }
 
@@ -117,25 +93,17 @@ bool PMDModel::CreateTransformConstantBuffer()
 
 	auto mappedData = Resource.TransformConstant.HandleMappedData();
 	mappedData->world = XMMatrixIdentity();
-	auto bones = m_boneMatrices;
+	std::vector<XMMATRIX> defaultMatrices;
+	defaultMatrices.reserve(512);
+	for (uint16_t i = 0; i < 512; ++i)
+	{
+		defaultMatrices.push_back(XMMatrixIdentity());
+	}
+	auto bones = defaultMatrices;
 
 	std::copy(bones.begin(), bones.end(), mappedData->bones);
 
 	return true;
-}
-
-void PMDModel::RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index)
-// bones : bones' data
-// matrices : matrices use for bone's Transformation
-{
-	auto& bonePos = bones[index].pos;
-	auto& mat = matrices[index];    // parent's matrix 
-
-	for (auto& childIndex : bones[index].children)
-	{
-		matrices[childIndex] *= mat;
-		RecursiveCalculate(bones, matrices, childIndex);
-	}
 }
 
 bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList)
@@ -306,80 +274,4 @@ void PMDModel::LoadTextureToBuffer()
 		}
 	}
 
-}
-
-void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
-{
-	// If model don't have animtion, don't need to do motion
-	if (!m_vmdMotion) return;
-
-	auto& motionData = m_vmdMotion->GetVMDMotionData();
-	auto mats = m_boneMatrices;
-
-	for (auto& motion : motionData)
-	{
-		auto index = m_bonesTable[motion.first];
-		auto& rotationOrigin = m_bones[index].pos;
-		auto& keyframe = motion.second;
-
-		auto rit = std::find_if(keyframe.rbegin(), keyframe.rend(),
-			[currentFrame](const VMDData& it)
-			{
-				return it.frameNO <= currentFrame;
-			});
-		auto it = rit.base();
-
-		if (rit == keyframe.rend()) continue;
-
-		float t = 0.0f;
-		auto q = XMLoadFloat4(&rit->quaternion);
-		auto move = rit->location;
-
-		if (it != keyframe.end())
-		{
-			t = static_cast<float>(currentFrame - rit->frameNO) / static_cast<float>(it->frameNO - rit->frameNO);
-			t = CalculateFromBezierByHalfSolve(t, it->b1, it->b2);
-			q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
-			XMStoreFloat3(&move, XMVectorLerp(XMLoadFloat3(&move), XMLoadFloat3(&it->location), t));
-		}
-		mats[index] *= XMMatrixTranslation(-rotationOrigin.x, -rotationOrigin.y, -rotationOrigin.z);
-		mats[index] *= XMMatrixRotationQuaternion(q);
-		mats[index] *= XMMatrixTranslation(rotationOrigin.x, rotationOrigin.y, rotationOrigin.z);
-		mats[index] *= XMMatrixTranslation(move.x, move.y, move.z);
-	}
-
-	RecursiveCalculate(m_bones, mats, 0);
-	auto mappedBones = Resource.TransformConstant.HandleMappedData();
-	std::copy(mats.begin(), mats.end(), mappedBones->bones);
-}
-
-float PMDModel::CalculateFromBezierByHalfSolve(float x, const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2, size_t n)
-{
-	// (y = x) is a straight line -> do not need to calculate
-	if (p1.x == p1.y && p2.x == p2.y)
-		return x;
-	// Bezier method
-	float t = x;
-	float k0 = 3 * p1.x - 3 * p2.x + 1;         // t^3
-	float k1 = -6 * p1.x + 3 * p2.x;            // t^2
-	float k2 = 3 * p1.x;                        // t
-
-	constexpr float eplison = 0.00005f;
-	for (int i = 0; i < n; ++i)
-	{
-		// f(t) = t*t*t*k0 + t*t*k1 + t*k2
-		// f = f(t) - x
-		// process [f(t) - x] to reach approximate 0
-		// => f -> ~0
-		// => |f| = ~eplison
-		auto f = t * t * t * k0 + t * t * k1 + t * k2 - x;
-		if (f >= -eplison || f <= eplison) break;
-		t -= f / 2;
-	}
-
-	auto rt = 1 - t;
-	// y = f(t)
-	// t = g(x)
-	// -> y = f(g(x))
-	return t * t * t + 3 * (rt * rt) * t * p1.y + 3 * rt * (t * t) * p2.y;
 }
