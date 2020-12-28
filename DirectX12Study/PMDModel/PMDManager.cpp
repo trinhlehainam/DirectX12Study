@@ -1,5 +1,6 @@
 ﻿#include "PMDManager.h"
 #include "PMDModel.h"
+#include "PMDLoader.h"
 #include "VMD/VMDMotion.h"
 #include "PMDMesh.h"
 
@@ -80,6 +81,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
 private:
+	PMDLoader* m_loader;
 	std::unordered_map<std::string, PMDModel> m_models;
 	std::unordered_map<std::string, VMDMotion> m_animations;
 	PMDMesh m_mesh;

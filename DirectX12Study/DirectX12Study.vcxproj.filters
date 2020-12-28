@@ -78,9 +78,6 @@
     <ClCompile Include="Input\MouseEvent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\UploadBuffer_impl.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -170,5 +167,8 @@
     <None Include="shader\boardcommon.hlsli" />
     <None Include="shader\modelcommon.hlsli" />
     <None Include="shader\primitiveCommon.hlsli" />
+    <None Include="DirectX12\UploadBuffer.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

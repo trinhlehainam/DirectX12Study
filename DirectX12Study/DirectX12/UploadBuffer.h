@@ -60,7 +60,7 @@ private:
 	bool m_isCopyable = true;
 };
 
-#include "UploadBuffer_impl.h"
+#include "UploadBuffer.inl"
 
 
 

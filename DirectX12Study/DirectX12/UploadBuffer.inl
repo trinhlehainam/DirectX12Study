@@ -2,7 +2,6 @@
 
 #ifndef UPLOADBUFFER_IMPL_H
 #define UPLOADBUFFER_IMPL_H
-
 #include <vector>
 #include <cassert>
 #include "../Utility/D12Helper.h"

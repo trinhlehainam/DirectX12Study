@@ -166,7 +166,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDModel\PMDManager.cpp" />
     <ClCompile Include="PMDModel\PMDModel.cpp" />
-    <ClCompile Include="DirectX12\UploadBuffer_impl.h" />
     <ClCompile Include="Utility\StringHelper.cpp" />
     <ClCompile Include="PMDModel\VMD\VMDMotion.cpp" />
   </ItemGroup>
@@ -255,6 +254,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="DirectX12\UploadBuffer.inl" />
     <None Include="shader\primitiveCommon.hlsli" />
     <None Include="shader\modelcommon.hlsli" />
     <None Include="shader\common.hlsli" />

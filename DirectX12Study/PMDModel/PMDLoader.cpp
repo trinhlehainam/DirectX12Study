@@ -5,7 +5,7 @@
 
 bool PMDLoader::Load(const char* path)
 {
-	m_path = path;
+	Path = path;
 
 	//Ž¯•ÊŽq"pmd"
 	FILE* fp = nullptr;
@@ -68,20 +68,20 @@ bool PMDLoader::Load(const char* path)
 	fread_s(&cVertex, sizeof(cVertex), sizeof(cVertex), 1, fp);
 	std::vector<Vertex> vertices(cVertex);
 	fread_s(vertices.data(), vertices.size() * sizeof(Vertex), vertices.size() * sizeof(Vertex), 1, fp);
-	m_vertices.resize(cVertex);
+	Vertices.resize(cVertex);
 	for (int i = 0; i < cVertex; ++i)
 	{
-		m_vertices[i].pos = vertices[i].pos;
-		m_vertices[i].normal = vertices[i].normal_vec;
-		m_vertices[i].uv = vertices[i].uv;
+		Vertices[i].pos = vertices[i].pos;
+		Vertices[i].normal = vertices[i].normal_vec;
+		Vertices[i].uv = vertices[i].uv;
 		std::copy(std::begin(vertices[i].bone_num),
-			std::end(vertices[i].bone_num), m_vertices[i].boneNo);
-		m_vertices[i].weight = static_cast<float>(vertices[i].bone_weight) / 100.0f;
+			std::end(vertices[i].bone_num), Vertices[i].boneNo);
+		Vertices[i].weight = static_cast<float>(vertices[i].bone_weight) / 100.0f;
 	}
 	uint32_t cIndex = 0;
 	fread_s(&cIndex, sizeof(cIndex), sizeof(cIndex), 1, fp);
-	m_indices.resize(cIndex);
-	fread_s(m_indices.data(), sizeof(m_indices[0]) * m_indices.size(), sizeof(m_indices[0]) * m_indices.size(), 1, fp);
+	Indices.resize(cIndex);
+	fread_s(Indices.data(), sizeof(Indices[0]) * Indices.size(), sizeof(Indices[0]) * Indices.size(), 1, fp);
 	uint32_t cMaterial = 0;
 	fread_s(&cMaterial, sizeof(cMaterial), sizeof(cMaterial), 1, fp);
 	std::vector<Material> materials(cMaterial);
@@ -93,21 +93,21 @@ bool PMDLoader::Load(const char* path)
 	// Bone
 	std::vector<BoneData> boneData(boneNum);
 	fread_s(boneData.data(), sizeof(boneData[0]) * boneData.size(), sizeof(boneData[0]) * boneData.size(), 1, fp);
-	m_bones.resize(boneNum);
+	Bones.resize(boneNum);
 	for (int i = 0; i < boneNum; ++i)
 	{
-		m_bones[i].name = boneData[i].boneName;
-		m_bones[i].pos = boneData[i].pos;
-		m_bonesTable[boneData[i].boneName] = i;
+		Bones[i].name = boneData[i].boneName;
+		Bones[i].pos = boneData[i].pos;
+		BoneTable[boneData[i].boneName] = i;
 	}
 
 	for (int i = 0; i < boneNum; ++i)
 	{
 		if (boneData[i].parentNo == 0xffff) continue;
 		auto pno = boneData[i].parentNo;
-		m_bones[pno].children.push_back(i);
+		Bones[pno].children.push_back(i);
 #ifdef _DEBUG
-		m_bones[pno].childrenName.push_back(boneData[i].boneName);
+		Bones[pno].childrenName.push_back(boneData[i].boneName);
 #endif
 	}
 
@@ -162,19 +162,19 @@ bool PMDLoader::Load(const char* path)
 	fread_s(toonNames.data(), sizeof(toonNames[0]) * toonNames.size(), sizeof(toonNames[0]) * toonNames.size(), 1, fp);
 
 	// Load materials
-	m_materials.reserve(materials.size());
-	m_subMaterials.reserve(materials.size());
-	m_modelPaths.reserve(materials.size());
+	Materials.reserve(materials.size());
+	SubMaterials.reserve(materials.size());
+	ModelPaths.reserve(materials.size());
 	for (auto& m : materials)
 	{
 		if (m.toon_index > toonNames.size() - 1)
-			m_toonPaths.push_back(toonNames[0]);
+			ToonPaths.push_back(toonNames[0]);
 		else
-			m_toonPaths.push_back(toonNames[m.toon_index]);
+			ToonPaths.push_back(toonNames[m.toon_index]);
 
-		m_modelPaths.push_back(m.textureFileName);
-		m_materials.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color });
-		m_subMaterials.push_back({ m.face_vert_count });
+		ModelPaths.push_back(m.textureFileName);
+		Materials.push_back({ m.diffuse,m.alpha,m.specular_color,m.specularity,m.mirror_color });
+		SubMaterials.push_back({ m.face_vert_count });
 	}
 
 	fclose(fp);
