@@ -1301,8 +1301,8 @@ void D3D12App::CreatePMDModel()
     m_pmdManager->CreateAnimation("Dancing2", motion2_path);
 
     assert(m_pmdManager->Init(m_cmdList.Get()));
-    assert(m_pmdManager->Play("Miku", "Dancing1"));
-    assert(m_pmdManager->Play("Hibiki", "Dancing1"));
+    //assert(m_pmdManager->Play("Miku", "Dancing1"));
+    //assert(m_pmdManager->Play("Hibiki", "Dancing1"));
 
     return;
 }

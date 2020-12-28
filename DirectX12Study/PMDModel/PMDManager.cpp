@@ -91,6 +91,7 @@ private:
 	};
 	std::unordered_map<std::string, PMDModel> m_loaders;
 	std::unordered_map<std::string, PMDResource> m_resources;
+	std::unordered_map<std::string, PMDRenderResource> m_renderResources;
 	std::unordered_map<std::string, VMDMotion> m_animations;
 	PMDMesh m_mesh;
 };
@@ -144,10 +145,7 @@ void PMDManager::Impl::SleepRender(ID3D12GraphicsCommandList* cmdList)
 
 void PMDManager::Impl::NormalUpdate(const float& deltaTime)
 {
-	for (auto& model : m_loaders)
-	{
-		model.second.Update(deltaTime);
-	}
+	
 }
 
 void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
@@ -169,14 +167,36 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& model : m_loaders)
+	for (auto& RenderResource : m_renderResources)
 	{
-		auto& name = model.first;
-		auto& data = model.second;
+		auto& name = RenderResource.first;
+		auto& data = RenderResource.second;
 
 		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
 		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
-		data.Render(cmdList, startIndex, baseVertex);
+		/*-------------Set up transform-------------*/
+		cmdList->SetDescriptorHeaps(1, data.TransformHeap.GetAddressOf());
+		cmdList->SetGraphicsRootDescriptorTable(2, data.TransformHeap->GetGPUDescriptorHandleForHeapStart());
+		/*-------------------------------------------*/
+
+		/*-------------Set up material and texture-------------*/
+		cmdList->SetDescriptorHeaps(1, data.MaterialHeap.GetAddressOf());
+		CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(data.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
+		auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		uint32_t indexOffset = startIndex;
+		for (auto& m : data.SubMaterials)
+		{
+			cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
+
+			cmdList->DrawIndexedInstanced(m.indexCount,
+				1,
+				indexOffset,
+				baseVertex,
+				0);
+			indexOffset += m.indexCount;
+			materialHeapHandle.Offset(5, materialHeapSize);
+		}
+		/*-------------------------------------------*/
 	}
 }
 
@@ -192,15 +212,18 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& model : m_loaders)
+	for (auto& RenderResource : m_renderResources)
 	{
-		auto& name = model.first;
-		auto& data = model.second;
+		auto& name = RenderResource.first;
+		auto& data = RenderResource.second;
 		auto& indexCount = m_mesh.DrawArgs[name].IndexCount;
 		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
 		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
+		// Object constant
+		cmdList->SetDescriptorHeaps(1, data.TransformHeap.GetAddressOf());
+		cmdList->SetGraphicsRootDescriptorTable(1, data.TransformHeap->GetGPUDescriptorHandleForHeapStart());
 
-		data.RenderDepth(cmdList, indexCount, startIndex, baseVertex);
+		cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
 	}
 }
 
@@ -633,6 +656,8 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
+		m_resources[name] = std::move(data.Resource);
+		m_renderResources[name] = std::move(data.RenderResource);
 	}
 
 	uint32_t indexCount = 0;
@@ -669,6 +694,8 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 	m_mesh.CreateBuffers(m_device, cmdList);
 	m_mesh.CreateViews();
+
+	m_loaders.clear();
 }
 
 bool PMDManager::Impl::HasModel(std::string const& modelName)

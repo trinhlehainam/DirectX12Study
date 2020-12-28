@@ -81,44 +81,6 @@ void PMDModel::Scale(const float& scaleX, const float& scaleY, const float& scal
 	Transform(XMMatrixScaling(scaleX, scaleY, scaleZ));
 }
 
-void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
-	const uint32_t& BaseVertexLocation)
-{
-	/*-------------Set up transform-------------*/
-	cmdList->SetDescriptorHeaps(1, RenderResource.TransformHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(2, RenderResource.TransformHeap->GetGPUDescriptorHandleForHeapStart());
-	/*-------------------------------------------*/
-
-	/*-------------Set up material and texture-------------*/
-	cmdList->SetDescriptorHeaps(1, RenderResource.MaterialHeap.GetAddressOf());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(RenderResource.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
-	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	uint32_t indexOffset = StartIndexLocation;
-	for (auto& m : RenderResource.SubMaterials)
-	{
-		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
-
-		cmdList->DrawIndexedInstanced(m.indexCount,
-			1,
-			indexOffset,
-			BaseVertexLocation,
-			0);
-		indexOffset += m.indexCount;
-		materialHeapHandle.Offset(material_descriptor_count_per_heap, materialHeapSize);
-	}
-	/*-------------------------------------------*/
-}
-
-void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& IndexCount, const uint32_t& StartIndexLocation,
-	const uint32_t& BaseVertexLocation)
-{
-	// Object constant
-	cmdList->SetDescriptorHeaps(1, RenderResource.TransformHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(1, RenderResource.TransformHeap->GetGPUDescriptorHandleForHeapStart());
-
-	cmdList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
-}
-
 void PMDModel::Update(const float& deltaTime)
 {
 	constexpr float animation_speed = 50.0f/second_to_millisecond;

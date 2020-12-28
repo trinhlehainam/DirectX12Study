@@ -23,12 +23,33 @@ struct PMDResource
 	std::vector<ComPtr<ID3D12Resource>> ToonTextures;
 	ComPtr<ID3D12Resource> MaterialConstant;
 	UploadBuffer<PMDObjectConstant> TransformConstant;
+	void operator = (PMDResource&& other) noexcept
+	{
+		Textures = std::move(other.Textures);
+		sphTextures = std::move(other.sphTextures);
+		spaTextures = std::move(other.spaTextures);
+		ToonTextures = std::move(other.ToonTextures);
+		MaterialConstant = other.MaterialConstant;
+		TransformConstant.Move(other.TransformConstant);
+
+		other.MaterialConstant = nullptr;
+	}
 };
+
 struct PMDRenderResource
 {
 	std::vector<PMDSubMaterial> SubMaterials;
 	ComPtr<ID3D12DescriptorHeap> TransformHeap;
 	ComPtr<ID3D12DescriptorHeap> MaterialHeap;
+	void operator = (PMDRenderResource&& other) noexcept
+	{
+		SubMaterials = std::move(other.SubMaterials);
+		TransformHeap = other.TransformHeap;
+		MaterialHeap = other.MaterialHeap;
+
+		other.TransformHeap = nullptr;
+		other.MaterialHeap = nullptr;
+	}
 };
 
 class PMDModel
@@ -58,11 +79,6 @@ public:
 	void RotateY(const float& angle);
 	void RotateZ(const float& angle);
 	void Scale(const float& scaleX, const float& scaleY, const float& scaleZ);
-
-	void Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartIndexLocation, 
-		const uint32_t& BaseVertexLocation);
-	void RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& IndexCount, const uint32_t& StartIndexLocation, 
-		const uint32_t& BaseVertexLocation);
 
 	void Update(const float& deltaTime);
 	

@@ -148,7 +148,15 @@ inline void UploadBuffer<T>::Move(UploadBuffer& other)
 	if(m_buffer != nullptr)
 		m_buffer.Reset();
 	m_buffer = other.m_buffer;
+	m_elementCount = other.m_elementCount;
+	m_mappedData = other.m_mappedData;
+	m_isConstantBuffer = other.m_isConstantBuffer;
+	m_isCopyable = other.m_isCopyable;
+
+	other.m_mappedData = nullptr;
 	other.m_buffer = nullptr;
+	other.m_isCopyable = false;
+	other.m_isConstantBuffer = false;
 }
 
 
