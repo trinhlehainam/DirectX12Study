@@ -20,6 +20,21 @@ UploadBuffer<T>::UploadBuffer(ID3D12Device* device, uint32_t elementCount, bool 
 }
 
 template<typename T>
+inline UploadBuffer<T>::UploadBuffer(UploadBuffer&& other) noexcept
+	:m_buffer(other.m_buffer),
+	m_elementCount(other.m_elementCount),
+	m_isCopyable(other.m_isCopyable),
+	m_isConstantBuffer(other.m_isConstantBuffer),
+	m_mappedData(other.m_mappedData)
+{
+	other.m_buffer = nullptr;
+	other.m_mappedData = nullptr;
+	other.m_isConstantBuffer = false;
+	other.m_isCopyable = false;
+	other.m_elementCount = 0;
+}
+
+template<typename T>
 UploadBuffer<T>::~UploadBuffer()
 {
 	if (m_buffer != nullptr && m_isCopyable)

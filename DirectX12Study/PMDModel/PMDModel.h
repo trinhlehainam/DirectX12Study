@@ -23,6 +23,18 @@ struct PMDResource
 	std::vector<ComPtr<ID3D12Resource>> ToonTextures;
 	ComPtr<ID3D12Resource> MaterialConstant;
 	UploadBuffer<PMDObjectConstant> TransformConstant;
+
+	PMDResource() = default;
+	explicit PMDResource(PMDResource&& other) noexcept
+		:Textures(std::move(other.Textures)),
+		sphTextures(std::move(other.sphTextures)),
+		spaTextures(std::move(other.spaTextures)),
+		ToonTextures(std::move(other.ToonTextures)),
+		MaterialConstant(other.MaterialConstant),
+		TransformConstant(std::move(other.TransformConstant))
+	{
+		other.MaterialConstant = nullptr;
+	}
 	void operator = (PMDResource&& other) noexcept
 	{
 		Textures = std::move(other.Textures);
@@ -41,6 +53,15 @@ struct PMDRenderResource
 	std::vector<PMDSubMaterial> SubMaterials;
 	ComPtr<ID3D12DescriptorHeap> TransformHeap;
 	ComPtr<ID3D12DescriptorHeap> MaterialHeap;
+	PMDRenderResource() = default;
+	explicit PMDRenderResource(PMDRenderResource&& other) noexcept 
+		:SubMaterials(std::move(other.SubMaterials)),
+		TransformHeap(other.TransformHeap),
+		MaterialHeap(other.MaterialHeap)
+	{
+		other.TransformHeap = nullptr;
+		other.MaterialHeap = nullptr;
+	}
 	void operator = (PMDRenderResource&& other) noexcept
 	{
 		SubMaterials = std::move(other.SubMaterials);
@@ -74,12 +95,6 @@ public:
 	void ClearSubresources();
 public:
 	void Play(VMDMotion* animation);
-	void Move(const float& moveX, const float& moveY, const float& moveZ);
-	void RotateX(const float& angle);
-	void RotateY(const float& angle);
-	void RotateZ(const float& angle);
-	void Scale(const float& scaleX, const float& scaleY, const float& scaleZ);
-
 	void Update(const float& deltaTime);
 	
 	PMDResource Resource;
@@ -107,8 +122,6 @@ private:
 	void LoadTextureToBuffer();
 	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList);
 private:
-	void Transform(const DirectX::XMMATRIX& transformMatrix);
-
 	void UpdateMotionTransform(const size_t& keyframe = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, size_t index);
 	// Root-finding algorithm ( finding ZERO or finding ROOT )

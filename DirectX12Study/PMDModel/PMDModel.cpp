@@ -44,41 +44,11 @@ void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 	CreateMaterialAndTextureBuffer(cmdList);
 }
 
-void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
-{
-	Resource.TransformConstant.HandleMappedData()->world *= transformMatrix;
-}
-
 void PMDModel::Play(VMDMotion* animation)
 {
 	m_vmdMotion = animation;
 	// Init bones transform;
 	UpdateMotionTransform();
-}
-
-void PMDModel::Move(const float& moveX, const float& moveY, const float& moveZ)
-{
-	Transform(XMMatrixTranslation(moveX, moveY, moveZ));
-}
-
-void PMDModel::RotateX(const float& angle)
-{
-	Transform(XMMatrixRotationX(angle));
-}
-
-void PMDModel::RotateY(const float& angle)
-{
-	Transform(XMMatrixRotationY(angle));
-}
-
-void PMDModel::RotateZ(const float& angle)
-{
-	Transform(XMMatrixRotationZ(angle));
-}
-
-void PMDModel::Scale(const float& scaleX, const float& scaleY, const float& scaleZ)
-{
-	Transform(XMMatrixScaling(scaleX, scaleY, scaleZ));
 }
 
 void PMDModel::Update(const float& deltaTime)
