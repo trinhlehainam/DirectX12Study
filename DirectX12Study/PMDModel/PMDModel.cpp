@@ -22,7 +22,7 @@ PMDModel::PMDModel()
 	m_pmdLoader = std::make_unique<PMDLoader>();
 }
 
-PMDModel::PMDModel(ComPtr<ID3D12Device> device) :
+PMDModel::PMDModel(ID3D12Device* device) :
 	m_device(device)
 {
 	m_pmdLoader = std::make_unique<PMDLoader>();
@@ -46,7 +46,7 @@ void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList)
 
 void PMDModel::Transform(const DirectX::XMMATRIX& transformMatrix)
 {
-	m_transformBuffer.HandleMappedData()->world *= transformMatrix;
+	Resource.TransformConstant.HandleMappedData()->world *= transformMatrix;
 }
 
 void PMDModel::Play(VMDMotion* animation)
@@ -85,16 +85,16 @@ void PMDModel::Render(ID3D12GraphicsCommandList* cmdList, const uint32_t& StartI
 	const uint32_t& BaseVertexLocation)
 {
 	/*-------------Set up transform-------------*/
-	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(2, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, RenderResource.TransformHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(2, RenderResource.TransformHeap->GetGPUDescriptorHandleForHeapStart());
 	/*-------------------------------------------*/
 
 	/*-------------Set up material and texture-------------*/
-	cmdList->SetDescriptorHeaps(1, m_materialDescHeap.GetAddressOf());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(m_materialDescHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, RenderResource.MaterialHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(RenderResource.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
 	auto materialHeapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	uint32_t indexOffset = StartIndexLocation;
-	for (auto& m : m_subMaterials)
+	for (auto& m : RenderResource.SubMaterials)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 
@@ -113,8 +113,8 @@ void PMDModel::RenderDepth(ID3D12GraphicsCommandList* cmdList, const uint32_t& I
 	const uint32_t& BaseVertexLocation)
 {
 	// Object constant
-	cmdList->SetDescriptorHeaps(1, m_transformDescHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(1, m_transformDescHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, RenderResource.TransformHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(1, RenderResource.TransformHeap->GetGPUDescriptorHandleForHeapStart());
 
 	cmdList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }
@@ -162,7 +162,7 @@ void PMDModel::SetDevice(ID3D12Device* pDevice)
 bool PMDModel::Load(const char* path)
 {
 	m_pmdLoader->Load(path);
-	m_subMaterials = std::move(m_pmdLoader->SubMaterials);
+	RenderResource.SubMaterials = std::move(m_pmdLoader->SubMaterials);
 	// Info for animation
 	m_bones = std::move(m_pmdLoader->Bones);
 	m_bonesTable = std::move(m_pmdLoader->BoneTable);
@@ -173,17 +173,17 @@ bool PMDModel::Load(const char* path)
 
 bool PMDModel::CreateTransformConstantBuffer()
 {
-	D12Helper::CreateDescriptorHeap(m_device.Get(), m_transformDescHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	m_transformBuffer.Create(m_device.Get(), 1, true);
+	D12Helper::CreateDescriptorHeap(m_device, RenderResource.TransformHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Resource.TransformConstant.Create(m_device, 1, true);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = m_transformBuffer.GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = m_transformBuffer.SizeInBytes();
+	cbvDesc.BufferLocation = Resource.TransformConstant.GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = Resource.TransformConstant.SizeInBytes();
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_transformDescHeap->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(RenderResource.TransformHeap->GetCPUDescriptorHandleForHeapStart());
 	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
-	auto mappedData = m_transformBuffer.HandleMappedData();
+	auto mappedData = Resource.TransformConstant.HandleMappedData();
 	mappedData->world = XMMatrixIdentity();
 	auto bones = m_boneMatrices;
 
@@ -211,8 +211,8 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	HRESULT result = S_OK;
 	const size_t num_materials_block = m_pmdLoader->Materials.size();
 
-	D12Helper::CreateDescriptorHeap(m_device.Get(), m_materialDescHeap, num_materials_block * material_descriptor_count_per_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(m_materialDescHeap->GetCPUDescriptorHandleForHeapStart());
+	D12Helper::CreateDescriptorHeap(m_device, RenderResource.MaterialHeap, num_materials_block * material_descriptor_count_per_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(RenderResource.MaterialHeap->GetCPUDescriptorHandleForHeapStart());
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	//
@@ -221,8 +221,8 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	size_t strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(PMDMaterial));
 	size_t sizeInBytes = num_materials_block * strideBytes;
 
-	m_materialBuffer = D12Helper::CreateBuffer(m_device.Get(), sizeInBytes);
-	auto gpuAddress = m_materialBuffer->GetGPUVirtualAddress();
+	Resource.MaterialConstant = D12Helper::CreateBuffer(m_device, sizeInBytes);
+	auto gpuAddress = Resource.MaterialConstant->GetGPUVirtualAddress();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = strideBytes;
@@ -230,7 +230,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 
 	// Material constant
 	uint8_t* m_mappedMaterial = nullptr;
-	result = m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedMaterial));
+	result = Resource.MaterialConstant->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedMaterial));
 	assert(SUCCEEDED(result));
 	auto& material = m_pmdLoader->Materials;
 	// index of material on each block
@@ -248,7 +248,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		gpuAddress += strideBytes;
 		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
 	}
-	m_materialBuffer->Unmap(0, nullptr);
+	Resource.MaterialConstant->Unmap(0, nullptr);
 	++index;
 
 	// Material texture
@@ -261,14 +261,14 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3); // ¦
 
 	// Texture
-	heapAddress = m_materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	heapAddress = RenderResource.MaterialHeap->GetCPUDescriptorHandleForHeapStart();
 	heapAddress.Offset(index, heapSize);
 	for (int i = 0; i < num_materials_block; ++i)
 	{
 		// Create SRV for main texture (image)
-		srvDesc.Format = m_textureBuffer[i] ? m_textureBuffer[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = Resource.Textures[i] ? Resource.Textures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!m_textureBuffer[i].Get() ? m_whiteTexture : m_textureBuffer[i].Get(),
+			!Resource.Textures[i].Get() ? m_whiteTexture : Resource.Textures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -276,14 +276,14 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	}
 	++index;
 	// sph
-	heapAddress = m_materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	heapAddress = RenderResource.MaterialHeap->GetCPUDescriptorHandleForHeapStart();
 	heapAddress.Offset(index, heapSize);
 	for (int i = 0; i < num_materials_block; ++i)
 	{
 		// Create SRV for sphere mapping texture (sph)
-		srvDesc.Format = m_sphBuffers[i] ? m_sphBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = Resource.sphTextures[i] ? Resource.sphTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!m_sphBuffers[i].Get() ? m_whiteTexture : m_sphBuffers[i].Get(),
+			!Resource.sphTextures[i].Get() ? m_whiteTexture : Resource.sphTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -291,14 +291,14 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	}
 	++index;
 	// spa
-	heapAddress = m_materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	heapAddress = RenderResource.MaterialHeap->GetCPUDescriptorHandleForHeapStart();
 	heapAddress.Offset(index, heapSize);
 	for (int i = 0; i < num_materials_block; ++i)
 	{
 		// Create SRV for sphere mapping texture (spa)
-		srvDesc.Format = m_spaBuffers[i] ? m_spaBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = Resource.spaTextures[i] ? Resource.spaTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!m_spaBuffers[i].Get() ? m_blackTexture : m_spaBuffers[i].Get(),
+			!Resource.spaTextures[i].Get() ? m_blackTexture : Resource.spaTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -306,14 +306,14 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	}
 	++index;
 	// toon
-	heapAddress = m_materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	heapAddress = RenderResource.MaterialHeap->GetCPUDescriptorHandleForHeapStart();
 	heapAddress.Offset(index, heapSize);
 	for (int i = 0; i < num_materials_block; ++i)
 	{
 		// Create SRV for toon map
-		srvDesc.Format = m_toonBuffers[i] ? m_toonBuffers[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = Resource.ToonTextures[i] ? Resource.ToonTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!m_toonBuffers[i].Get() ? m_gradTexture : m_toonBuffers[i].Get(),
+			!Resource.ToonTextures[i].Get() ? m_gradTexture : Resource.ToonTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -325,23 +325,28 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 
 void PMDModel::LoadTextureToBuffer()
 {
-	m_textureBuffer.resize(m_pmdLoader->ModelPaths.size());
-	m_sphBuffers.resize(m_pmdLoader->ModelPaths.size());
-	m_spaBuffers.resize(m_pmdLoader->ModelPaths.size());
-	m_toonBuffers.resize(m_pmdLoader->ToonPaths.size());
+	Resource.Textures.resize(m_pmdLoader->ModelPaths.size());
+	Resource.sphTextures.resize(m_pmdLoader->ModelPaths.size());
+	Resource.spaTextures.resize(m_pmdLoader->ModelPaths.size());
+	Resource.ToonTextures.resize(m_pmdLoader->ToonPaths.size());
 
-	for (int i = 0; i < m_textureBuffer.size(); ++i)
+	auto& Textures = Resource.Textures;
+	auto& sphTextures = Resource.sphTextures;
+	auto& spaTextures = Resource.spaTextures;
+	auto& ToonTextures = Resource.ToonTextures;
+
+	for (int i = 0; i < Textures.size(); ++i)
 	{
 		if (!m_pmdLoader->ToonPaths[i].empty())
 		{
 			std::string toonPath;
 			
 			toonPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, m_pmdLoader->ToonPaths[i].c_str());
-			m_toonBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
-			if (!m_toonBuffers[i])
+			ToonTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+			if (!ToonTextures[i])
 			{
 				toonPath = std::string(pmd_path) + "toon/" + m_pmdLoader->ToonPaths[i];
-				m_toonBuffers[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+				ToonTextures[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
 		if (!m_pmdLoader->ToonPaths[i].empty())
@@ -353,17 +358,17 @@ void PMDModel::LoadTextureToBuffer()
 				if (ext == "sph")
 				{
 					auto sphPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					m_sphBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
+					sphTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
 					auto spaPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					m_spaBuffers[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
+					spaTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
 					auto texPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					m_textureBuffer[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
+					Textures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
 		}
@@ -412,7 +417,7 @@ void PMDModel::UpdateMotionTransform(const size_t& currentFrame)
 	}
 
 	RecursiveCalculate(m_bones, mats, 0);
-	auto mappedBones = m_transformBuffer.HandleMappedData();
+	auto mappedBones = Resource.TransformConstant.HandleMappedData();
 	std::copy(mats.begin(), mats.end(), mappedBones->bones);
 }
 

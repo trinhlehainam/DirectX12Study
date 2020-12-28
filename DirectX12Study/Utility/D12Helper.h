@@ -31,7 +31,7 @@ namespace D12Helper
 	Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
 
 	// Return nullptr if FAILED to load texture from file
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureFromFilePath(Microsoft::WRL::ComPtr<ID3D12Device>& device, const std::wstring& path);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureFromFilePath(ID3D12Device* pDevice, const std::wstring& path);
 
 	// Create resource has default heap type (GPU read only)
 	// Use upload buffer to UPDATE resource to default buffer

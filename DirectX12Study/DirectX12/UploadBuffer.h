@@ -45,6 +45,9 @@ public:
 	bool EnableCopy();
 	// return false if it's already in disable copy state
 	bool DisableCopy();
+
+	// Take all resource of other upload buffer
+	void Move(UploadBuffer& other);
 private:
 	UploadBuffer(const UploadBuffer&) = delete;
 	UploadBuffer& operator = (const UploadBuffer&) = delete;

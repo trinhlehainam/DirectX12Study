@@ -509,7 +509,7 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 
 void D3D12App::CreateNormalMapTexture()
 {
-    m_normalMapTex = D12Helper::CreateTextureFromFilePath(m_device, L"Resource/Image/normalmap3.png");
+    m_normalMapTex = D12Helper::CreateTextureFromFilePath(m_device.Get(), L"Resource/Image/normalmap3.png");
 
     HRESULT result = S_OK;
     auto rsDesc = m_backBuffer[0]->GetDesc();

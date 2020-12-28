@@ -1,6 +1,5 @@
 ﻿#include "PMDManager.h"
 #include "PMDModel.h"
-#include "PMDLoader.h"
 #include "VMD/VMDMotion.h"
 #include "PMDMesh.h"
 
@@ -81,8 +80,17 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
 private:
-	PMDLoader* m_loader;
-	std::unordered_map<std::string, PMDModel> m_models;
+	
+	struct Animation
+	{
+		std::vector<PMDBone> m_bones;
+		std::unordered_map<std::string, uint16_t> m_bonesTable;
+		std::vector<DirectX::XMMATRIX> m_boneMatrices;
+		float m_timer = 0.0f;
+		uint64_t m_frameCnt = 0.0f;
+	};
+	std::unordered_map<std::string, PMDModel> m_loaders;
+	std::unordered_map<std::string, PMDResource> m_resources;
 	std::unordered_map<std::string, VMDMotion> m_animations;
 	PMDMesh m_mesh;
 };
@@ -136,7 +144,7 @@ void PMDManager::Impl::SleepRender(ID3D12GraphicsCommandList* cmdList)
 
 void PMDManager::Impl::NormalUpdate(const float& deltaTime)
 {
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		model.second.Update(deltaTime);
 	}
@@ -161,7 +169,7 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
@@ -184,7 +192,7 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Render all models
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		auto& name = model.first;
 		auto& data = model.second;
@@ -511,8 +519,8 @@ bool PMDManager::CreateModel(const std::string& modelName, const char* modelFile
 {
 	assert(!IMPL.HasModel(modelName));
 	if (IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].SetDevice(IMPL.m_device);
-	IMPL.m_models[modelName].Load(modelFilePath);
+	IMPL.m_loaders[modelName].SetDevice(IMPL.m_device);
+	IMPL.m_loaders[modelName].Load(modelFilePath);
 	return true;
 }
 
@@ -547,7 +555,7 @@ bool PMDManager::Play(const std::string& modelName, const std::string& animation
 	assert(IMPL.HasAnimation(animationName));
 	if (!IMPL.HasAnimation(animationName)) return false;
 
-	IMPL.m_models[modelName].Play(&IMPL.m_animations[animationName]);
+	IMPL.m_loaders[modelName].Play(&IMPL.m_animations[animationName]);
 
 	return true;
 }
@@ -556,7 +564,7 @@ bool PMDManager::Move(const std::string& modelName, float moveX, float moveY, fl
 {
 	assert(IMPL.HasModel(modelName));
 	if (!IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].Move(moveX, moveY, moveZ);
+	IMPL.m_loaders[modelName].Move(moveX, moveY, moveZ);
 	return true;
 }
 
@@ -564,7 +572,7 @@ bool PMDManager::RotateX(const std::string& modelName, float angle)
 {
 	assert(IMPL.HasModel(modelName));
 	if (!IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].RotateX(angle);
+	IMPL.m_loaders[modelName].RotateX(angle);
 	return true;
 }
 
@@ -572,7 +580,7 @@ bool PMDManager::RotateY(const std::string& modelName, float angle)
 {
 	assert(IMPL.HasModel(modelName));
 	if (!IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].RotateY(angle);
+	IMPL.m_loaders[modelName].RotateY(angle);
 	return true;
 }
 
@@ -580,7 +588,7 @@ bool PMDManager::RotateZ(const std::string& modelName, float angle)
 {
 	assert(IMPL.HasModel(modelName));
 	if (!IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].RotateZ(angle);
+	IMPL.m_loaders[modelName].RotateZ(angle);
 	return true;
 }
 
@@ -588,7 +596,7 @@ bool PMDManager::Scale(const std::string& modelName, float scaleX, float scaleY,
 {
 	assert(IMPL.HasModel(modelName));
 	if (!IMPL.HasModel(modelName)) return false;
-	IMPL.m_models[modelName].Scale(scaleX, scaleY, scaleZ);
+	IMPL.m_loaders[modelName].Scale(scaleX, scaleY, scaleZ);
 	return true;
 }
 
@@ -615,17 +623,23 @@ bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 {
 	// Init all models
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		model.second.SetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
 		model.second.CreateModel(cmdList);
+	}
+
+	for (auto& model : m_loaders)
+	{
+		auto& name = model.first;
+		auto& data = model.second;
 	}
 
 	uint32_t indexCount = 0;
 	uint32_t vertexCount = 0;
 	// Loop for calculate size of indices of all models
 	// And save baseIndex of each model for Render Usage
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		auto& data = model.second;
 		auto& name = model.first;
@@ -641,7 +655,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	m_mesh.Vertices.reserve(vertexCount);
 
 	// Add all vertices and indices to PMDMeshes
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 	{
 		auto& name = model.first;;
 		auto& data = model.second;
@@ -659,7 +673,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 
 bool PMDManager::Impl::HasModel(std::string const& modelName)
 {
-	return m_models.count(modelName);
+	return m_loaders.count(modelName);
 }
 
 bool PMDManager::Impl::HasAnimation(std::string const& animationName)
@@ -670,7 +684,7 @@ bool PMDManager::Impl::HasAnimation(std::string const& animationName)
 bool PMDManager::Impl::ClearSubresource()
 {
 	m_mesh.ClearSubresource();
-	for (auto& model : m_models)
+	for (auto& model : m_loaders)
 		model.second.ClearSubresources();
 	return true;
 }

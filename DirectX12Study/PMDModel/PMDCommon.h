@@ -33,3 +33,9 @@ struct PMDBone
 #endif
 	DirectX::XMFLOAT3 pos;			// rotation at origin position
 };
+
+struct PMDObjectConstant
+{
+	DirectX::XMMATRIX world;
+	DirectX::XMMATRIX bones[512];
+};

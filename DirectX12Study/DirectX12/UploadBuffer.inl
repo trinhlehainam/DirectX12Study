@@ -142,4 +142,14 @@ bool UploadBuffer<T>::DisableCopy()
 	return false;
 }
 
+template<typename T>
+inline void UploadBuffer<T>::Move(UploadBuffer& other)
+{
+	if(m_buffer != nullptr)
+		m_buffer.Reset();
+	m_buffer = other.m_buffer;
+	other.m_buffer = nullptr;
+}
+
+
 #endif

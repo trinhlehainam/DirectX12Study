@@ -102,7 +102,7 @@ ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const
     return byteCode;
 }
 
-ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>& device, const std::wstring& path)
+ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevice, const std::wstring& path)
 {
     HRESULT result = S_OK;
     
@@ -136,7 +136,7 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ComPtr<ID3D12Device>
     rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
     ComPtr<ID3D12Resource> buffer = nullptr;
-    ThrowIfFailed(device->CreateCommittedResource(
+    ThrowIfFailed(pDevice->CreateCommittedResource(
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
