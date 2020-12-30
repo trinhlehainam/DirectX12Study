@@ -1,10 +1,10 @@
 #pragma once
 
-#include <dxgi1_6.h>
 #include <vector>
 #include <memory>
 #include <string>
 
+#include <dxgi1_6.h>
 #include <Effekseer/Effekseer.h>
 #include <EffekseerRendererDX12/EffekseerRendererDX12.h>
 
@@ -14,6 +14,7 @@
 #include "../Input/Mouse.h"
 #include "../Utility/D12Helper.h"
 #include "../common.h"
+#include "FrameResource.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -58,7 +59,7 @@ private:
 	ComPtr<ID3D12CommandQueue> m_cmdQue;
 	ComPtr<IDXGIFactory6> m_dxgi;
 	ComPtr<IDXGISwapChain3> m_swapchain;
-	
+
 	// Object helps CPU keep track of GPU process
 	ComPtr<ID3D12Fence1> m_fence;	
 
@@ -67,8 +68,14 @@ private:
 	// -> GPU is processing
 	uint64_t m_targetFenceValue = 0;
 
+	std::vector<FrameResource> m_frameResources;
+	FrameResource* m_currentFrameResource = nullptr;
+	const uint16_t num_frame_resources = 1;
+	uint16_t m_currentFrameResourceIndex = 0;
+
 	void CreateCommandFamily();
 	void CreateSwapChain(const HWND& hwnd);
+	void CreateFrameResources();
 
 	// Renter Target View
 	static constexpr unsigned int DEFAULT_BACK_BUFFER_COUNT = 2;
@@ -91,6 +98,7 @@ private:
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
 
+	void UpdateFence();
 	void WaitForGPU();
 private:
 	// World Pass Constant

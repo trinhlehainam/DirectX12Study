@@ -642,6 +642,14 @@ void D3D12App::CreateSwapChain(const HWND& hwnd)
     assert(SUCCEEDED(result));
 }
 
+void D3D12App::CreateFrameResources()
+{
+    m_frameResources.reserve(num_frame_resources);
+    for (uint16_t i = 0; i < num_frame_resources; ++i)
+        m_frameResources.emplace_back(m_device.Get());
+    m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];
+}
+
 bool D3D12App::CreateBackBufferView()
 {
     D12Helper::CreateDescriptorHeap(m_device.Get(), m_bbRTVHeap, DEFAULT_BACK_BUFFER_COUNT, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -1115,23 +1123,26 @@ void D3D12App::RenderToViewDepthBuffer()
 
 void D3D12App::WaitForGPU()
 {
-    // Set current GPU target fence value to next process frame
-    ++m_targetFenceValue;
-
-    // use Signal of Command Que to tell GPU to set current GPU fence value
-    // to next process frame, after finished last Execution Draw Call
-    m_cmdQue->Signal(m_fence.Get(), m_targetFenceValue);
-
     // Check GPU current fence value 
     // If GPU current fence value haven't reached target Fence Value
     // Tell CPU to wait until GPU reach current fence
-    while (m_fence->GetCompletedValue() < m_targetFenceValue)
+    if (m_fence->GetCompletedValue() < m_targetFenceValue)
     {
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
         m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
     };
+}
+
+void D3D12App::UpdateFence()
+{
+    // Set current GPU target fence value to next process frame
+    m_currentFrameResource->FenceValue = ++m_targetFenceValue;
+
+    // use Signal of Command Que to tell GPU to set current GPU fence value
+    // to next process frame, after finished last Execution Draw Call
+    m_cmdQue->Signal(m_fence.Get(), m_targetFenceValue);
 }
 
 void D3D12App::CreatePostEffect()
@@ -1214,6 +1225,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     }
    
     CreateCommandFamily();
+    CreateFrameResources();
 
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
@@ -1234,6 +1246,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     m_cmdList->Close();
     m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList*const*>(m_cmdList.GetAddressOf()));
+    UpdateFence();
     WaitForGPU();
 
     EffekseerInit();
@@ -1333,6 +1346,20 @@ bool D3D12App::Update(const float& deltaTime)
     UpdateCamera(deltaTime);
     EffekseerUpdate(deltaTime);
 
+    m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
+    m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];
+
+    // Check if current GPU fence value is processing at current frame resource
+    // If current GPU fence value < current frame resource value
+    // -> GPU is processing at current frame resource
+    if (m_currentFrameResource->FenceValue != 0 && m_fence->GetCompletedValue() < m_currentFrameResource->FenceValue)
+    {
+        auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+        m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
+        WaitForSingleObject(fenceEvent, INFINITE);
+        CloseHandle(fenceEvent);
+    }
+
     if (m_keyboard.IsPressed('R'))
         m_pmdManager->RotateY("Miku", 1.0f*deltaTime);
 
@@ -1373,28 +1400,31 @@ void D3D12App::SetResourceStateForNextFrame()
 bool D3D12App::Render()
 {
     // Clear commands and open
-    m_cmdAlloc->Reset();
-    m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
+    auto& cmdAlloc = m_currentFrameResource->CmdAlloc;
+    cmdAlloc->Reset();
+    m_cmdList->Reset(cmdAlloc.Get(), nullptr);
 
     RenderToShadowDepthBuffer();
     RenderToViewDepthBuffer();
     RenderToRenderTargetTexture();
     RenderToBackBuffer();
     SetResourceStateForNextFrame();
-    SetBackBufferIndexForNextFrame();
 
     m_cmdList->Close();
     m_cmdQue->ExecuteCommandLists(1, (ID3D12CommandList* const*)m_cmdList.GetAddressOf());
-    WaitForGPU();
-
     // screen flip
     m_swapchain->Present(0, 0);
+
+    SetBackBufferIndexForNextFrame();
+    UpdateFence();
+
     return true;
 }
 
 void D3D12App::Terminate()
 {
     EffekseerTerminate();
+    m_currentFrameResource = nullptr;
 }
 
 void D3D12App::ClearKeyState()
