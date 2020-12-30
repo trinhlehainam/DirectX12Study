@@ -51,17 +51,20 @@ struct PMDResource
 struct PMDRenderResource
 {
 	std::vector<PMDSubMaterial> SubMaterials;
-	uint16_t HeapOffset = 0;
+	uint16_t MaterialsHeapOffset = 0;
 	PMDRenderResource() = default;
 	explicit PMDRenderResource(PMDRenderResource&& other) noexcept 
 		:SubMaterials(std::move(other.SubMaterials)),
-		HeapOffset(other.HeapOffset)
+		MaterialsHeapOffset(other.MaterialsHeapOffset)
 	{
+		other.MaterialsHeapOffset = 0;
 	}
 	void operator = (PMDRenderResource&& other) noexcept
 	{
 		SubMaterials = std::move(other.SubMaterials);
-		HeapOffset = other.HeapOffset;
+		MaterialsHeapOffset = other.MaterialsHeapOffset;
+
+		other.MaterialsHeapOffset = 0;
 	}
 };
 
@@ -91,8 +94,7 @@ public:
 	PMDRenderResource RenderResource;
 	std::vector<PMDBone> Bones;
 	std::unordered_map<std::string, uint16_t> BonesTable;
-	uint16_t MaterialsSize;
-
+	uint16_t MaterialDescriptorCount = 0;
 private:
 	// Resource from PMD Manager
 	ID3D12Device* m_device = nullptr;
@@ -103,7 +105,7 @@ private:
 	std::unique_ptr<PMDLoader> m_pmdLoader;
 
 private:
-	bool CreateTransformConstantBuffer(CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
+	bool CreateTransformConstantBuffer();
 	// Create texture from PMD file
 	void LoadTextureToBuffer();
 	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);

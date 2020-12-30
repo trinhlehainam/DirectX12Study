@@ -13,7 +13,7 @@
 namespace
 {
 	const char* pmd_path = "resource/PMD/";
-	constexpr unsigned int material_descriptor_count_per_heap = 5;
+	constexpr unsigned int material_descriptor_count_per_block = 5;
 }
 
 PMDModel::PMDModel()
@@ -38,12 +38,10 @@ PMDModel::~PMDModel()
 void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	CreateTransformConstantBuffer(heapHandle);
-	heapHandle.Offset(1, heapSize);
+	CreateTransformConstantBuffer();
 	LoadTextureToBuffer();
 	CreateMaterialAndTextureBuffer(cmdList, heapHandle);
-	heapHandle.Offset(MaterialsSize * 5, heapSize);
-	RenderResource.HeapOffset = 1 + MaterialsSize * 5;
+	heapHandle.Offset(RenderResource.MaterialsHeapOffset, heapSize);
 }
 
 const std::vector<uint16_t>& PMDModel::Indices() const
@@ -77,22 +75,17 @@ void PMDModel::SetDevice(ID3D12Device* pDevice)
 bool PMDModel::Load(const char* path)
 {
 	m_pmdLoader->Load(path);
-	RenderResource.SubMaterials = std::move(m_pmdLoader->SubMaterials);
 	Bones = std::move(m_pmdLoader->Bones);
 	BonesTable = std::move(m_pmdLoader->BonesTable);
-	MaterialsSize = RenderResource.SubMaterials.size();
+	RenderResource.SubMaterials = std::move(m_pmdLoader->SubMaterials);
+	RenderResource.MaterialsHeapOffset = RenderResource.SubMaterials.size() * material_descriptor_count_per_block;
+	MaterialDescriptorCount = RenderResource.MaterialsHeapOffset;
 	return true;
 }
 
-bool PMDModel::CreateTransformConstantBuffer(CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
+bool PMDModel::CreateTransformConstantBuffer()
 {
 	Resource.TransformConstant.Create(m_device, 1, true);
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = Resource.TransformConstant.GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = Resource.TransformConstant.SizeInBytes();
-
-	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
 	auto mappedData = Resource.TransformConstant.HandleMappedData();
 	mappedData->world = XMMatrixIdentity();
@@ -148,7 +141,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		// move memory offset
 		m_mappedMaterial += strideBytes;
 		gpuAddress += strideBytes;
-		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
+		heapAddress.Offset(material_descriptor_count_per_block, heapSize);
 	}
 	Resource.MaterialConstant->Unmap(0, nullptr);
 	++index;
@@ -174,7 +167,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 			&srvDesc,
 			heapAddress
 		);
-		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
+		heapAddress.Offset(material_descriptor_count_per_block, heapSize);
 	}
 	++index;
 	// sph
@@ -189,7 +182,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 			&srvDesc,
 			heapAddress
 		);
-		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
+		heapAddress.Offset(material_descriptor_count_per_block, heapSize);
 	}
 	++index;
 	// spa
@@ -204,7 +197,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 			&srvDesc,
 			heapAddress
 		);
-		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
+		heapAddress.Offset(material_descriptor_count_per_block, heapSize);
 	}
 	++index;
 	// toon
@@ -219,7 +212,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 			&srvDesc,
 			heapAddress
 		);
-		heapAddress.Offset(material_descriptor_count_per_heap, heapSize);
+		heapAddress.Offset(material_descriptor_count_per_block, heapSize);
 	}
 
 	return true;

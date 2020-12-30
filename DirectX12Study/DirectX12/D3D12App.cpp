@@ -22,7 +22,7 @@ using namespace DirectX;
 
 namespace
 {
-    constexpr unsigned int material_descriptor_count_per_heap = 5;
+    constexpr unsigned int material_descriptor_count_per_block = 5;
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS桜ミク.pmd";
     //const char* model_path = "resource/PMD/model/桜ミク/mikuXS雪ミク.pmd";
     //const char* model_path = "resource/PMD/model/霊夢/reimu_G02.pmd";
