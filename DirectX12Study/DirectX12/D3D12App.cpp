@@ -1294,8 +1294,8 @@ void D3D12App::CreatePMDModel()
     m_pmdManager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.SizeInBytes());
     m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
-    m_pmdManager->CreateModel("Miku", model1_path);
     m_pmdManager->CreateModel("Hibiki", model2_path);
+    m_pmdManager->CreateModel("Miku", model1_path);
     m_pmdManager->CreateModel("Haku", model_path);
     m_pmdManager->CreateAnimation("Dancing1", motion1_path);
     m_pmdManager->CreateAnimation("Dancing2", motion2_path);

@@ -208,8 +208,10 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(m_objectConstantHeap->GetGPUDescriptorHandleForHeapStart());
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	// Render all models
+	
 	for (auto& index : m_modelIndices)
 	{
+		auto it = m_modelIndices.begin();
 		auto& name = index.first;
 		auto& data = m_renderResources[index.second];
 
@@ -217,15 +219,16 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
 		/*-------------Set up transform-------------*/
 		cmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
+		objectHeapHandle.Offset(1, heapSize);
 		/*-------------------------------------------*/
 
 		/*-------------Set up material-------------*/
 		cmdList->SetDescriptorHeaps(1, data.MaterialHeap.GetAddressOf());
-		CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(data.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
+		//CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(data.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
 		uint32_t indexOffset = startIndex;
 		for (auto& m : data.SubMaterials)
 		{
-			cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
+			//cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 		
 			cmdList->DrawIndexedInstanced(m.indexCount,
 				1,
@@ -233,10 +236,10 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 				baseVertex,
 				0);
 			indexOffset += m.indexCount;
-			materialHeapHandle.Offset(5, heapSize);
+			//materialHeapHandle.Offset(5, heapSize);
 		}
-		objectHeapHandle.Offset(1, heapSize);
 		/*-------------------------------------------*/
+		
 	}
 }
 
@@ -266,7 +269,20 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 		cmdList->SetGraphicsRootDescriptorTable(1, objectHeapHandle);
 		objectHeapHandle.Offset(1, heapSize);
 
-		cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
+		//cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
+
+		// test
+		uint32_t indexOffset = startIndex;
+		for (auto& m : data.SubMaterials)
+		{
+			cmdList->DrawIndexedInstanced(m.indexCount,
+				1,
+				indexOffset,
+				baseVertex,
+				0);
+			indexOffset += m.indexCount;
+		}
+		//
 	}
 }
 
