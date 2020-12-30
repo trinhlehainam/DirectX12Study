@@ -51,20 +51,17 @@ struct PMDResource
 struct PMDRenderResource
 {
 	std::vector<PMDSubMaterial> SubMaterials;
-	ComPtr<ID3D12DescriptorHeap> MaterialHeap;
+	uint16_t HeapOffset = 0;
 	PMDRenderResource() = default;
 	explicit PMDRenderResource(PMDRenderResource&& other) noexcept 
 		:SubMaterials(std::move(other.SubMaterials)),
-		MaterialHeap(other.MaterialHeap)
+		HeapOffset(other.HeapOffset)
 	{
-		other.MaterialHeap = nullptr;
 	}
 	void operator = (PMDRenderResource&& other) noexcept
 	{
 		SubMaterials = std::move(other.SubMaterials);
-		MaterialHeap = other.MaterialHeap;
-
-		other.MaterialHeap = nullptr;
+		HeapOffset = other.HeapOffset;
 	}
 };
 
@@ -82,7 +79,7 @@ public:
 	void SetDefaultTexture(ID3D12Resource* whiteTexture,
 						   ID3D12Resource* blackTexture,
 						   ID3D12Resource* gradTexture);
-	void CreateModel(ID3D12GraphicsCommandList* cmdList);
+	void CreateModel(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
 	const std::vector<uint16_t>& Indices() const;
 	const std::vector<PMDVertex>& Vertices() const;
@@ -94,6 +91,7 @@ public:
 	PMDRenderResource RenderResource;
 	std::vector<PMDBone> Bones;
 	std::unordered_map<std::string, uint16_t> BonesTable;
+	uint16_t MaterialsSize;
 
 private:
 	// Resource from PMD Manager
@@ -105,9 +103,9 @@ private:
 	std::unique_ptr<PMDLoader> m_pmdLoader;
 
 private:
-	bool CreateTransformConstantBuffer();
+	bool CreateTransformConstantBuffer(CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 	// Create texture from PMD file
 	void LoadTextureToBuffer();
-	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList);
+	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 };
 

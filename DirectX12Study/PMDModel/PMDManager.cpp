@@ -86,7 +86,7 @@ private:
 	std::unordered_map<std::string, PMDModel> m_loaders;
 	std::vector<PMDResource> m_resources;
 	std::vector<PMDRenderResource> m_renderResources;
-	ComPtr<ID3D12DescriptorHeap> m_objectConstantHeap;
+	ComPtr<ID3D12DescriptorHeap> m_objectHeap;
 	std::unordered_map<std::string, VMDMotion> m_motionDatas;
 	std::unordered_map<std::string, uint16_t> m_modelIndices;
 	uint16_t m_count = -1;
@@ -204,10 +204,9 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Object constant heap
-	cmdList->SetDescriptorHeaps(1, m_objectConstantHeap.GetAddressOf());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(m_objectConstantHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, m_objectHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(m_objectHeap->GetGPUDescriptorHandleForHeapStart());
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	// Render all models
 	
 	for (auto& index : m_modelIndices)
 	{
@@ -223,12 +222,11 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 		/*-------------------------------------------*/
 
 		/*-------------Set up material-------------*/
-		cmdList->SetDescriptorHeaps(1, data.MaterialHeap.GetAddressOf());
-		//CD3DX12_GPU_DESCRIPTOR_HANDLE materialHeapHandle(data.MaterialHeap->GetGPUDescriptorHandleForHeapStart());
+		auto& materialHeapHandle = objectHeapHandle;
 		uint32_t indexOffset = startIndex;
 		for (auto& m : data.SubMaterials)
 		{
-			//cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
+			cmdList->SetGraphicsRootDescriptorTable(3, materialHeapHandle);
 		
 			cmdList->DrawIndexedInstanced(m.indexCount,
 				1,
@@ -236,7 +234,7 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 				baseVertex,
 				0);
 			indexOffset += m.indexCount;
-			//materialHeapHandle.Offset(5, heapSize);
+			materialHeapHandle.Offset(5, heapSize);
 		}
 		/*-------------------------------------------*/
 		
@@ -255,34 +253,20 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Object constant
-	cmdList->SetDescriptorHeaps(1, m_objectConstantHeap.GetAddressOf());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(m_objectConstantHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, m_objectHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(m_objectHeap->GetGPUDescriptorHandleForHeapStart());
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	for (auto& index : m_modelIndices)
 	{
 		auto& name = index.first;
-		auto& data = m_renderResources[index.second];
+		auto& heapOffset = m_renderResources[index.second].HeapOffset;
 		auto& indexCount = m_mesh.DrawArgs[name].IndexCount;
 		auto& startIndex = m_mesh.DrawArgs[name].StartIndexLocation;
 		auto& baseVertex = m_mesh.DrawArgs[name].BaseVertexLocation;
 		
 		cmdList->SetGraphicsRootDescriptorTable(1, objectHeapHandle);
-		objectHeapHandle.Offset(1, heapSize);
-
-		//cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
-
-		// test
-		uint32_t indexOffset = startIndex;
-		for (auto& m : data.SubMaterials)
-		{
-			cmdList->DrawIndexedInstanced(m.indexCount,
-				1,
-				indexOffset,
-				baseVertex,
-				0);
-			indexOffset += m.indexCount;
-		}
-		//
+		objectHeapHandle.Offset(heapOffset, heapSize);
+		cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
 	}
 }
 
@@ -572,10 +556,28 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 {
 	// Init all models
 	const uint16_t model_count = m_loaders.size();
+	constexpr uint16_t num_material_descriptor_per_block = 5;
+
+	uint16_t descriptor_count = 0;
+	// number of material's descriptors of all models
+	for (auto& model : m_loaders)
+	{
+		descriptor_count += model.second.MaterialsSize;
+	}
+	descriptor_count *= num_material_descriptor_per_block;
+	// number of object constant's descriptors of all models
+	descriptor_count += model_count;
+
+	// Create object constant heap
+	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, descriptor_count,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
+	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	for (auto& model : m_loaders)
 	{
 		model.second.SetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
-		model.second.CreateModel(cmdList);
+		model.second.CreateModel(cmdList, heapHandle);
 	}
 
 	// Load model datas to Manager's resources
@@ -589,22 +591,6 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 		m_resources.push_back(std::move(data.Resource));
 		m_renderResources.push_back(std::move(data.RenderResource));
 		++index;
-	}
-
-	// Create object constant heap
-	D12Helper::CreateDescriptorHeap(m_device, m_objectConstantHeap, model_count,
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectConstantHeap->GetCPUDescriptorHandleForHeapStart());
-	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	for (uint16_t i = 0; i < model_count; ++i)
-	{
-		auto& objectConstant = m_resources[i].TransformConstant;
-		cbvDesc.BufferLocation = objectConstant.GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = objectConstant.SizeInBytes();
-
-		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
-		heapHandle.Offset(1, heapSize);
 	}
 
 	// Init model animation

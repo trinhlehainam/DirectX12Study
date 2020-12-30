@@ -73,9 +73,6 @@ PSOutput PS(VsOutput input)
 		* g_tex.Sample(g_smp, input.uv)
 		* g_sph.Sample(g_smp, sphereUV)
 		+ g_spa.Sample(g_smp, sphereUV);
-	// test
-	ret.rtTexColor = float4(1, 1, 1, 1);
-	//
 	
 	ret.rtNormalTexColor = float4(input.norm.xyz, 1);
 
