@@ -51,24 +51,19 @@ struct PMDResource
 struct PMDRenderResource
 {
 	std::vector<PMDSubMaterial> SubMaterials;
-	ComPtr<ID3D12DescriptorHeap> TransformHeap;
 	ComPtr<ID3D12DescriptorHeap> MaterialHeap;
 	PMDRenderResource() = default;
 	explicit PMDRenderResource(PMDRenderResource&& other) noexcept 
 		:SubMaterials(std::move(other.SubMaterials)),
-		TransformHeap(other.TransformHeap),
 		MaterialHeap(other.MaterialHeap)
 	{
-		other.TransformHeap = nullptr;
 		other.MaterialHeap = nullptr;
 	}
 	void operator = (PMDRenderResource&& other) noexcept
 	{
 		SubMaterials = std::move(other.SubMaterials);
-		TransformHeap = other.TransformHeap;
 		MaterialHeap = other.MaterialHeap;
 
-		other.TransformHeap = nullptr;
 		other.MaterialHeap = nullptr;
 	}
 };

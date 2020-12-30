@@ -111,53 +111,50 @@ private:
 	//
 
 	void CreatePostEffect();
+	void CreateRenderTargetTexture();
+	void CreateBoardPolygonVertices();
+	void CreateNormalMapTexture();
+	void CreateBoardShadowDepthView();
+	void CreateBoardViewDepthView();
+	void CreateBoardRootSignature();
+	void CreateBoardPipeline();
 
 	ComPtr<ID3D12Resource> m_rtTexture = nullptr;
 	ComPtr<ID3D12Resource> m_rtNormalTexture = nullptr;
 	ComPtr<ID3D12DescriptorHeap> m_boardRTVHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> m_boardSRVHeap = nullptr;
-	void CreateRenderTargetTexture();
 
 	// ‚Ø‚çƒ|ƒŠ’¸“_
 	// TRIANGLESTRIP
 	ComPtr<ID3D12Resource> m_boardPolyVert;
 	D3D12_VERTEX_BUFFER_VIEW m_boardVBV;
-	void CreateBoardPolygonVertices();
 
 	ComPtr<ID3D12Resource> m_normalMapTex;
-	void CreateNormalMapTexture();
-	void CreateBoardShadowDepthView();
-	void CreateBoardViewDepthView();
 
 	ComPtr<ID3D12RootSignature> m_boardRootSig;
 	ComPtr<ID3D12PipelineState> m_boardPipeline;
-	void CreateBoardRootSignature();
-	void CreateBoardPipeline();
+	
 private:
 	// ShadowMapping
 	void CreateShadowMapping();
-
-	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
-	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
 	bool CreateShadowDepthBuffer();
-
-	ComPtr<ID3D12PipelineState> m_shadowPipeline;
-	ComPtr<ID3D12RootSignature> m_shadowRootSig;
 	void CreateShadowRootSignature();
 	void CreateShadowPipelineState();
 
+	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
+	ComPtr<ID3D12PipelineState> m_shadowPipeline;
+	ComPtr<ID3D12RootSignature> m_shadowRootSig;
 private:
 	void CreateViewDepth();
-
-	ComPtr<ID3D12Resource> m_viewDepthBuffer;
-	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
 	bool CreateViewDepthBuffer();
-
-	ComPtr<ID3D12PipelineState> m_viewDepthPipeline;
-	ComPtr<ID3D12RootSignature> m_viewDepthRootSig;
 	void CreateViewDepthRootSignature();
 	void CreateViewDepthPipelineState();
 
+	ComPtr<ID3D12Resource> m_viewDepthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
+	ComPtr<ID3D12PipelineState> m_viewDepthPipeline;
+	ComPtr<ID3D12RootSignature> m_viewDepthRootSig;
 private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();

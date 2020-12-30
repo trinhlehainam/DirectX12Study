@@ -81,15 +81,7 @@ bool PMDModel::Load(const char* path)
 
 bool PMDModel::CreateTransformConstantBuffer()
 {
-	D12Helper::CreateDescriptorHeap(m_device, RenderResource.TransformHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	Resource.TransformConstant.Create(m_device, 1, true);
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = Resource.TransformConstant.GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = Resource.TransformConstant.SizeInBytes();
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(RenderResource.TransformHeap->GetCPUDescriptorHandleForHeapStart());
-	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
 	auto mappedData = Resource.TransformConstant.HandleMappedData();
 	mappedData->world = XMMatrixIdentity();
