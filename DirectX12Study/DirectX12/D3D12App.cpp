@@ -317,7 +317,9 @@ void D3D12App::RenderToRenderTargetTexture()
     m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->Render(m_cmdList.Get());
+    m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->Render(m_cmdList.Get());
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -1078,6 +1080,7 @@ void D3D12App::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
@@ -1106,6 +1109,7 @@ void D3D12App::RenderToViewDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
@@ -1312,7 +1316,7 @@ void D3D12App::CreatePMDModel()
 
     m_pmdManager->SetDevice(m_device.Get());
     m_pmdManager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
-    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.ElementSize());
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress());
     m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_pmdManager->CreateModel("Hibiki", model2_path);
     m_pmdManager->CreateModel("Miku", model1_path);
@@ -1332,7 +1336,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager = std::make_unique<PrimitiveManager>();
 
     m_primitiveManager->SetDevice(m_device.Get());
-    m_primitiveManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.ElementSize());
+    m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress());
     m_primitiveManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
     m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40));

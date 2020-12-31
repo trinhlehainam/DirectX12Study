@@ -751,14 +751,13 @@ bool PMDManager::SetDevice(ID3D12Device* pDevice)
     return false;
 }
 
-bool PMDManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_t bufferSize)
+bool PMDManager::SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress)
 {
 	assert(IMPL.m_device);
 	if (IMPL.m_device == nullptr) return false;
-	if (pWorldPassConstant == nullptr) return false;
-	if (bufferSize == 0) return false;
+	if (worldPassConstantGpuAddress <= 0) return false;
 
-	IMPL.m_worldPassGpuAdress = pWorldPassConstant->GetGPUVirtualAddress();
+	IMPL.m_worldPassGpuAdress = worldPassConstantGpuAddress;
 
 	return true;
 }

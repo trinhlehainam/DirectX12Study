@@ -25,14 +25,13 @@ bool PrimitiveManager::SetDevice(ID3D12Device* pDevice)
 	return true;
 }
 
-bool PrimitiveManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant, size_t bufferSize)
+bool PrimitiveManager::SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress)
 {
 	assert(m_device);
 	if (m_device == nullptr) return false;
-	if (pWorldPassConstant == nullptr) return false;
-	if (bufferSize == 0) return false;
+	if (worldPassConstantGpuAddress <= 0) return false;
 
-	m_worldPassAdress = pWorldPassConstant->GetGPUVirtualAddress();
+	m_worldPassAdress = worldPassConstantGpuAddress;
 }
 
 bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)

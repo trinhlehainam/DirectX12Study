@@ -70,10 +70,10 @@ ID3D12Resource* UploadBuffer<T>::Get()
 }
 
 template<typename T>
-D3D12_GPU_VIRTUAL_ADDRESS UploadBuffer<T>::GetGPUVirtualAddress()
+D3D12_GPU_VIRTUAL_ADDRESS UploadBuffer<T>::GetGPUVirtualAddress(uint32_t index)
 {
 	assert(m_buffer.Get() != nullptr);
-	return m_buffer.Get()->GetGPUVirtualAddress();
+	return m_buffer.Get()->GetGPUVirtualAddress() + index * ElementSize();
 }
 
 template<typename T>

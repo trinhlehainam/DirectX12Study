@@ -13,7 +13,7 @@ public:
 
 	bool Create(ID3D12Device* device, uint32_t elementCount = 1, bool isConstantBuffer = false);
 	ID3D12Resource* Get();
-	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
+	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress(uint32_t index = 0);
 
 	size_t SizeInBytes() const;
 	size_t ElementSize() const;

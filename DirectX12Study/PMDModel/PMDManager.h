@@ -14,7 +14,7 @@ public:
 	//
 
 	bool SetDevice(ID3D12Device* pDevice);
-	bool SetWorldPassConstant(ID3D12Resource* pWorldPassConstant, size_t bufferSize);
+	bool SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress);
 	bool SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer);
 	bool SetViewDepth(ID3D12Resource* pViewDepthBuffer);
 	// The order is 
