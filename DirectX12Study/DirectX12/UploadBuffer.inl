@@ -93,9 +93,9 @@ size_t UploadBuffer<T>::ElementSize() const
 template<typename T>
 T* UploadBuffer<T>::HandleMappedData(uint32_t index)
 {
-	assert(m_isCopyable);
-	if (!m_isCopyable) 
-		return nullptr;
+	//assert(m_isCopyable);
+	//if (!m_isCopyable) 
+	//	return nullptr;
 
 	assert(m_buffer.Get());
 	if (index > m_elementCount) 
@@ -145,21 +145,19 @@ bool UploadBuffer<T>::CopyData(const std::vector<T>& arrayData)
 }
 
 template<typename T>
-bool UploadBuffer<T>::EnableCopy()
+void UploadBuffer<T>::EnableCopy()
 {
-	if (m_isCopyable) return false;
-	m_isCopyable = false;
-	m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData));
-	return true;
+	if (m_isCopyable) return;
+	m_isCopyable = true;
+	D12Helper::ThrowIfFailed(m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData)));
 }
 
 template<typename T>
-bool UploadBuffer<T>::DisableCopy()
+void UploadBuffer<T>::DisableCopy()
 {
-	if (!m_isCopyable) return false;
-	m_isCopyable = true;
+	if (!m_isCopyable) return;
+	m_isCopyable = false;
 	m_buffer->Unmap(0, nullptr);
-	return false;
 }
 
 template<typename T>

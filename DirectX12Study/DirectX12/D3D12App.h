@@ -71,7 +71,7 @@ private:
 
 	std::vector<FrameResource> m_frameResources;
 	FrameResource* m_currentFrameResource = nullptr;
-	const uint16_t num_frame_resources = 3;
+	const uint16_t num_frame_resources = 1;
 	uint16_t m_currentFrameResourceIndex = 0;
 
 	void CreateCommandFamily();
@@ -104,7 +104,6 @@ private:
 private:
 	// World Pass Constant
 	UploadBuffer<WorldPassConstant> m_worldPCBuffer;
-	ComPtr<ID3D12DescriptorHeap> m_worldPassConstantHeap;
 	bool CreateWorldPassConstant();
 private:
 	UpdateTextureBuffers m_updateBuffers;

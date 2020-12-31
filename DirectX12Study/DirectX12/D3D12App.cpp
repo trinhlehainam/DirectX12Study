@@ -509,9 +509,11 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 
 void D3D12App::UpdateWorldPassConstant()
 {
+    //m_worldPCBuffer.EnableCopy();
     auto pMappedData = m_worldPCBuffer.HandleMappedData(m_currentFrameResourceIndex);
     pMappedData->viewPos = m_camera.GetCameraPosition();
     pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
+    m_worldPCBuffer.DisableCopy();
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -1263,12 +1265,7 @@ bool D3D12App::CreateWorldPassConstant()
 {
     HRESULT result = S_OK;
 
-    D12Helper::CreateDescriptorHeap(m_device.Get(), m_worldPassConstantHeap,
-        2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
     m_worldPCBuffer.Create(m_device.Get(), num_frame_resources, true);
-
-    
 
     auto& app = Application::Instance();
 
@@ -1279,16 +1276,10 @@ bool D3D12App::CreateWorldPassConstant()
     m_camera.SetViewFrustum(0.1f, 500.0f);
     m_camera.Init();
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_worldPassConstantHeap->GetCPUDescriptorHandleForHeapStart());
-    const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     auto gpuAddress = m_worldPCBuffer.GetGPUVirtualAddress();
     const auto stride_bytes = m_worldPCBuffer.ElementSize();
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.SizeInBytes = m_worldPCBuffer.ElementSize();
     for (uint16_t i = 0; i < num_frame_resources; ++i)
     {
-        cbvDesc.BufferLocation = gpuAddress;
-
         auto mappedData = m_worldPCBuffer.HandleMappedData(i);
         mappedData->viewPos = m_camera.GetCameraPosition();
         mappedData->viewProj = m_camera.GetViewProjectionMatrix();
@@ -1302,10 +1293,9 @@ bool D3D12App::CreateWorldPassConstant()
             XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
         XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
 
-        m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
-        heapHandle.Offset(1, heap_size);
         gpuAddress += stride_bytes;
     }
+    m_worldPCBuffer.DisableCopy();
 
     return true;
 }

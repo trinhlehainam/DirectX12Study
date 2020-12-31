@@ -43,9 +43,9 @@ public:
 	bool CopyData(const std::vector<T>& arrayData);
 
 	// return false if it's already in copyable state
-	bool EnableCopy();
+	void EnableCopy();
 	// return false if it's already in disable copy state
-	bool DisableCopy();
+	void DisableCopy();
 
 	// Take all resource of other upload buffer
 	void Move(UploadBuffer& other);
