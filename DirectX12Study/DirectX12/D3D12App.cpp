@@ -443,6 +443,14 @@ void D3D12App::EffekseerUpdate(const float& deltaTime)
     
     m_effekManager->Update(millisecond_per_frame/second_to_millisecond);
     s_timer -= deltaTime;
+
+    auto cameraPos = m_camera.GetCameraPosition();
+    auto targetPos = m_camera.GetTargetPosition();
+    m_effekRenderer->SetCameraMatrix(
+        Effekseer::Matrix44().LookAtRH(
+            Effekseer::Vector3D(cameraPos.x, cameraPos.y, cameraPos.z),
+            Effekseer::Vector3D(targetPos.x, targetPos.y, targetPos.z),
+            Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
     
 }
 
@@ -495,16 +503,13 @@ void D3D12App::UpdateCamera(const float& deltaTime)
     m_mouse.GetPos(m_lastMousePos.x, m_lastMousePos.y);
     m_camera.Update();
 
-    m_worldPCBuffer.HandleMappedData()->viewPos = m_camera.GetCameraPosition();
-    m_worldPCBuffer.HandleMappedData()->viewProj = m_camera.GetViewProjectionMatrix();
+}
 
-    auto cameraPos = m_camera.GetCameraPosition();
-    auto targetPos = m_camera.GetTargetPosition();
-    m_effekRenderer->SetCameraMatrix(
-        Effekseer::Matrix44().LookAtRH(
-            Effekseer::Vector3D(cameraPos.x, cameraPos.y, cameraPos.z),
-            Effekseer::Vector3D(targetPos.x, targetPos.y, targetPos.z),
-            Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
+void D3D12App::UpdateWorldPassConstant()
+{
+    auto pMappedData = m_worldPCBuffer.HandleMappedData(m_currentFrameResourceIndex);
+    pMappedData->viewPos = m_camera.GetCameraPosition();
+    pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -750,22 +755,18 @@ void D3D12App::CreateShadowRootSignature()
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[2] = {};
+    D3D12_DESCRIPTOR_RANGE range[1] = {};
     D3D12_ROOT_PARAMETER rootParam[2] = {};
 
     // World pass constant
+    CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(rootParam[0], 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // Object constant
     range[0] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
         1,                                      // number of descriptors
-        0);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
-
-    // Object constant
-    range[1] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
         1);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[1], D3D12_SHADER_VISIBILITY_VERTEX);
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
    
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
@@ -930,22 +931,18 @@ void D3D12App::CreateViewDepthRootSignature()
     rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[2] = {};
+    D3D12_DESCRIPTOR_RANGE range[1] = {};
     D3D12_ROOT_PARAMETER rootParam[2] = {};
 
     // World pass constant
+    CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(rootParam[0], 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // Object constant
     range[0] = CD3DX12_DESCRIPTOR_RANGE(
         D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
         1,                                      // number of descriptors
-        0);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[0], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
-
-    // Object constant
-    range[1] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
         1);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[1], D3D12_SHADER_VISIBILITY_VERTEX);
+    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
     rtSigDesc.pParameters = rootParam;
     rtSigDesc.NumParameters = _countof(rootParam);
@@ -1265,9 +1262,9 @@ bool D3D12App::CreateWorldPassConstant()
     D12Helper::CreateDescriptorHeap(m_device.Get(), m_worldPassConstantHeap,
         2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    m_worldPCBuffer.Create(m_device.Get(), 1, true);
+    m_worldPCBuffer.Create(m_device.Get(), num_frame_resources, true);
 
-    auto mappedData = m_worldPCBuffer.HandleMappedData();
+    
 
     auto& app = Application::Instance();
 
@@ -1278,23 +1275,33 @@ bool D3D12App::CreateWorldPassConstant()
     m_camera.SetViewFrustum(0.1f, 500.0f);
     m_camera.Init();
 
-    mappedData->viewPos = m_camera.GetCameraPosition();
-    mappedData->viewProj = m_camera.GetViewProjectionMatrix();
-
-    XMVECTOR light = { -1,1,-1,0 };
-    XMStoreFloat3(&mappedData->lightDir,light);
-
-    XMVECTOR lightPos = { -10,30,30,1 };
-    XMVECTOR targetPos = { 0,0,0,1 };
-    auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
-        XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
-    XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
-
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_worldPassConstantHeap->GetCPUDescriptorHandleForHeapStart());
+    const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    auto gpuAddress = m_worldPCBuffer.GetGPUVirtualAddress();
+    const auto stride_bytes = m_worldPCBuffer.ElementSize();
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = m_worldPCBuffer.GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_worldPCBuffer.SizeInBytes();
-    auto heapPos = m_worldPassConstantHeap->GetCPUDescriptorHandleForHeapStart();
-    m_device->CreateConstantBufferView(&cbvDesc, heapPos);
+    cbvDesc.SizeInBytes = m_worldPCBuffer.ElementSize();
+    for (uint16_t i = 0; i < num_frame_resources; ++i)
+    {
+        cbvDesc.BufferLocation = gpuAddress;
+
+        auto mappedData = m_worldPCBuffer.HandleMappedData(i);
+        mappedData->viewPos = m_camera.GetCameraPosition();
+        mappedData->viewProj = m_camera.GetViewProjectionMatrix();
+
+        XMVECTOR light = { -1,1,-1,0 };
+        XMStoreFloat3(&mappedData->lightDir, light);
+
+        XMVECTOR lightPos = { -10,30,30,1 };
+        XMVECTOR targetPos = { 0,0,0,1 };
+        auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
+            XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
+        XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
+
+        m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+        heapHandle.Offset(1, heap_size);
+        gpuAddress += stride_bytes;
+    }
 
     return true;
 }
@@ -1305,7 +1312,7 @@ void D3D12App::CreatePMDModel()
 
     m_pmdManager->SetDevice(m_device.Get());
     m_pmdManager->SetDefaultBuffer(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
-    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.SizeInBytes());
+    m_pmdManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.ElementSize());
     m_pmdManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     m_pmdManager->CreateModel("Hibiki", model2_path);
     m_pmdManager->CreateModel("Miku", model1_path);
@@ -1325,7 +1332,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager = std::make_unique<PrimitiveManager>();
 
     m_primitiveManager->SetDevice(m_device.Get());
-    m_primitiveManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.SizeInBytes());
+    m_primitiveManager->SetWorldPassConstant(m_worldPCBuffer.Get(), m_worldPCBuffer.ElementSize());
     m_primitiveManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
     m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40));
@@ -1368,6 +1375,7 @@ bool D3D12App::Update(const float& deltaTime)
     if (m_keyboard.IsPressed(VK_RIGHT))
         m_pmdManager->Move("Haku", -10.0f * deltaTime, 0.0f, 0.0f);
 
+    UpdateWorldPassConstant();
     m_pmdManager->Update(deltaTime);
     
     g_scalar = g_scalar > 5 ? 0.1 : g_scalar;

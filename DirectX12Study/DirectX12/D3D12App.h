@@ -51,6 +51,7 @@ private:
 	DirectX::XMINT2 m_lastMousePos;
 
 	void UpdateCamera(const float& deltaTime);
+	void UpdateWorldPassConstant();
 private:
 
 	ComPtr<ID3D12Device> m_device;

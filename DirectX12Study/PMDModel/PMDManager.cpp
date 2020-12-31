@@ -75,10 +75,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
-	// World pass constant buffer binds only to VERTEX BUFFER
-	// Descriptor heap stores descriptor of world pass constant buffer
-	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_worldPCBHeap = nullptr;
+	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassGpuAdress = 0;
 
 	// Shadow depth buffer binds only to PIXEL SHADER
 	// Descriptor heap stores descriptor of shadow depth buffer
@@ -202,8 +199,7 @@ void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Set world pass constant
-	cmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootConstantBufferView(0, m_worldPassGpuAdress);
 
 	// Set depth buffers
 	cmdList->SetDescriptorHeaps(1, m_depthHeap.GetAddressOf());
@@ -256,8 +252,7 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Set world pass constant
-	cmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootConstantBufferView(0, m_worldPassGpuAdress);
 
 	// Object constant
 	cmdList->SetDescriptorHeaps(1, m_objectHeap.GetAddressOf());
@@ -292,24 +287,23 @@ bool PMDManager::Impl::CreateRootSignature()
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	CD3DX12_ROOT_PARAMETER parameter[4] = {};
-	CD3DX12_DESCRIPTOR_RANGE range[5] = {};
+	CD3DX12_DESCRIPTOR_RANGE range[4] = {};
 
 	// World Pass Constant
-	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	parameter[0].InitAsDescriptorTable(1, &range[0]);
+	parameter[0].InitAsConstantBufferView(0);
 
 	// Depth
-	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
-	parameter[1].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
+	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
+	parameter[1].InitAsDescriptorTable(1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
 
 	// Object Constant
-	range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	parameter[2].InitAsDescriptorTable(1, &range[2], D3D12_SHADER_VISIBILITY_VERTEX);
+	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	parameter[2].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_VERTEX);
 
 	// Material
-	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-	range[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 2);
-	parameter[3].InitAsDescriptorTable(2, &range[3], D3D12_SHADER_VISIBILITY_PIXEL);
+	range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 2);
+	parameter[3].InitAsDescriptorTable(2, &range[2], D3D12_SHADER_VISIBILITY_PIXEL);
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -543,7 +537,7 @@ bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 {
 	if (m_isInitDone) return true;
 	if (!m_device) return false;
-	if (!m_worldPCBHeap) return false;
+	if (!m_worldPassGpuAdress) return false;
 	if (!m_depthHeap) return false;
 
 	if (!CheckDefaultBuffers()) return false;
@@ -764,15 +758,7 @@ bool PMDManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant , size_
 	if (pWorldPassConstant == nullptr) return false;
 	if (bufferSize == 0) return false;
 
-	D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_worldPCBHeap,
-		1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = pWorldPassConstant->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = bufferSize;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_worldPCBHeap->GetCPUDescriptorHandleForHeapStart());
-	IMPL.m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+	IMPL.m_worldPassGpuAdress = pWorldPassConstant->GetGPUVirtualAddress();
 
 	return true;
 }

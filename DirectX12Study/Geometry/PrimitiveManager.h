@@ -43,9 +43,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
-	// Descriptor heap stores descriptor of world pass constant buffer
-	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_worldPCBHeap = nullptr;
+	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassAdress = 0;
 
 	// Descriptor heap stores descriptor of depth buffer
 	// Use for binding resource of engine to this pipeline

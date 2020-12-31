@@ -32,15 +32,7 @@ bool PrimitiveManager::SetWorldPassConstant(ID3D12Resource* pWorldPassConstant, 
 	if (pWorldPassConstant == nullptr) return false;
 	if (bufferSize == 0) return false;
 
-	D12Helper::CreateDescriptorHeap(m_device, m_worldPCBHeap,
-		1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = pWorldPassConstant->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = bufferSize;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_worldPCBHeap->GetCPUDescriptorHandleForHeapStart());
-	m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+	m_worldPassAdress = pWorldPassConstant->GetGPUVirtualAddress();
 }
 
 bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
@@ -114,7 +106,7 @@ bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
 {
 	if (m_isInitDone) return true;
 	if (!m_device) return false;
-	if (!m_worldPCBHeap) return false;
+	if (!m_worldPassAdress) return false;
 	if (!m_depthHeap) return false;
 	if (!CreatePipeline()) return false;
 
@@ -175,8 +167,7 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// World constant
-	pCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+	pCmdList->SetGraphicsRootConstantBufferView(0, m_worldPassAdress);
 	
 	// Depth buffers
 	pCmdList->SetDescriptorHeaps(1, m_depthHeap.GetAddressOf());
@@ -193,8 +184,7 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 {
 	// World constant
-	pCmdList->SetDescriptorHeaps(1, m_worldPCBHeap.GetAddressOf());
-	pCmdList->SetGraphicsRootDescriptorTable(0, m_worldPCBHeap->GetGPUDescriptorHandleForHeapStart());
+	pCmdList->SetGraphicsRootConstantBufferView(0, m_worldPassAdress);
 
 	// Set Input Assembler
 	pCmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
@@ -223,26 +213,21 @@ bool PrimitiveManager::CreateRootSignature()
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	D3D12_DESCRIPTOR_RANGE range[1] = {};
 	D3D12_ROOT_PARAMETER parameter[2] = {};
 
 	// world pass constant
-	range[0] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-		1,                                      // number of descriptors
-		0);                                     // base shader register
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
+	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	// shadow depth buffer
-	range[1] = CD3DX12_DESCRIPTOR_RANGE(
+	range[0] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
 		1,                                      // number of descriptors
 		0);                                     // base shader register
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
+
 	// object constant
 
-	
-	
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
