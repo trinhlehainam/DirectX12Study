@@ -509,7 +509,7 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 
 void D3D12App::UpdateWorldPassConstant()
 {
-    //m_worldPCBuffer.EnableCopy();
+    m_worldPCBuffer.EnableCopy();
     auto pMappedData = m_worldPCBuffer.HandleMappedData(m_currentFrameResourceIndex);
     pMappedData->viewPos = m_camera.GetCameraPosition();
     pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
