@@ -1366,7 +1366,7 @@ bool D3D12App::Update(const float& deltaTime)
     if (m_keyboard.IsPressed(VK_LEFT))
         m_pmdManager->Move("Hibiki", 10.0f * deltaTime, 0.0f, 0.0f);
     if (m_keyboard.IsPressed(VK_RIGHT))
-        m_pmdManager->Move("Miku", -10.0f * deltaTime, 0.0f, 0.0f);
+        m_pmdManager->Move("Haku", -10.0f * deltaTime, 0.0f, 0.0f);
 
     m_pmdManager->Update(deltaTime);
     

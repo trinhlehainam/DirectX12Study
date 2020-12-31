@@ -94,12 +94,17 @@ template<typename T>
 T* UploadBuffer<T>::HandleMappedData(uint32_t index)
 {
 	assert(m_isCopyable);
-	if (!m_isCopyable) return nullptr;
+	if (!m_isCopyable) 
+		return nullptr;
 
 	assert(m_buffer.Get());
-	if (index > m_elementCount)
-		index = 0;
-	return &reinterpret_cast<T*>(m_mappedData)[index];
+	if (index > m_elementCount) 
+		return nullptr;
+
+	// Offset address of pointer to right element data with input index
+	auto currentIndexData = m_mappedData + index * ElementSize();
+
+	return reinterpret_cast<T*>(currentIndexData);
 }
 
 template<typename T>

@@ -5,8 +5,8 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <d3dx12.h>
 
-#include "../DirectX12/UploadBuffer.h"
 #include "PMDCommon.h"
 
 using Microsoft::WRL::ComPtr;
@@ -22,7 +22,6 @@ struct PMDResource
 	std::vector<ComPtr<ID3D12Resource>> spaTextures;
 	std::vector<ComPtr<ID3D12Resource>> ToonTextures;
 	ComPtr<ID3D12Resource> MaterialConstant;
-	UploadBuffer<PMDObjectConstant> TransformConstant;
 
 	PMDResource() = default;
 	explicit PMDResource(PMDResource&& other) noexcept
@@ -30,8 +29,7 @@ struct PMDResource
 		sphTextures(std::move(other.sphTextures)),
 		spaTextures(std::move(other.spaTextures)),
 		ToonTextures(std::move(other.ToonTextures)),
-		MaterialConstant(other.MaterialConstant),
-		TransformConstant(std::move(other.TransformConstant))
+		MaterialConstant(other.MaterialConstant)
 	{
 		other.MaterialConstant = nullptr;
 	}
@@ -42,7 +40,6 @@ struct PMDResource
 		spaTextures = std::move(other.spaTextures);
 		ToonTextures = std::move(other.ToonTextures);
 		MaterialConstant = other.MaterialConstant;
-		TransformConstant.Move(other.TransformConstant);
 
 		other.MaterialConstant = nullptr;
 	}
@@ -105,7 +102,6 @@ private:
 	std::unique_ptr<PMDLoader> m_pmdLoader;
 
 private:
-	bool CreateTransformConstantBuffer();
 	// Create texture from PMD file
 	void LoadTextureToBuffer();
 	bool CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);

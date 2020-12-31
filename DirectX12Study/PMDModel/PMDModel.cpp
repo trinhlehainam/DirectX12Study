@@ -38,7 +38,6 @@ PMDModel::~PMDModel()
 void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	CreateTransformConstantBuffer();
 	LoadTextureToBuffer();
 	CreateMaterialAndTextureBuffer(cmdList, heapHandle);
 	heapHandle.Offset(RenderResource.MaterialsHeapOffset, heapSize);
@@ -80,25 +79,6 @@ bool PMDModel::Load(const char* path)
 	RenderResource.SubMaterials = std::move(m_pmdLoader->SubMaterials);
 	RenderResource.MaterialsHeapOffset = RenderResource.SubMaterials.size() * material_descriptor_count_per_block;
 	MaterialDescriptorCount = RenderResource.MaterialsHeapOffset;
-	return true;
-}
-
-bool PMDModel::CreateTransformConstantBuffer()
-{
-	Resource.TransformConstant.Create(m_device, 1, true);
-
-	auto mappedData = Resource.TransformConstant.HandleMappedData();
-	mappedData->world = XMMatrixIdentity();
-	std::vector<XMMATRIX> defaultMatrices;
-	defaultMatrices.reserve(512);
-	for (uint16_t i = 0; i < 512; ++i)
-	{
-		defaultMatrices.push_back(XMMatrixIdentity());
-	}
-	auto bones = defaultMatrices;
-
-	std::copy(bones.begin(), bones.end(), mappedData->bones);
-
 	return true;
 }
 

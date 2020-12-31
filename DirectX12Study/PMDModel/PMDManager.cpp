@@ -1,12 +1,15 @@
 ﻿#include "PMDManager.h"
+
+#include <unordered_map>
+#include <cassert>
+
+#include <d3dx12.h>
+
+#include "../DirectX12/UploadBuffer.h"
 #include "PMDModel.h"
 #include "VMD/VMDMotion.h"
 #include "PMDMesh.h"
 #include "../common.h"
-
-#include <unordered_map>
-#include <cassert>
-#include <d3dx12.h>
 
 #define IMPL (*m_impl)
 
@@ -86,9 +89,10 @@ private:
 	std::unordered_map<std::string, PMDModel> m_loaders;
 	std::vector<PMDResource> m_resources;
 	std::vector<PMDRenderResource> m_renderResources;
+	UploadBuffer<PMDObjectConstant> m_objectConstant;
 	ComPtr<ID3D12DescriptorHeap> m_objectHeap;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_transformConstantHeapStart;
-	std::unordered_map<std::string, VMDMotion> m_motionDatas;
+	
 	std::unordered_map<std::string, uint16_t> m_modelIndices;
 	uint16_t m_count = -1;
 	PMDMesh m_mesh;
@@ -111,10 +115,11 @@ private:
 		~PMDAnimation() { pMotionData = nullptr; };
 
 	};
+	std::unordered_map<std::string, VMDMotion> m_motionDatas;
 	std::vector<DirectX::XMMATRIX> m_defaultMatrices;
 	std::vector<PMDAnimation> m_animations;
 
-	void UpdateMotionTransform(uint16_t index, const size_t& currentFrame = 0);
+	void UpdateMotionTransform(uint16_t modelIndex, const size_t& currentFrame = 0);
 	void RecursiveCalculate(std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& matrices, size_t index);
 	// Root-finding algorithm ( finding ZERO or finding ROOT )
 	// There are 4 beizer points, but 2 of them are default at (0,0) and (127, 127)->(1,1) respectively
@@ -171,16 +176,16 @@ void PMDManager::Impl::SleepRender(ID3D12GraphicsCommandList* cmdList)
 void PMDManager::Impl::NormalUpdate(const float& deltaTime)
 {
 	constexpr float animation_speed = 50.0f / second_to_millisecond;
-	for (const auto& index : m_modelIndices)
+	for (const auto& data : m_modelIndices)
 	{
-		const auto& name = index.first;
-		const auto& data = index.second;
-		auto& animation = m_animations[data];
+		const auto& name = data.first;
+		const auto& index = data.second;
+		auto& animation = m_animations[index];
 		if (animation.Timer <= 0.0f)
 		{
 			animation.Timer += animation_speed;
 			++animation.FrameCnt;
-			UpdateMotionTransform(data, animation.FrameCnt);
+			UpdateMotionTransform(index, animation.FrameCnt);
 		}
 		animation.Timer -= deltaTime;
 	}
@@ -441,13 +446,13 @@ bool PMDManager::Impl::CheckDefaultBuffers()
 	return m_whiteTexture && m_blackTexture && m_gradTexture;
 }
 
-void PMDManager::Impl::UpdateMotionTransform(uint16_t index, const size_t& currentFrame)
+void PMDManager::Impl::UpdateMotionTransform(uint16_t modelIndex, const size_t& currentFrame)
 {
 	// If model don't have animtion, don't need to do motion
-	if (!m_animations[index].pMotionData) return;
+	if (!m_animations[modelIndex].pMotionData) return;
 
-	auto& animation = m_animations[index];
-	auto& resource = m_resources[index];
+	auto& animation = m_animations[modelIndex];
+	auto& resource = m_resources[modelIndex];
 	auto& motionData = animation.pMotionData->GetVMDMotionData();
 	auto mats = m_defaultMatrices;
 
@@ -484,7 +489,7 @@ void PMDManager::Impl::UpdateMotionTransform(uint16_t index, const size_t& curre
 	}
 
 	RecursiveCalculate(animation.Bones, mats, 0);
-	auto mappedBones = resource.TransformConstant.HandleMappedData();
+	auto mappedBones = m_objectConstant.HandleMappedData(modelIndex);
 	std::copy(mats.begin(), mats.end(), mappedBones->bones);
 }
 
@@ -594,17 +599,36 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 		m_renderResources.push_back(std::move(data.RenderResource));
 		++index;
 	}
-
-	// Create object constant view
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	
+	// Create default bones matrices
+	m_defaultMatrices.reserve(512);
+	for (uint16_t i = 0; i < 512; ++i)
+	{
+		m_defaultMatrices.push_back(XMMatrixIdentity());
+	}
+	// Create object constant
+	m_objectConstant.Create(m_device, model_count, true);
 	for (uint16_t i = 0; i < model_count; ++i)
 	{
-		auto& objectConstant = m_resources[i].TransformConstant;
-		cbvDesc.BufferLocation = objectConstant.GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = objectConstant.SizeInBytes();
+		auto hMappedData = m_objectConstant.HandleMappedData(i);
+		hMappedData->world = XMMatrixIdentity();
+		std::copy(m_defaultMatrices.begin(), m_defaultMatrices.end(), hMappedData->bones);
+	}
 
+	// Create object constant view
+	auto objectConstantAddress = m_objectConstant.GetGPUVirtualAddress();
+	const auto object_constant_element_size = m_objectConstant.ElementSize();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.SizeInBytes = object_constant_element_size;
+	for (uint16_t i = 0; i < model_count; ++i)
+	{
+		cbvDesc.BufferLocation = objectConstantAddress;
+		
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+
 		heapHandle.Offset(1, heapSize);
+		objectConstantAddress += object_constant_element_size;
 	}
 
 	// Init model animation
@@ -614,11 +638,6 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 		auto& name = model.first;
 		auto& data = model.second;
 		m_animations.emplace_back(std::move(data.Bones), std::move(data.BonesTable));
-	}
-	m_defaultMatrices.reserve(512);
-	for (uint16_t i = 0; i < 512; ++i)
-	{
-		m_defaultMatrices.push_back(XMMatrixIdentity());
 	}
 
 	uint32_t indexCount = 0;
@@ -679,7 +698,7 @@ bool PMDManager::Impl::ClearSubresource()
 
 PMDObjectConstant* PMDManager::Impl::GetObjectConstant(const std::string& modelName)
 {
-	return m_resources[m_modelIndices[modelName]].TransformConstant.HandleMappedData();
+	return m_objectConstant.HandleMappedData(m_modelIndices[modelName]);
 }
 
 //
