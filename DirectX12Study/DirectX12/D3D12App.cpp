@@ -509,11 +509,9 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 
 void D3D12App::UpdateWorldPassConstant()
 {
-    m_worldPCBuffer.EnableCopy();
     auto pMappedData = m_worldPCBuffer.HandleMappedData(m_currentFrameResourceIndex);
     pMappedData->viewPos = m_camera.GetCameraPosition();
     pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
-    m_worldPCBuffer.DisableCopy();
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -1295,7 +1293,6 @@ bool D3D12App::CreateWorldPassConstant()
 
         gpuAddress += stride_bytes;
     }
-    m_worldPCBuffer.DisableCopy();
 
     return true;
 }
