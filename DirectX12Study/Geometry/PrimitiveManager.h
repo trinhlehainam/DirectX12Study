@@ -1,13 +1,19 @@
 #pragma once
 
-#include <unordered_map>
 #include <string>
-#include <d3dx12.h>
+#include <d3d12.h>
+
 #include "GeometryCommon.h"
-#include "Mesh.h"
 
 class PrimitiveManager
 {
+public:
+	enum GEOMETRY
+	{
+		CYLINDER,
+		GEOSPHERE,
+		GRID
+	};
 public:
 	PrimitiveManager();
 	PrimitiveManager(ID3D12Device* pDevice);
@@ -18,11 +24,13 @@ public:
 	bool SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer);
 	bool SetViewDepth(ID3D12Resource* pViewDepthBuffer);
 
-	bool Create(const std::string name, Geometry::Mesh primitive);
+	bool Create(const std::string& name, Geometry::Mesh primitive);
 	// Need to set up all resource for PMD Manager BEFORE initialize it
 	bool Init(ID3D12GraphicsCommandList* cmdList);
 
 	bool ClearSubresources();
+public:
+	bool Move(const std::string& name, float x, float y, float z);
 public:
 	void Update(const float& deltaTime);
 	void Render(ID3D12GraphicsCommandList* pCmdList);
@@ -30,28 +38,8 @@ public:
 private:
 	PrimitiveManager(const PrimitiveManager&) = delete;
 	PrimitiveManager& operator = (const PrimitiveManager&) = delete;
-
 private:
-	bool CreatePipeline();
-	bool CreateRootSignature();
-	bool CreatePipelineStateObject();
-
-	bool m_isInitDone = false;
-	// Device from engine
-	ID3D12Device* m_device = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
-
-	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassAdress = 0;
-
-	// Descriptor heap stores descriptor of depth buffer
-	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
-	uint16_t m_depthBufferCount = 0;
-
-private:
-	Mesh<Geometry::Vertex> m_mesh;
-	std::unordered_map<std::string, Geometry::Mesh> m_primitives;
+	class Impl;
+	Impl* m_impl = nullptr;
 };
 

@@ -1,6 +1,11 @@
 #include "common.hlsli"
 #include "primitiveCommon.hlsli"
 
+cbuffer ObjectConstant : register(b1)
+{
+	float4x4 g_world;
+}
+
 struct PrimitiveInput
 {
 	float4 pos : POSITION;
@@ -12,16 +17,16 @@ struct PrimitiveInput
 PrimitiveOut primitiveVS(PrimitiveInput input)
 {
 	PrimitiveOut ret;
-	//ret.pos = mul(world, input.pos);
 	
+	ret.pos = mul(g_world, input.pos);
 	// Remove translate
-	//matrix wrl = world;
-	//wrl._14_24_34 = 0.0f;
-	//ret.normal = mul(wrl, input.normal);
+	matrix wrl = g_world;
+	wrl._14_24_34 = 0.0f;
+	ret.normal = mul(wrl, input.normal);
 	
-	// test
-	ret.pos = input.pos;
-	ret.normal = input.normal;
+	// Test
+	//ret.pos = input.pos;
+	//ret.normal = input.normal;
 	//
 	
 	ret.tangent = input.tangent;

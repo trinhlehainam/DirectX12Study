@@ -1,210 +1,77 @@
 #include "PrimitiveManager.h"
-#include "../Utility/D12Helper.h"
+
 #include <cassert>
+#include <unordered_map>
+
+#include "../Utility/D12Helper.h"
+#include "../DirectX12/UploadBuffer.h"
+#include "Mesh.h"
+
+#define IMPL (*m_impl)
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 
-PrimitiveManager::PrimitiveManager()
+class PrimitiveManager::Impl
 {
+public:
+	Impl();
+	Impl(ID3D12Device* pDevice);
+	~Impl();
+private:
+	friend PrimitiveManager;
+
+	bool CreatePipeline();
+	bool CreateRootSignature();
+	bool CreatePipelineStateObject();
+	bool CreateObjectHeap();
+	bool Has(const std::string& name);
+private:
+	bool m_isInitDone = false;
+	// Device from engine
+	ID3D12Device* m_device = nullptr;
+
+	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
+	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
+
+	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassAdress = 0;
+
+	// Descriptor heap stores descriptor of depth buffer
+	// Use for binding resource of engine to this pipeline
+	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
+	uint16_t m_depthBufferCount = 0;
+
+	UploadBuffer<XMFLOAT4X4> m_objectConstant;
+	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
+private:
+	Mesh<Geometry::Vertex> m_mesh;
+	std::unordered_map<std::string, Geometry::Mesh> m_loaders;
+	std::unordered_map<std::string, uint16_t> m_indices;
+};
+
+PrimitiveManager::Impl::Impl()
+{
+
 }
 
-PrimitiveManager::PrimitiveManager(ID3D12Device* pDevice):m_device(pDevice)
+PrimitiveManager::Impl::Impl(ID3D12Device* pDevice):m_device(pDevice)
 {
+
 }
 
-PrimitiveManager::~PrimitiveManager()
+PrimitiveManager::Impl::~Impl()
 {
 	m_device = nullptr;
 }
 
-bool PrimitiveManager::SetDevice(ID3D12Device* pDevice)
-{
-	assert(pDevice);
-	if (!pDevice) return false;
-	m_device = pDevice;
-	return true;
-}
-
-bool PrimitiveManager::SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress)
-{
-	assert(m_device);
-	if (m_device == nullptr) return false;
-	if (worldPassConstantGpuAddress <= 0) return false;
-
-	m_worldPassAdress = worldPassConstantGpuAddress;
-}
-
-bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
-{
-	assert(m_device);
-	if (pShadowDepthBuffer == nullptr) return false;
-
-	D12Helper::CreateDescriptorHeap(m_device, m_depthHeap, 1,
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-
-	auto rsDes = pShadowDepthBuffer->GetDesc();
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-
-	/*--------------EASY TO BECOME BUG----------------*/
-	// the type of shadow depth buffer is R32_TYPELESS
-	// In able to shader resource view to read shadow depth buffer
-	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	/*-------------------------------------------------*/
-
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
-	m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
-
-	return true;
-}
-
-bool PrimitiveManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
-{
-	assert(m_device);
-	if (pViewDepthBuffer == nullptr) return false;
-
-	auto rsDes = pViewDepthBuffer->GetDesc();
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-
-	/*--------------EASY TO BECOME BUG----------------*/
-	// the type of shadow depth buffer is R32_TYPELESS
-	// In able to shader resource view to read shadow depth buffer
-	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	/*-------------------------------------------------*/
-
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_depthHeap->GetCPUDescriptorHandleForHeapStart());
-	heapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-	m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
-
-	return true;
-}
-
-bool PrimitiveManager::Create(const std::string name, Geometry::Mesh primitive)
-{
-	assert(!m_primitives.count(name));
-	m_primitives[name] = primitive;
-	return true;
-}
-
-bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
-{
-	if (m_isInitDone) return true;
-	if (!m_device) return false;
-	if (!m_worldPassAdress) return false;
-	if (!m_depthHeap) return false;
-	if (!CreatePipeline()) return false;
-
-	uint32_t indexCount = 0;
-	uint32_t vertexCount = 0;
-	for (auto& primitive : m_primitives)
-	{
-		auto& data = primitive.second;
-		auto& name = primitive.first;
-
-		m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
-		m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
-		m_mesh.DrawArgs[name].IndexCount = data.indices.size();
-		indexCount += data.indices.size();
-		vertexCount += data.vertices.size();
-	}
-
-	m_mesh.Indices16.reserve(indexCount);
-	m_mesh.Vertices.reserve(vertexCount);
-
-	// Add all vertices and indices
-	for (auto& primitive : m_primitives)
-	{
-		auto& name = primitive.first;;
-		auto& data = primitive.second;
-
-		for (const auto& index : data.indices)
-			m_mesh.Indices16.push_back(index);
-
-		for (const auto& vertex : data.vertices)
-			m_mesh.Vertices.push_back(vertex);
-	}
-
-	m_mesh.CreateBuffers(m_device, cmdList);
-	m_mesh.CreateViews();
-
-	return true;
-}
-
-bool PrimitiveManager::ClearSubresources()
-{
-	m_mesh.ClearSubresource();
-	return true;
-}
-
-void PrimitiveManager::Update(const float& deltaTime)
-{
-}
-
-void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
-{
-	pCmdList->SetPipelineState(m_pipeline.Get());
-	pCmdList->SetGraphicsRootSignature(m_rootSig.Get());
-
-	// Set Input Assembler
-	pCmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
-	pCmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// World constant
-	pCmdList->SetGraphicsRootConstantBufferView(0, m_worldPassAdress);
-	
-	// Depth buffers
-	pCmdList->SetDescriptorHeaps(1, m_depthHeap.GetAddressOf());
-	pCmdList->SetGraphicsRootDescriptorTable(1, m_depthHeap->GetGPUDescriptorHandleForHeapStart());
-
-	for (auto& primitive : m_mesh.DrawArgs)
-	{
-		auto& drawArgs = primitive.second;
-		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
-	}
-		
-}
-
-void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
-{
-	// World constant
-	pCmdList->SetGraphicsRootConstantBufferView(0, m_worldPassAdress);
-
-	// Set Input Assembler
-	pCmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
-	pCmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
-	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	for (auto& primitive : m_mesh.DrawArgs)
-	{
-		auto& drawArgs = primitive.second;
-		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
-	}
-}
-
-bool PrimitiveManager::CreatePipeline()
+bool PrimitiveManager::Impl::CreatePipeline()
 {
 	if (!CreateRootSignature()) return false;
 	if (!CreatePipelineStateObject()) return false;
 	return true;
 }
 
-bool PrimitiveManager::CreateRootSignature()
+bool PrimitiveManager::Impl::CreateRootSignature()
 {
 	HRESULT result = S_OK;
 	//Root Signature
@@ -212,8 +79,8 @@ bool PrimitiveManager::CreateRootSignature()
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[1] = {};
-	D3D12_ROOT_PARAMETER parameter[2] = {};
+	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	D3D12_ROOT_PARAMETER parameter[3] = {};
 
 	// world pass constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -226,7 +93,11 @@ bool PrimitiveManager::CreateRootSignature()
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
 
 	// object constant
-
+	range[1] = CD3DX12_DESCRIPTOR_RANGE(
+		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
+		1,                                      // number of descriptors
+		1);                                     // base shader register
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -254,8 +125,7 @@ bool PrimitiveManager::CreateRootSignature()
 
 	return true;
 }
-
-bool PrimitiveManager::CreatePipelineStateObject()
+bool PrimitiveManager::Impl::CreatePipelineStateObject()
 {
 	HRESULT result = S_OK;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -311,7 +181,7 @@ bool PrimitiveManager::CreatePipelineStateObject()
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.FrontCounterClockwise = true;
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// Pixel Shader
 	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
@@ -335,3 +205,257 @@ bool PrimitiveManager::CreatePipelineStateObject()
 
 	return true;
 }
+
+bool PrimitiveManager::Impl::CreateObjectHeap()
+{
+	const auto num_primitive = m_indices.size();
+	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, num_primitive, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	m_objectConstant.Create(m_device, num_primitive, true);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
+	const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.SizeInBytes = m_objectConstant.ElementSize();
+	for (const auto& data : m_indices)
+	{
+		const auto& name = data.first;
+		const auto& index = data.second;
+		cbvDesc.BufferLocation = m_objectConstant.GetGPUVirtualAddress(index);
+		auto handleMappedData = m_objectConstant.HandleMappedData(index);
+		XMStoreFloat4x4(handleMappedData, XMMatrixIdentity());
+
+		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+		heapHandle.Offset(1, heap_size);
+	}
+
+	return true;
+}
+
+bool PrimitiveManager::Impl::Has(const std::string& name)
+{
+	return m_loaders.count(name);
+}
+
+//
+/*---------INTERFACE METHOD-----------*/
+//
+
+PrimitiveManager::PrimitiveManager():m_impl(new Impl())
+{
+}
+
+PrimitiveManager::PrimitiveManager(ID3D12Device* pDevice):m_impl(new Impl(pDevice))
+{
+}
+
+PrimitiveManager::~PrimitiveManager()
+{
+	SAFE_DELETE(m_impl);
+}
+
+bool PrimitiveManager::SetDevice(ID3D12Device* pDevice)
+{
+	assert(pDevice);
+	if (!pDevice) return false;
+	IMPL.m_device = pDevice;
+	return true;
+}
+
+bool PrimitiveManager::SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress)
+{
+	assert(IMPL.m_device);
+	if (IMPL.m_device == nullptr) return false;
+	if (worldPassConstantGpuAddress <= 0) return false;
+
+	IMPL.m_worldPassAdress = worldPassConstantGpuAddress;
+}
+
+bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
+{
+	assert(IMPL.m_device);
+	if (pShadowDepthBuffer == nullptr) return false;
+
+	D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_depthHeap, 1,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+	auto rsDes = pShadowDepthBuffer->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+	/*--------------EASY TO BECOME BUG----------------*/
+	// the type of shadow depth buffer is R32_TYPELESS
+	// In able to shader resource view to read shadow depth buffer
+	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	/*-------------------------------------------------*/
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	IMPL.m_device->CreateShaderResourceView(pShadowDepthBuffer, &srvDesc, heapHandle);
+
+	return true;
+}
+
+bool PrimitiveManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
+{
+	assert(IMPL.m_device);
+	if (pViewDepthBuffer == nullptr) return false;
+
+	auto rsDes = pViewDepthBuffer->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+	/*--------------EASY TO BECOME BUG----------------*/
+	// the type of shadow depth buffer is R32_TYPELESS
+	// In able to shader resource view to read shadow depth buffer
+	// => Set format SRV to DXGI_FORMAT_R32_FLOAT
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	/*-------------------------------------------------*/
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+	heapHandle.Offset(1, IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	IMPL.m_device->CreateShaderResourceView(pViewDepthBuffer, &srvDesc, heapHandle);
+
+	return true;
+}
+
+bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive)
+{
+	assert(!IMPL.Has(name));
+	IMPL.m_loaders[name] = primitive;
+	return true;
+}
+
+bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
+{
+	if (IMPL.m_isInitDone) return true;
+	if (!IMPL.m_device) return false;
+	if (!IMPL.m_worldPassAdress) return false;
+	if (!IMPL.m_depthHeap) return false;
+	if (!IMPL.CreatePipeline()) return false;
+
+	uint32_t indexCount = 0;
+	uint32_t vertexCount = 0;
+	for (auto& primitive : IMPL.m_loaders)
+	{
+		auto& data = primitive.second;
+		auto& name = primitive.first;
+
+		IMPL.m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
+		IMPL.m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
+		IMPL.m_mesh.DrawArgs[name].IndexCount = data.indices.size();
+		indexCount += data.indices.size();
+		vertexCount += data.vertices.size();
+	}
+
+	IMPL.m_mesh.Indices16.reserve(indexCount);
+	IMPL.m_mesh.Vertices.reserve(vertexCount);
+
+	// Add all vertices and indices
+	for (auto& primitive : IMPL.m_loaders)
+	{
+		auto& name = primitive.first;;
+		auto& data = primitive.second;
+
+		for (const auto& index : data.indices)
+			IMPL.m_mesh.Indices16.push_back(index);
+
+		for (const auto& vertex : data.vertices)
+			IMPL.m_mesh.Vertices.push_back(vertex);
+	}
+
+	uint16_t index = -1;
+	for (auto& primitive : IMPL.m_loaders)
+	{
+		auto& data = primitive.second;
+		auto& name = primitive.first;
+
+		IMPL.m_indices[name] = ++index;
+	}
+
+	IMPL.CreateObjectHeap();
+
+	IMPL.m_mesh.CreateBuffers(IMPL.m_device, cmdList);
+	IMPL.m_mesh.CreateViews();
+	IMPL.m_loaders.clear();
+
+	return true;
+}
+
+bool PrimitiveManager::ClearSubresources()
+{
+	IMPL.m_mesh.ClearSubresource();
+	return true;
+}
+
+bool PrimitiveManager::Move(const std::string& name, float x, float y, float z)
+{
+	const auto& index = IMPL.m_indices[name];
+	auto handleMappedData = IMPL.m_objectConstant.HandleMappedData(index);
+	XMStoreFloat4x4(handleMappedData, XMMatrixTranslation(x, y, z));
+	return true;
+}
+
+void PrimitiveManager::Update(const float& deltaTime)
+{
+}
+
+void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
+{
+	pCmdList->SetPipelineState(IMPL.m_pipeline.Get());
+	pCmdList->SetGraphicsRootSignature(IMPL.m_rootSig.Get());
+
+	// Set Input Assembler
+	pCmdList->IASetVertexBuffers(0, 1, &IMPL.m_mesh.VertexBufferView);
+	pCmdList->IASetIndexBuffer(&IMPL.m_mesh.IndexBufferView);
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// World constant
+	pCmdList->SetGraphicsRootConstantBufferView(0, IMPL.m_worldPassAdress);
+	
+	// Depth buffers
+	pCmdList->SetDescriptorHeaps(1, IMPL.m_depthHeap.GetAddressOf());
+	pCmdList->SetGraphicsRootDescriptorTable(1, IMPL.m_depthHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Object Constant
+	pCmdList->SetDescriptorHeaps(1, IMPL.m_objectHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(IMPL.m_objectHeap->GetGPUDescriptorHandleForHeapStart());
+	const auto heap_size = IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	for (auto& primitive : IMPL.m_mesh.DrawArgs)
+	{
+		auto& drawArgs = primitive.second;
+		pCmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
+		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
+		objectHeapHandle.Offset(1, heap_size);
+	}
+}
+
+void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
+{
+	// World constant
+	pCmdList->SetGraphicsRootConstantBufferView(0, IMPL.m_worldPassAdress);
+
+	// Set Input Assembler
+	pCmdList->IASetVertexBuffers(0, 1, &IMPL.m_mesh.VertexBufferView);
+	pCmdList->IASetIndexBuffer(&IMPL.m_mesh.IndexBufferView);
+	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (auto& primitive : IMPL.m_mesh.DrawArgs)
+	{
+		auto& drawArgs = primitive.second;
+		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
+	}
+}
+
