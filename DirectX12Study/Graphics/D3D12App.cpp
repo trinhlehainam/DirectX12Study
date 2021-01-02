@@ -512,8 +512,8 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 void D3D12App::UpdateWorldPassConstant()
 {
     auto pMappedData = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
-    pMappedData->viewPos = m_camera.GetCameraPosition();
-    pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
+    pMappedData->ViewPos = m_camera.GetCameraPosition();
+    pMappedData->ViewProj = m_camera.GetViewProjectionMatrix();
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -1282,19 +1282,21 @@ bool D3D12App::CreateWorldPassConstant()
     for (uint16_t i = 0; i < num_frame_resources; ++i)
     {
         auto mappedData = m_worldPCBuffer.GetHandleMappedData(i);
-        mappedData->viewPos = m_camera.GetCameraPosition();
-        mappedData->viewProj = m_camera.GetViewProjectionMatrix();
+        mappedData->ViewPos = m_camera.GetCameraPosition();
+        mappedData->ViewProj = m_camera.GetViewProjectionMatrix();
 
         XMVECTOR lightPos = { -10,30,30,1 };
         XMVECTOR targetPos = { 0,0,0,1 };
         auto lightDirection = XMVectorSubtract(targetPos, lightPos);
+        mappedData->Light[0] = Light();
+        mappedData->Light[1] = Light();
 
         lightDirection = XMVector4Normalize(lightDirection);
-        XMStoreFloat3(&mappedData->light[0].Direction, lightDirection);
+        XMStoreFloat3(&mappedData->Light[0].Direction, lightDirection);
 
         auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
             XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
-        XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
+        XMStoreFloat4x4(&mappedData->LightViewProj, lightViewProj);
 
         gpuAddress += stride_bytes;
     }

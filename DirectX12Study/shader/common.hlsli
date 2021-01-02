@@ -1,14 +1,4 @@
-struct Light
-{
-	float3 Strength;
-	float FallOfStart;
-	float3 Direction;
-	float FallOfEnd;
-	float3 Position;
-	float SpotPower;
-};
-
-static const uint MAX_LIGHT = 16;
+#include "LightingUtils.hlsli"
 
 cbuffer worldPass:register (b0)
 {
@@ -16,8 +6,9 @@ cbuffer worldPass:register (b0)
 	float4x4 g_lightViewProj;
 	float3 g_viewPos;
 	float padding0;
+	float4 g_ambientLight;
 	
-	Light g_light[MAX_LIGHT];
+	Light g_light[MAX_LIGHTS];
 }
 
 

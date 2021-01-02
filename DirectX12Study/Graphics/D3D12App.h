@@ -22,12 +22,13 @@
 constexpr uint16_t MAX_LIGHTS = 16;
 
 struct WorldPassConstant {
-	DirectX::XMFLOAT4X4 viewProj;
-	DirectX::XMFLOAT4X4 lightViewProj;
-	DirectX::XMFLOAT3 viewPos;
+	DirectX::XMFLOAT4X4 ViewProj;
+	DirectX::XMFLOAT4X4 LightViewProj;
+	DirectX::XMFLOAT3 ViewPos;
 	float padding0;
+	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	Light light[MAX_LIGHTS];
+	Light Light[MAX_LIGHTS];
 };
 
 using Microsoft::WRL::ComPtr;

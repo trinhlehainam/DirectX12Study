@@ -188,5 +188,6 @@
     <None Include="Graphics\UploadBuffer.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shader\LightingUtils.hlsli" />
   </ItemGroup>
 </Project>

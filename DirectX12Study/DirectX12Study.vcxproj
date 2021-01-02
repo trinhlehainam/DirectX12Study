@@ -262,6 +262,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Graphics\UploadBuffer.inl" />
+    <None Include="shader\LightingUtils.hlsli" />
     <None Include="shader\primitiveCommon.hlsli" />
     <None Include="shader\modelcommon.hlsli" />
     <None Include="shader\common.hlsli" />
