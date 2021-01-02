@@ -27,7 +27,7 @@ public:
 	/// <para>pointer to mapped data</para>
 	/// nullptr if Copy is Disable
 	/// </returns>
-	T* HandleMappedData(uint32_t index = 0);
+	T* GetHandleMappedData(uint32_t index = 0);
 
 	// If buffer has MULTIPLE elements, copy data to specific index
 	// return false if index is invalid (index is larger than number of element)

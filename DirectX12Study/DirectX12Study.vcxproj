@@ -149,22 +149,24 @@
     <ClCompile Include="Application.cpp">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
-    <ClCompile Include="DirectX12\Camera.cpp" />
+    <ClCompile Include="Graphics\Camera.cpp" />
     <ClCompile Include="Common\Timer.cpp" />
-    <ClCompile Include="DirectX12\FrameResource.cpp" />
+    <ClCompile Include="Graphics\FrameResource.cpp" />
     <ClCompile Include="Geometry\Mesh.cpp" />
     <ClCompile Include="Geometry\GeometryCommon.cpp" />
     <ClCompile Include="Input\KeyboardEvent.cpp" />
     <ClCompile Include="Input\MouseEvent.cpp" />
+    <ClCompile Include="Graphics\Material.cpp" />
+    <ClCompile Include="Graphics\Light.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
-    <ClCompile Include="DirectX12\DefaultBuffer.cpp" />
+    <ClCompile Include="Graphics\DefaultBuffer.cpp" />
     <ClCompile Include="Geometry\PrimitiveManager.cpp" />
     <ClCompile Include="Utility\D12Helper.cpp" />
     <ClCompile Include="Geometry\GeometryGenerator.cpp" />
     <ClCompile Include="Input\Keyboard.cpp" />
     <ClCompile Include="Input\Mouse.cpp" />
     <ClCompile Include="Loader\BmpLoader.cpp" />
-    <ClCompile Include="DirectX12\D3D12App.cpp" />
+    <ClCompile Include="Graphics\D3D12App.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PMDModel\PMDManager.cpp" />
     <ClCompile Include="PMDModel\PMDModel.cpp" />
@@ -173,28 +175,30 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
-    <ClInclude Include="DirectX12\Camera.h" />
+    <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Common\Timer.h" />
-    <ClInclude Include="DirectX12\FrameResource.h" />
+    <ClInclude Include="Graphics\FrameResource.h" />
     <ClInclude Include="Geometry\GeometryCommon.h" />
     <ClInclude Include="Geometry\Mesh.h" />
     <ClInclude Include="Input\KeyboardEvent.h" />
     <ClInclude Include="Input\MouseEvent.h" />
+    <ClInclude Include="Graphics\Material.h" />
+    <ClInclude Include="Graphics\Light.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
-    <ClInclude Include="DirectX12\DefaultBuffer.h" />
+    <ClInclude Include="Graphics\DefaultBuffer.h" />
     <ClInclude Include="Geometry\PrimitiveManager.h" />
     <ClInclude Include="Utility\D12Helper.h" />
     <ClInclude Include="Geometry\GeometryGenerator.h" />
     <ClInclude Include="Input\Keyboard.h" />
     <ClInclude Include="Input\Mouse.h" />
     <ClInclude Include="Loader\BmpLoader.h" />
-    <ClInclude Include="DirectX12\D3D12App.h" />
+    <ClInclude Include="Graphics\D3D12App.h" />
     <ClInclude Include="PMDModel\PMDCommon.h" />
     <ClInclude Include="PMDModel\PMDMesh.h" />
     <ClInclude Include="PMDModel\PMDManager.h" />
     <ClInclude Include="PMDModel\PMDModel.h" />
-    <ClInclude Include="DirectX12\UploadBuffer.h" />
+    <ClInclude Include="Graphics\UploadBuffer.h" />
     <ClInclude Include="Utility\StringHelper.h" />
     <ClInclude Include="PMDModel\VMD\VMDMotion.h" />
   </ItemGroup>
@@ -257,7 +261,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DirectX12\UploadBuffer.inl" />
+    <None Include="Graphics\UploadBuffer.inl" />
     <None Include="shader\primitiveCommon.hlsli" />
     <None Include="shader\modelcommon.hlsli" />
     <None Include="shader\common.hlsli" />

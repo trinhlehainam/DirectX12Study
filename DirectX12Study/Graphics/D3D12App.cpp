@@ -1,16 +1,18 @@
 #include "D3D12App.h"
+
+#include <iostream>
+#include <cassert>
+#include <algorithm>
+
+#include <d3dcompiler.h>
+#include <DirectXTex.h>
+#include <DirectXColors.h>
+
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../Geometry/GeometryGenerator.h"
 #include "../PMDModel/PMDManager.h"
 #include "../Geometry/PrimitiveManager.h"
-
-#include <cassert>
-#include <algorithm>
-#include <unordered_map>
-#include <d3dcompiler.h>
-#include <DirectXTex.h>
-#include <iostream>
 
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib,"d3d12.lib")
@@ -509,7 +511,7 @@ void D3D12App::UpdateCamera(const float& deltaTime)
 
 void D3D12App::UpdateWorldPassConstant()
 {
-    auto pMappedData = m_worldPCBuffer.HandleMappedData(m_currentFrameResourceIndex);
+    auto pMappedData = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
     pMappedData->viewPos = m_camera.GetCameraPosition();
     pMappedData->viewProj = m_camera.GetViewProjectionMatrix();
 }
@@ -1238,6 +1240,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateBackBufferView();
     CreateDepthBuffer();  
     CreateWorldPassConstant();
+    CreateMaterials();
     CreateShadowMapping();
     CreateViewDepth();
     CreatePostEffect();
@@ -1278,7 +1281,7 @@ bool D3D12App::CreateWorldPassConstant()
     const auto stride_bytes = m_worldPCBuffer.ElementSize();
     for (uint16_t i = 0; i < num_frame_resources; ++i)
     {
-        auto mappedData = m_worldPCBuffer.HandleMappedData(i);
+        auto mappedData = m_worldPCBuffer.GetHandleMappedData(i);
         mappedData->viewPos = m_camera.GetCameraPosition();
         mappedData->viewProj = m_camera.GetViewProjectionMatrix();
 
@@ -1296,6 +1299,32 @@ bool D3D12App::CreateWorldPassConstant()
 
     return true;
 }
+
+void D3D12App::CreateMaterials()
+{
+    m_materialCB.Create(m_device.Get(), 3, true);
+
+    uint16_t index = 0;
+    m_materialIndices["brick0"] = index;
+    auto handledMappedData = m_materialCB.GetHandleMappedData(index);
+    handledMappedData->DiffuseAlbedo = XMFLOAT4(Colors::ForestGreen);
+    handledMappedData->FresnelF0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+    handledMappedData->Roughness = 0.1f;
+    ++index;
+
+    m_materialIndices["stone0"] = index;
+    handledMappedData = m_materialCB.GetHandleMappedData(index);
+    handledMappedData->DiffuseAlbedo = XMFLOAT4(Colors::LightSteelBlue);
+    handledMappedData->FresnelF0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    handledMappedData->Roughness = 0.3f;
+    ++index;
+
+    m_materialIndices["tile0"] = index;
+    handledMappedData = m_materialCB.GetHandleMappedData(index);
+    handledMappedData->DiffuseAlbedo = XMFLOAT4(Colors::LightGray);
+    handledMappedData->FresnelF0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+    handledMappedData->Roughness = 0.2f;
+}                                  
 
 void D3D12App::CreatePMDModel()
 {
@@ -1322,39 +1351,43 @@ void D3D12App::CreatePrimitive()
 {
     m_primitiveManager = std::make_unique<PrimitiveManager>();
 
+    auto brickGpuAdress = m_materialCB.GetGPUVirtualAddress(m_materialIndices["brick0"]);
+    auto stoneGpuAdress = m_materialCB.GetGPUVirtualAddress(m_materialIndices["stone0"]);
+    auto tileGpuAdress = m_materialCB.GetGPUVirtualAddress(m_materialIndices["tile0"]);
+
     m_primitiveManager->SetDevice(m_device.Get());
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress());
     m_primitiveManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
-    m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40));
-    m_primitiveManager->Create("sphere", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere1", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere2", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere3", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere4", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere5", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere6", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere7", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere8", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere9", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere10", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere11", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere12", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("sphere13", GeometryGenerator::CreateSphere(5.0f, 20, 20));
-    m_primitiveManager->Create("cylinder", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder1", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder2", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder3", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder4", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder5", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder6", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder7", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder8", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder9", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder10", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
-    m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1));
+    m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40), tileGpuAdress);
+    m_primitiveManager->Create("sphere", GeometryGenerator::CreateSphere(5.0f, 20, 20) , stoneGpuAdress);
+    m_primitiveManager->Create("sphere1", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere2", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere3", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere4", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere5", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere6", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere7", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere8", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere9", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere10", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere11", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere12", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("sphere13", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
+    m_primitiveManager->Create("cylinder", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1) , brickGpuAdress);
+    m_primitiveManager->Create("cylinder1", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder2", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder3", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder4", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder5", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder6", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder7", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder8", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder9", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder10", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;

@@ -7,15 +7,6 @@ struct Size
 	size_t height;
 };
 
-struct WorldPassConstant {
-	DirectX::XMFLOAT4X4 viewProj;
-	DirectX::XMFLOAT4X4 lightViewProj;
-	DirectX::XMFLOAT3 viewPos;
-	float padding0;
-	DirectX::XMFLOAT3 lightDir;
-	float padding1;
-};
-
 struct BasicMaterial {
 	DirectX::XMFLOAT3 diffuse;
 	float alpha;

@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "DirectX12/D3D12App.h"
+#include "Graphics/D3D12App.h"
 #include <string>
 
 namespace

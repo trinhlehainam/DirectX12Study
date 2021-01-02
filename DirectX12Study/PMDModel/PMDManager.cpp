@@ -5,7 +5,7 @@
 
 #include <d3dx12.h>
 
-#include "../DirectX12/UploadBuffer.h"
+#include "../Graphics/UploadBuffer.h"
 #include "PMDModel.h"
 #include "VMD/VMDMotion.h"
 #include "PMDMesh.h"
@@ -483,7 +483,7 @@ void PMDManager::Impl::UpdateMotionTransform(uint16_t modelIndex, const size_t& 
 	}
 
 	RecursiveCalculate(animation.Bones, mats, 0);
-	auto mappedBones = m_objectConstant.HandleMappedData(modelIndex);
+	auto mappedBones = m_objectConstant.GetHandleMappedData(modelIndex);
 	std::copy(mats.begin(), mats.end(), mappedBones->bones);
 }
 
@@ -604,7 +604,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	m_objectConstant.Create(m_device, model_count, true);
 	for (uint16_t i = 0; i < model_count; ++i)
 	{
-		auto hMappedData = m_objectConstant.HandleMappedData(i);
+		auto hMappedData = m_objectConstant.GetHandleMappedData(i);
 		hMappedData->world = XMMatrixIdentity();
 		std::copy(m_defaultMatrices.begin(), m_defaultMatrices.end(), hMappedData->bones);
 	}
@@ -692,7 +692,7 @@ bool PMDManager::Impl::ClearSubresource()
 
 PMDObjectConstant* PMDManager::Impl::GetObjectConstant(const std::string& modelName)
 {
-	return m_objectConstant.HandleMappedData(m_modelIndices[modelName]);
+	return m_objectConstant.GetHandleMappedData(m_modelIndices[modelName]);
 }
 
 //

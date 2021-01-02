@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "../Utility/D12Helper.h"
-#include "../DirectX12/UploadBuffer.h"
+#include "../Graphics/UploadBuffer.h"
 #include "Mesh.h"
 
 #define IMPL (*m_impl)
@@ -45,8 +45,18 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
 private:
 	Mesh<Geometry::Vertex> m_mesh;
-	std::unordered_map<std::string, Geometry::Mesh> m_loaders;
-	std::unordered_map<std::string, uint16_t> m_indices;
+	struct Loader
+	{
+		Geometry::Mesh Primitive;
+		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAdress;
+	};
+	std::unordered_map<std::string, Loader> m_loaders;
+	struct DrawData
+	{
+		uint16_t Index;
+		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAddress;
+	};
+	std::unordered_map<std::string, DrawData> m_drawDatas;
 };
 
 PrimitiveManager::Impl::Impl()
@@ -80,7 +90,7 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 
 	// Descriptor table
 	D3D12_DESCRIPTOR_RANGE range[2] = {};
-	D3D12_ROOT_PARAMETER parameter[3] = {};
+	D3D12_ROOT_PARAMETER parameter[4] = {};
 
 	// world pass constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -98,6 +108,9 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 		1,                                      // number of descriptors
 		1);                                     // base shader register
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
+
+	// material constant
+	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[3], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -208,7 +221,7 @@ bool PrimitiveManager::Impl::CreatePipelineStateObject()
 
 bool PrimitiveManager::Impl::CreateObjectHeap()
 {
-	const auto num_primitive = m_indices.size();
+	const auto num_primitive = m_drawDatas.size();
 	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, num_primitive, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	m_objectConstant.Create(m_device, num_primitive, true);
 
@@ -216,12 +229,14 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 	const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = m_objectConstant.ElementSize();
-	for (const auto& data : m_indices)
+	for (const auto& drawData : m_drawDatas)
 	{
-		const auto& name = data.first;
-		const auto& index = data.second;
+		const auto& name = drawData.first;
+		const auto& data = drawData.second;
+		const auto& index = data.Index;
+
 		cbvDesc.BufferLocation = m_objectConstant.GetGPUVirtualAddress(index);
-		auto handleMappedData = m_objectConstant.HandleMappedData(index);
+		auto handleMappedData = m_objectConstant.GetHandleMappedData(index);
 		XMStoreFloat4x4(handleMappedData, XMMatrixIdentity());
 
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
@@ -330,10 +345,12 @@ bool PrimitiveManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
 	return true;
 }
 
-bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive)
+bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive, D3D12_GPU_VIRTUAL_ADDRESS materialCBGpuAddress)
 {
 	assert(!IMPL.Has(name));
-	IMPL.m_loaders[name] = primitive;
+	auto& loader = IMPL.m_loaders[name];
+	loader.Primitive = primitive;
+	loader.MaterialCBAdress = materialCBGpuAddress;
 	return true;
 }
 
@@ -347,41 +364,45 @@ bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
 
 	uint32_t indexCount = 0;
 	uint32_t vertexCount = 0;
-	for (auto& primitive : IMPL.m_loaders)
+	for (auto& loader : IMPL.m_loaders)
 	{
-		auto& data = primitive.second;
-		auto& name = primitive.first;
+		auto& name = loader.first;
+		auto& data = loader.second;
+		auto& primitive = data.Primitive;
 
 		IMPL.m_mesh.DrawArgs[name].StartIndexLocation = indexCount;
 		IMPL.m_mesh.DrawArgs[name].BaseVertexLocation = vertexCount;
-		IMPL.m_mesh.DrawArgs[name].IndexCount = data.indices.size();
-		indexCount += data.indices.size();
-		vertexCount += data.vertices.size();
+		IMPL.m_mesh.DrawArgs[name].IndexCount = primitive.indices.size();
+		indexCount += primitive.indices.size();
+		vertexCount += primitive.vertices.size();
 	}
 
 	IMPL.m_mesh.Indices16.reserve(indexCount);
 	IMPL.m_mesh.Vertices.reserve(vertexCount);
 
 	// Add all vertices and indices
-	for (auto& primitive : IMPL.m_loaders)
+	for (auto& loader : IMPL.m_loaders)
 	{
-		auto& name = primitive.first;;
-		auto& data = primitive.second;
+		auto& name = loader.first;
+		auto& data = loader.second;
+		auto& primitive = data.Primitive;
 
-		for (const auto& index : data.indices)
+		for (const auto& index : primitive.indices)
 			IMPL.m_mesh.Indices16.push_back(index);
 
-		for (const auto& vertex : data.vertices)
+		for (const auto& vertex : primitive.vertices)
 			IMPL.m_mesh.Vertices.push_back(vertex);
 	}
 
 	uint16_t index = -1;
-	for (auto& primitive : IMPL.m_loaders)
+	for (auto& loader : IMPL.m_loaders)
 	{
-		auto& data = primitive.second;
-		auto& name = primitive.first;
-
-		IMPL.m_indices[name] = ++index;
+		auto& name = loader.first;
+		auto& data = loader.second;
+		
+		auto& drawData = IMPL.m_drawDatas[name];
+		drawData.Index = ++index;
+		drawData.MaterialCBAddress = data.MaterialCBAdress;
 	}
 
 	IMPL.CreateObjectHeap();
@@ -401,8 +422,9 @@ bool PrimitiveManager::ClearSubresources()
 
 bool PrimitiveManager::Move(const std::string& name, float x, float y, float z)
 {
-	const auto& index = IMPL.m_indices[name];
-	auto handleMappedData = IMPL.m_objectConstant.HandleMappedData(index);
+	const auto& drawData = IMPL.m_drawDatas[name];
+	const auto& index = drawData.Index;
+	auto handleMappedData = IMPL.m_objectConstant.GetHandleMappedData(index);
 	XMStoreFloat4x4(handleMappedData, XMMatrixTranslation(x, y, z));
 	return true;
 }
@@ -433,10 +455,16 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(IMPL.m_objectHeap->GetGPUDescriptorHandleForHeapStart());
 	const auto heap_size = IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	for (auto& primitive : IMPL.m_mesh.DrawArgs)
+	for (const auto& drawData : IMPL.m_drawDatas)
 	{
-		auto& drawArgs = primitive.second;
+		const auto& name = drawData.first;
+		const auto& data = drawData.second;
+		const auto& index = data.Index;
+		const auto& materialCBGpuAddress = data.MaterialCBAddress;
+		const auto& drawArgs = IMPL.m_mesh.DrawArgs[name];
+
 		pCmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
+		pCmdList->SetGraphicsRootConstantBufferView(3, materialCBGpuAddress);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 		objectHeapHandle.Offset(1, heap_size);
 	}
@@ -457,5 +485,13 @@ void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 		auto& drawArgs = primitive.second;
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 	}
+}
+
+PrimitiveManager::PrimitiveManager(const PrimitiveManager&)
+{
+}
+
+void PrimitiveManager::operator=(const PrimitiveManager&)
+{
 }
 

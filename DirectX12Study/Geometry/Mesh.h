@@ -2,7 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
-#include "../DirectX12/DefaultBuffer.h"
+#include "../Graphics/DefaultBuffer.h"
 
 struct SubMesh
 {
@@ -18,10 +18,10 @@ struct SubMesh
 	uint32_t BaseVertexLocation = 0;
 };
 
-template<class Vertex>
+template<class Vertex_t>
 struct Mesh
 {
-	std::vector<Vertex> Vertices;
+	std::vector<Vertex_t> Vertices;
 	std::vector<uint16_t> Indices16;
 
 	std::unordered_map<std::string, SubMesh> DrawArgs;
@@ -37,10 +37,10 @@ struct Mesh
 	bool ClearSubresource();
 };
 
-template<class Vertex>
-inline bool Mesh<Vertex>::CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList)
+template<class Vertex_t>
+inline bool Mesh<Vertex_t>::CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList)
 {
-	size_t sizeOfVertices = sizeof(Vertex) * Vertices.size();
+	size_t sizeOfVertices = sizeof(Vertex_t) * Vertices.size();
 	VertexBuffer.CreateBuffer(pDevice, sizeOfVertices);
 	VertexBuffer.SetUpSubresource(Vertices.data(), sizeOfVertices);
 	VertexBuffer.UpdateSubresource(pDevice, pCmdList);
@@ -53,13 +53,13 @@ inline bool Mesh<Vertex>::CreateBuffers(ID3D12Device* pDevice, ID3D12GraphicsCom
 	return true;
 }
 
-template<class Vertex>
-inline bool Mesh<Vertex>::CreateViews()
+template<class Vertex_t>
+inline bool Mesh<Vertex_t>::CreateViews()
 {
-	uint32_t sizeOfVertices = sizeof(Vertex) * Vertices.size();
+	uint32_t sizeOfVertices = sizeof(Vertex_t) * Vertices.size();
 	VertexBufferView.BufferLocation = VertexBuffer.GetGPUVirtualAddress();
 	VertexBufferView.SizeInBytes = sizeOfVertices;
-	VertexBufferView.StrideInBytes = sizeof(Vertex);
+	VertexBufferView.StrideInBytes = sizeof(Vertex_t);
 
 	uint32_t sizeOfIndices = sizeof(uint16_t) * Indices16.size();
 	IndexBufferView.BufferLocation = IndexBuffer.GetGPUVirtualAddress();
@@ -69,8 +69,8 @@ inline bool Mesh<Vertex>::CreateViews()
 	return true;
 }
 
-template<class Vertex>
-inline bool Mesh<Vertex>::ClearSubresource()
+template<class Vertex_t>
+inline bool Mesh<Vertex_t>::ClearSubresource()
 {
 	VertexBuffer.ClearSubresource();
 	IndexBuffer.ClearSubresource();

@@ -91,7 +91,7 @@ size_t UploadBuffer<T>::ElementSize() const
 }
 
 template<typename T>
-T* UploadBuffer<T>::HandleMappedData(uint32_t index)
+T* UploadBuffer<T>::GetHandleMappedData(uint32_t index)
 {
 	//assert(m_isCopyable);
 	//if (!m_isCopyable) 

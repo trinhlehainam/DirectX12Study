@@ -3,6 +3,13 @@
 Texture2D<float> g_shadowTex:register(t0);
 SamplerState g_smpBorder:register(s0);
 
+cbuffer Materials : register(b2)
+{
+	float4 g_diffuseAlbedo;
+	float3 g_fresnelF0;
+	float g_roughness;
+}
+
 struct PSOutput
 {
 	float4 rtTexColor : SV_TARGET0;
@@ -12,7 +19,7 @@ struct PSOutput
 PSOutput primitivePS(PrimitiveOut input)
 {
 	PSOutput ret;
-	float4 color = float4(1,1,1,1);
+	float4 color = g_diffuseAlbedo;
 	// convert NDC to TEXCOORD
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	

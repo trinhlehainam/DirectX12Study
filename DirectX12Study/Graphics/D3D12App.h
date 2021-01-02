@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include <dxgi1_6.h>
 #include <Effekseer/Effekseer.h>
@@ -15,6 +16,21 @@
 #include "../Utility/D12Helper.h"
 #include "../common.h"
 #include "FrameResource.h"
+#include "Material.h"
+#include "Light.h"
+
+constexpr uint16_t MAX_LIGHTS = 16;
+
+struct WorldPassConstant {
+	DirectX::XMFLOAT4X4 viewProj;
+	DirectX::XMFLOAT4X4 lightViewProj;
+	DirectX::XMFLOAT3 viewPos;
+	float padding0;
+	DirectX::XMFLOAT3 lightDir;
+	float padding1;
+
+	Light light[MAX_LIGHTS];
+};
 
 using Microsoft::WRL::ComPtr;
 
@@ -113,6 +129,11 @@ private:
 
 	std::unique_ptr<PrimitiveManager> m_primitiveManager;
 	void CreatePrimitive();
+private:
+	std::unordered_map<std::string, uint16_t> m_materialIndices;
+	UploadBuffer<Material> m_materialCB;
+	void CreateMaterials();
+
 private:
 	//
 	// Post effect
