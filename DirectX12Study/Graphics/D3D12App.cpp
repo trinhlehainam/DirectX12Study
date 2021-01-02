@@ -1285,12 +1285,14 @@ bool D3D12App::CreateWorldPassConstant()
         mappedData->viewPos = m_camera.GetCameraPosition();
         mappedData->viewProj = m_camera.GetViewProjectionMatrix();
 
-        XMVECTOR light = { -1,1,-1,0 };
-        XMStoreFloat3(&mappedData->lightDir, light);
-
         XMVECTOR lightPos = { -10,30,30,1 };
         XMVECTOR targetPos = { 0,0,0,1 };
-        auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0,1,0,0 }) *
+        auto lightDirection = XMVectorSubtract(targetPos, lightPos);
+
+        lightDirection = XMVector4Normalize(lightDirection);
+        XMStoreFloat3(&mappedData->light[0].Direction, lightDirection);
+
+        auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
             XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
         XMStoreFloat4x4(&mappedData->lightViewProj, lightViewProj);
 
