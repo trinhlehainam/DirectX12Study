@@ -36,7 +36,7 @@ VsOutput VS( VsInput input )
 	//
 
 	ret.svpos = mul(g_viewproj, ret.pos);
-	ret.lvpos = mul(g_lightViewProj, ret.pos);
+	ret.lvpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 	ret.uv = input.uv;
 	ret.instanceID = input.instanceID;
 	return ret;

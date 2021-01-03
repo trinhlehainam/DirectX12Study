@@ -9,6 +9,7 @@ struct Light
 	float FallOffEnd;
 	float3 Position;
 	float SpotPower;
+	float4x4 ProjectMatrix;
 };
 
 struct Material

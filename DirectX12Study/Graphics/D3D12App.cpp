@@ -1302,7 +1302,7 @@ bool D3D12App::CreateWorldPassConstant()
 
         auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
             XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
-        XMStoreFloat4x4(&mappedData->LightViewProj, lightViewProj);
+        XMStoreFloat4x4(&mappedData->Lights[0].ProjectMatrix, lightViewProj);
 
         gpuAddress += stride_bytes;
     }

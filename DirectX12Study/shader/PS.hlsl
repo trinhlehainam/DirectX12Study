@@ -33,7 +33,7 @@ struct PSOutput
 PSOutput PS(VsOutput input)
 {	
 	PSOutput ret;
-	float3 lightRay = normalize(g_light[0].Direction);
+	float3 lightRay = normalize(g_lights[0].Direction);
 	// calculate light with cos
 	/* use Phong method to calculate per-pixel lighting */
 	float brightness = dot(input.norm.xyz, lightRay);			

@@ -13,5 +13,6 @@ struct Light
 	float FallOffEnd;					// Point light/ spot light
 	DirectX::XMFLOAT3 Position;
 	float SpotPower;					// Spot light
+	DirectX::XMFLOAT4X4 ProjectMatrix;
 };
 

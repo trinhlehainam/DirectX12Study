@@ -32,7 +32,7 @@ PrimitiveOut primitiveVS(PrimitiveInput input)
 	ret.tangent = input.tangent;
 	ret.uv = input.uv;
 	ret.svpos = mul(g_viewproj, ret.pos);
-	ret.lvpos = mul(g_lightViewProj, ret.pos);
+	ret.lvpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 	
 	return ret;
 }
