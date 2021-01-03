@@ -23,7 +23,7 @@ struct Material
 float CalculateAttenuation(float FallOfStart, float FallOfEnd, float Distance)
 {
 	// clamp value to (0 ~ 1)
-	return saturate((Distance - FallOfStart) / (FallOfEnd - FallOfStart));
+	return saturate((FallOfEnd - Distance) / (FallOfEnd - FallOfStart));
 }
 
 float3 SchlickFresnel(float3 FresnelF0, float3 lightUnitVector, float3 normalUnitVector)
@@ -64,7 +64,58 @@ float3 ComputeDirectionalLight(Light light, Material material, float3 viewUnitVe
 	return BlinnPhong(lightStrength, lightUnitVec, viewUnitVector, normalUnitVector, material);
 }
 
-float4 ComputeLighting(Light lights[MAX_LIGHTS], Material material, float3 viewVector, float3 normalVector)
+float3 ComputePointLight(Light light, Material material, float3 position, float3 viewUnitVector, 
+	float3 normalUnitVector)
+{
+	float3 lightVector = position - light.Position;
+	
+	float distance = length(lightVector);
+	
+	// Distance between checking point vs light source position
+	// If light don't reach checking position
+	// -> return dark color (0.0f)
+	if (distance > light.FallOffEnd)
+		return 0.0f;
+	
+	// normalize light vector
+	lightVector /= distance;
+
+	float attenuation = CalculateAttenuation(light.FallOffStart, light.FallOffEnd, distance);
+	
+	float3 lightStrength = light.Strength * max(dot(-lightVector, normalUnitVector), 0.0f);
+	lightStrength *= attenuation;
+	
+	return BlinnPhong(lightStrength, lightVector, viewUnitVector, normalUnitVector, material);
+}
+
+float3 ComputeSpotLight(Light light, Material material, float3 position, float3 viewUnitVector,
+	float3 normalUnitVector)
+{
+	float3 lightVector = position - light.Position;
+	
+	float distance = length(lightVector);
+	
+	// Distance between checking point vs light source position
+	// If light don't reach checking position
+	// -> return dark color (0.0f)
+	if (distance > light.FallOffEnd)
+		return 0.0f;
+	
+	// normalize light vector
+	lightVector /= distance;
+
+	float attenuation = CalculateAttenuation(light.FallOffStart, light.FallOffEnd, distance);
+	
+	float spotFactor = pow(max(dot(lightVector, light.Direction), 0.0f), light.SpotPower);
+	
+	float3 lightStrength = light.Strength * max(dot(-lightVector, normalUnitVector), 0.0f);
+	lightStrength *= attenuation;
+	lightStrength *= spotFactor;
+	
+	return BlinnPhong(lightStrength, lightVector, viewUnitVector, normalUnitVector, material);
+}
+
+float4 ComputeLighting(Light lights[MAX_LIGHTS], Material material, float3 position, float3 viewVector, float3 normalVector)
 {
 	float4 ret = float4(0.0f, 0.0f, 0.0f, 1.0f);
 	
@@ -73,13 +124,26 @@ float4 ComputeLighting(Light lights[MAX_LIGHTS], Material material, float3 viewV
 	float3 normalUnitVec = normalize(normalVector);
 	float3 viewUnitVec = normalize(viewVector);
 	
-#ifdef NUM_DIRECTIONAL_LIGHT
+#if (NUM_DIRECTIONAL_LIGHT > 0)
 	for (i = 0; i < NUM_DIRECTIONAL_LIGHT; ++i)
 	{
 		ret.rgb += ComputeDirectionalLight(lights[i], material, viewUnitVec, normalUnitVec);
 	};
 #endif
 	
+#if (NUM_POINT_LIGHT > 0)
+	for (i = NUM_DIRECTIONAL_LIGHT; i < NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT; ++i)
+	{
+		ret.rgb += ComputePointLight(lights[i], material, position, viewUnitVec, normalUnitVec);
+	};
+#endif
+	
+#if (NUM_SPOT_LIGHT > 0)
+	for (i = NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT; i < NUM_DIRECTIONAL_LIGHT + NUM_POINT_LIGHT + NUM_SPOT_LIGHT; ++i)
+	{
+		ret.rgb += ComputeSpotLight(lights[i], material, position, viewUnitVec, normalUnitVec);
+	};
+#endif
+	
 	return ret;
-
 }

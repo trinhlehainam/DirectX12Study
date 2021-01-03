@@ -40,7 +40,7 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	if (input.uv.x < 0.25f && input.uv.y < 0.25f)
 	{
 		float3 shadowColor = g_shadowDepthTex.Sample(smpWrap, input.uv * 4);
-		return float4(1.0f - shadowColor, 1);
+		return float4(shadowColor, 1);
 	}
 
 	// Debug for view depth
@@ -66,6 +66,6 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	}	
 
 	float div = 100.0f;
-	return float4(0.7, 0.9, 0.9, 1);
+	return float4(0, 0, 0, 0);
 	return float4(fmod(input.uv, 1.0f / div) * div, 1, 1);
 }

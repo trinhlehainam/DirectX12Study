@@ -6,7 +6,7 @@ Light::Light():
 	Strength(XMFLOAT3( 1.0f, 1.0f, 1.0f )), 
 	FallOffStart(1.0f), 
 	Direction(XMFLOAT3( 0.0f, -1.0f, 0.0f )),
-    FallOffEnd(10.0f), 
+    FallOffEnd(100.0f), 
 	Position(XMFLOAT3( 0.0f, 0.0f, 0.0f )), 
 	SpotPower(64.0f)
 {
