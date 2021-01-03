@@ -1285,17 +1285,23 @@ bool D3D12App::CreateWorldPassConstant()
         mappedData->ViewPos = m_camera.GetCameraPosition();
         mappedData->ViewProj = m_camera.GetViewProjectionMatrix();
 
-        XMVECTOR lightPos = { -10,30,30,1 };
-        XMVECTOR targetPos = { 0,0,0,1 };
-        auto lightDirection = XMVectorSubtract(targetPos, lightPos);
-        mappedData->Light[0] = Light();
-        mappedData->Light[1] = Light();
+        XMVECTOR lightPos = { 0,100,0,1 };
+       
+        mappedData->Lights[0] = Light();
+        mappedData->Lights[1] = Light();
+        mappedData->Lights[2] = Light();
+        mappedData->Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+        mappedData->Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+        mappedData->Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+        mappedData->Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
-        lightDirection = XMVector4Normalize(lightDirection);
-        XMStoreFloat3(&mappedData->Light[0].Direction, lightDirection);
+        auto lightDirection = XMLoadFloat3(&mappedData->Lights[0].Direction);
+        XMStoreFloat3(&mappedData->Lights[0].Direction, lightDirection);
 
         auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
-            XMMatrixOrthographicRH(100.f, 100.f, 1.0f, 500.0f);
+            XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
         XMStoreFloat4x4(&mappedData->LightViewProj, lightViewProj);
 
         gpuAddress += stride_bytes;

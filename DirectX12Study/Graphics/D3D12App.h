@@ -28,7 +28,7 @@ struct WorldPassConstant {
 	float padding0;
 	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	Light Light[MAX_LIGHTS];
+	Light Lights[MAX_LIGHTS];
 };
 
 using Microsoft::WRL::ComPtr;
