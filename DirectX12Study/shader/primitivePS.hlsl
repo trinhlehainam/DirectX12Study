@@ -28,7 +28,7 @@ PSOutput primitivePS(PrimitiveOut input)
 	Material material = { g_diffuseAlbedo, g_fresnelF0, 1.0f - g_roughness };
 	float3 viewVector = input.pos.xyz - g_viewPos;
 	float4 ambient = g_ambientLight * g_diffuseAlbedo;
-	float4 color = ambient + ComputeLighting(g_lights, material, input.pos.xyz, viewVector, input.normal.xyz);
+	float4 color = ComputeLighting(g_lights, material, input.pos.xyz, viewVector, input.normal.xyz);
 	// convert NDC to TEXCOORD
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	
@@ -36,7 +36,7 @@ PSOutput primitivePS(PrimitiveOut input)
 	const float bias = 0.005f;
 	if (input.lvpos.z - bias > g_shadowTex.Sample(g_smpBorder, uv))
 	{
-		ret.rtTexColor = float4(color.rgb * 0.3, 1);
+		//ret.rtTexColor = float4(color.rgb * 0.3, 1);
 	}
 	
 	ret.rtNormalTexColor = float4(input.normal.xyz, 1);

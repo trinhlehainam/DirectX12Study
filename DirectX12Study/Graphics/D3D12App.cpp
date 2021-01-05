@@ -1302,7 +1302,7 @@ bool D3D12App::CreateWorldPassConstant()
         //    XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
 
         XMStoreFloat3(&mappedData->Lights[0].Position, lightPos);
-        mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+        mappedData->Lights[0].Strength = { 1.0f, 1.0f, 1.0f };
 
         XMVECTOR targetPos = { 0.0f,0.0f,0.0f,1.0f };
         auto lightDirection = XMVectorSubtract(targetPos, lightPos);
