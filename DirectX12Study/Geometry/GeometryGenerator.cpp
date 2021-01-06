@@ -2,6 +2,105 @@
 
 using namespace DirectX;
 
+namespace
+{
+	void BuildCylinderTopCap(const float& topRadius, const float& height, const uint32_t& verticesPerRing, Geometry::Mesh& mesh);
+	void BuildCylinderBottomCap(const float& bottomRadius, const float& height, const uint32_t& verticesPerRing, Geometry::Mesh& mesh);
+}
+
+namespace
+{
+	void BuildCylinderTopCap(const float& topRadius, const float& height,
+		const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
+	{
+		auto baseIndex = mesh.vertices.size();
+
+		float y = 0.5f * height;
+		float theta = XM_2PI / verticesPerRing;
+		const XMFLOAT3 top_cap_normal = { 0,1.f,0 };
+
+		for (uint32_t i = 0; i < verticesPerRing; ++i)
+		{
+			float x = topRadius * cosf(i * theta);
+			float z = topRadius * sinf(i * theta);
+
+			float u = x / height + 0.5f;
+			float v = z / height + 0.5f;
+
+			mesh.vertices.push_back(Geometry::Vertex(
+				x, y, z,
+				0.0f, 1.0f, 0.0f,
+				1.0f, 0.0f, 0.0f,
+				u, v));
+		}
+
+		// Vertex of cap center
+		mesh.vertices.push_back(Geometry::Vertex(
+			0.0f, y, 0.0f,
+			0.0f, 1.0f, 0.0f,
+			1.f, 0.0f, 0.0f,
+			0.5f, 0.5f));
+
+		// Save index of vertex in center of cap
+		auto centerIndex = mesh.vertices.size() - 1;
+
+		// Top cap facing top
+		// Count indices in clockwise
+		for (uint32_t i = 0; i < verticesPerRing; ++i)
+		{
+			uint32_t nextIndex = (i + 1) % verticesPerRing;
+			mesh.indices.push_back(centerIndex);
+			mesh.indices.push_back(baseIndex + nextIndex);
+			mesh.indices.push_back(baseIndex + i);
+		}
+	}
+
+	void BuildCylinderBottomCap(const float& bottomRadius, const float& height,
+		const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
+	{
+		auto baseIndex = mesh.vertices.size();
+
+		float y = -0.5f * height;
+		float theta = XM_2PI / verticesPerRing;
+		const XMFLOAT3 bottom_cap_normal = { 0,-1.f,0 };
+
+		for (uint32_t i = 0; i < verticesPerRing; ++i)
+		{
+			float x = bottomRadius * cosf(i * theta);
+			float z = bottomRadius * sinf(i * theta);
+
+			float u = x / height + 0.5f;
+			float v = z / height + 0.5f;
+
+			mesh.vertices.push_back(Geometry::Vertex(
+				x, y, z,
+				0, 1.f, 0,
+				1.f, 0, 0,
+				u, v));
+		}
+
+		// Vertex of cap center
+		mesh.vertices.push_back(Geometry::Vertex(
+			0, y, 0,
+			0, 1.f, 0,
+			1.f, 0, 0,
+			0.5f, 0.5f));
+
+		// Save index of vertex in center of cap
+		auto centerIndex = mesh.vertices.size() - 1;
+
+		// Bottom cap facing bottom
+		// Count indices in COUNTER clockwise
+		for (uint32_t i = 0; i < verticesPerRing; ++i)
+		{
+			uint32_t nextIndex = (i + 1) % verticesPerRing;
+			mesh.indices.push_back(centerIndex);
+			mesh.indices.push_back(baseIndex + i);
+			mesh.indices.push_back(baseIndex + nextIndex);
+		}
+	}
+}
+
 Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius,
 	float height, uint32_t sliceCount, uint32_t stackCount)
 {
@@ -307,93 +406,4 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 	return mesh;
 }
 
-void GeometryGenerator::BuildCylinderTopCap(const float& topRadius, const float& height,
-	const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
-{
-	auto baseIndex = mesh.vertices.size();
-
-	float y = 0.5f * height;
-	float theta = XM_2PI / verticesPerRing;
-	const XMFLOAT3 top_cap_normal = { 0,1.f,0 };
-
-	for (uint32_t i = 0; i < verticesPerRing; ++i)
-	{
-		float x = topRadius * cosf(i*theta);
-		float z = topRadius * sinf(i*theta);
-
-		float u = x / height + 0.5f;
-		float v = z / height + 0.5f;
-
-		mesh.vertices.push_back(Geometry::Vertex(
-			x, y, z, 
-			0.0f, 1.0f, 0.0f, 
-			1.0f, 0.0f, 0.0f, 
-			u, v));
-	}
-
-	// Vertex of cap center
-	mesh.vertices.push_back(Geometry::Vertex(
-		0.0f, y, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		1.f, 0.0f, 0.0f,
-		0.5f, 0.5f));
-
-	// Save index of vertex in center of cap
-	auto centerIndex = mesh.vertices.size() - 1;
-	
-	// Top cap facing top
-	// Count indices in clockwise
-	for (uint32_t i = 0; i < verticesPerRing; ++i)
-	{
-		uint32_t nextIndex = (i + 1) % verticesPerRing;
-		mesh.indices.push_back(centerIndex);
-		mesh.indices.push_back(baseIndex + nextIndex);
-		mesh.indices.push_back(baseIndex + i);
-	}
-}
-
-void GeometryGenerator::BuildCylinderBottomCap(const float& bottomRadius, const float& height, 
-	const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
-{
-	auto baseIndex = mesh.vertices.size();
-
-	float y = -0.5f * height ;
-	float theta = XM_2PI / verticesPerRing;
-	const XMFLOAT3 bottom_cap_normal = { 0,-1.f,0 };
-
-	for (uint32_t i = 0; i < verticesPerRing; ++i)
-	{
-		float x = bottomRadius * cosf(i * theta);
-		float z = bottomRadius * sinf(i * theta);
-
-		float u = x / height + 0.5f;
-		float v = z / height + 0.5f;
-
-		mesh.vertices.push_back(Geometry::Vertex(
-			x, y, z,
-			0, 1.f, 0,
-			1.f, 0, 0,
-			u, v));
-	}
-
-	// Vertex of cap center
-	mesh.vertices.push_back(Geometry::Vertex(
-		0, y, 0,
-		0, 1.f, 0,
-		1.f, 0, 0,
-		0.5f, 0.5f));
-
-	// Save index of vertex in center of cap
-	auto centerIndex = mesh.vertices.size() - 1;
-
-	// Bottom cap facing bottom
-	// Count indices in COUNTER clockwise
-	for (uint32_t i = 0; i < verticesPerRing; ++i)
-	{
-		uint32_t nextIndex = (i + 1) % verticesPerRing;
-		mesh.indices.push_back(centerIndex);
-		mesh.indices.push_back(baseIndex + i);
-		mesh.indices.push_back(baseIndex + nextIndex);
-	}
-}
 
