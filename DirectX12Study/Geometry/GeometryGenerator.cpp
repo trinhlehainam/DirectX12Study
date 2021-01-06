@@ -10,6 +10,12 @@ namespace
 
 namespace
 {
+	constexpr uint32_t num_indices_per_quad = 6;
+	constexpr uint32_t num_indices_per_triangle = 3;
+}
+
+namespace
+{
 	void BuildCylinderTopCap(const float& topRadius, const float& height,
 		const uint32_t& verticesPerRing, Geometry::Mesh& mesh)
 	{
@@ -106,9 +112,9 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 {
 	Geometry::Mesh mesh;
 
-	const uint32_t& vertices_per_ring = sliceCount;
+	const uint32_t& num_vertices_per_ring = sliceCount;
 
-	uint32_t ringCount = stackCount + 1;
+	const uint32_t num_rings = stackCount + 1;
 	/*-Vairables use to offset ring-*/
 	// The amount of height that ring move up to one step
 	float stackHeight = height / stackCount;
@@ -122,11 +128,11 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 	// The number of vertices at center of rings			(number of rings)
 	// The number of vertices around center of each ring	(number of rings) * (number of slice)
 	// The number of vertices on top cap and bottom cap		(number of slice + vertex at center) * 2
-	const uint32_t num_vertices = ringCount * vertices_per_ring + (vertices_per_ring + 1) * 2;
+	const uint32_t num_vertices = num_rings * num_vertices_per_ring + (num_vertices_per_ring + 1) * 2;
 	// Reserve vector for performance
 	mesh.vertices.reserve(num_vertices);
 
-	for (uint32_t i = 0; i < ringCount; ++i)
+	for (uint32_t i = 0; i < num_rings; ++i)
 	{
 		// Place center of shape at origin
 		// Minus half height of shape to move center of shape to origin
@@ -136,9 +142,9 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 		float r = bottomRadius + i*deltaRadius;
 
 		// angle in ring surface
-		float theta = XM_2PI / vertices_per_ring;
+		float theta = XM_2PI / num_vertices_per_ring;
 
-		for (uint32_t j = 0; j < vertices_per_ring; ++j)
+		for (uint32_t j = 0; j < num_vertices_per_ring; ++j)
 		{
 			Geometry::Vertex vertex;
 
@@ -146,7 +152,7 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 			float s = sinf(j * theta);	// cos
 
 			/*-------------WATCH LATER*-------------*/
-			vertex.texCoord.x = (float)j / vertices_per_ring;
+			vertex.texCoord.x = (float)j / num_vertices_per_ring;
 			vertex.texCoord.y = 1.0f - (float)i / stackCount;
 			vertex.tangentU = { -s,0.0f,c };
 
@@ -167,26 +173,25 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 	}
 
 	// number of quad in one ring
-	const uint32_t& num_quad_per_ring = vertices_per_ring;
-
-	constexpr uint32_t indices_per_quad = 6;
-	constexpr uint32_t indices_per_triangle = 3;
-	const uint32_t indices_per_cap = vertices_per_ring * indices_per_triangle;
-	const uint32_t num_indices = indices_per_quad * num_quad_per_ring * stackCount + indices_per_cap * 2;
-	mesh.indices.reserve(num_indices);
+	const uint32_t& num_quad_per_ring = num_vertices_per_ring;
 
 	// Count indices per quad (2 triangles)
 	// Number of collumn of quad are equal to stack count
 	const uint32_t& num_quad_collumn = stackCount;
+
+	const uint32_t num_indices_per_cap = num_indices_per_triangle * num_vertices_per_ring;
+	const uint32_t num_indices = num_indices_per_quad * num_quad_per_ring * num_quad_collumn + num_indices_per_cap * 2;
+	mesh.indices.reserve(num_indices);
+
 	for (uint32_t i = 0; i < num_quad_collumn; ++i)
 	{
 		// Index of vertex in one ring
-		for (uint32_t j = 0; j < vertices_per_ring; ++j)
+		for (uint32_t j = 0; j < num_vertices_per_ring; ++j)
 		{
 			// Index of next vertex
 			// When next index is larger than last index of the ring
 			// It moves back to start index of the ring
-			uint32_t nextIndex = (j+1) % vertices_per_ring;
+			uint32_t nextIndex = (j+1) % num_vertices_per_ring;
 
 			// B ********* C  i + 1
 			//	 *     * *		^
@@ -196,18 +201,18 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 			//	 j ----> j + 1 (next vertex index)
 			
 			// ABC
-			mesh.indices.push_back(i * vertices_per_ring + j);
-			mesh.indices.push_back((i + 1) * vertices_per_ring + j);
-			mesh.indices.push_back((i + 1) * vertices_per_ring + nextIndex);
+			mesh.indices.push_back(i * num_vertices_per_ring + j);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + j);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + nextIndex);
 
 			// ACD
-			mesh.indices.push_back(i * vertices_per_ring + j);
-			mesh.indices.push_back((i + 1) * vertices_per_ring + nextIndex);
-			mesh.indices.push_back(i * vertices_per_ring + nextIndex);
+			mesh.indices.push_back(i * num_vertices_per_ring + j);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + nextIndex);
+			mesh.indices.push_back(i * num_vertices_per_ring + nextIndex);
 		}
 	}
-	BuildCylinderTopCap(topRadius, height, vertices_per_ring, mesh);
-	BuildCylinderBottomCap(bottomRadius, height, vertices_per_ring, mesh);
+	BuildCylinderTopCap(topRadius, height, num_vertices_per_ring, mesh);
+	BuildCylinderBottomCap(bottomRadius, height, num_vertices_per_ring, mesh);
 
 	return mesh;
 }
@@ -228,10 +233,20 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 	// Top and bottom poles don't count as ring
 	// ( stackCount - 1 ) -> number of rings in QUAD stacks
 	// ( -2 )             -> Remove stacks of top and bottom poles
-	const uint32_t ring_count = stackCount + 1 - 2;
-	const uint32_t& vertices_per_ring = sliceCount;
+	const uint32_t num_rings = stackCount + 1 - 2;
+	const uint32_t& num_vertices_per_ring = sliceCount;
 
-	for (uint32_t i = 0; i < ring_count; ++i)
+	// Number of vertices = number of vertices of all rings + vertex at top pole and bottom pole (2)
+	const uint32_t num_vertices = num_rings * num_vertices_per_ring + 2;
+	mesh.vertices.reserve(num_vertices);
+
+	const uint32_t& num_quad_per_ring = num_vertices_per_ring;
+	const uint32_t num_collumn_quad = (stackCount - 2);
+	const uint32_t num_indices_per_pole = num_indices_per_triangle * num_vertices_per_ring;
+	const uint32_t num_indices = num_indices_per_quad * num_quad_per_ring * num_collumn_quad + num_indices_per_pole * 2;
+	mesh.indices.reserve(num_indices);
+
+	for (uint32_t i = 0; i < num_rings; ++i)
 	{
 		// The angle of first ring equal to angle of the second stack
 		// Offset the angle index of ring to angle index of stack
@@ -246,7 +261,7 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 		// to create another vertex on the ring
 		float startX = radius * sinf(theta);
 
-		for (uint32_t j = 0; j < vertices_per_ring; ++j)
+		for (uint32_t j = 0; j < num_vertices_per_ring; ++j)
 		{
 			Geometry::Vertex vertex;
 			float phi = j * deltaPhi;
@@ -300,9 +315,9 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 
 	/* Add indices for vertices connect to TOP pole */
 
-	for (uint32_t i = 0; i < vertices_per_ring; ++i)
+	for (uint32_t i = 0; i < num_vertices_per_ring; ++i)
 	{
-		uint32_t nextIndex = (i + 1) % vertices_per_ring;
+		uint32_t nextIndex = (i + 1) % num_vertices_per_ring;
 		mesh.indices.push_back(top_vertex_index);
 		mesh.indices.push_back(nextIndex);
 		mesh.indices.push_back(i);
@@ -313,12 +328,12 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 	const uint32_t num_quad_collumn = stackCount - 2;
 	for (uint32_t i = 0; i < num_quad_collumn; ++i)
 	{
-		for (uint32_t j = 0; j < vertices_per_ring; ++j)
+		for (uint32_t j = 0; j < num_vertices_per_ring; ++j)
 		{
 			// Index of next vertex
 			// When next index is larger than last index of the ring
 			// It moves back to start index of the ring
-			uint32_t nextIndex = (j + 1) % vertices_per_ring;
+			uint32_t nextIndex = (j + 1) % num_vertices_per_ring;
 
 			// B ********* C    i
 			//	 *     * *	  	|
@@ -328,24 +343,24 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 			//	 j ----> j + 1 (next vertex index)
 
 			// ABC
-			mesh.indices.push_back((i + 1) * vertices_per_ring + j);
-			mesh.indices.push_back(i * vertices_per_ring + j);
-			mesh.indices.push_back(i * vertices_per_ring + nextIndex);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + j);
+			mesh.indices.push_back(i * num_vertices_per_ring + j);
+			mesh.indices.push_back(i * num_vertices_per_ring + nextIndex);
 
 			// ACD
-			mesh.indices.push_back((i + 1) * vertices_per_ring + j);
-			mesh.indices.push_back(i * vertices_per_ring + nextIndex);
-			mesh.indices.push_back((i + 1) * vertices_per_ring + nextIndex);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + j);
+			mesh.indices.push_back(i * num_vertices_per_ring + nextIndex);
+			mesh.indices.push_back((i + 1) * num_vertices_per_ring + nextIndex);
 		}
 	}
 
 	/* Add indices for vertices connect to BOTTOM pole */
 
 	// Index of first vertex on last ring
-	const uint32_t last_ring_start_vertex_index = top_vertex_index - vertices_per_ring;
-	for (uint32_t i = 0; i < vertices_per_ring; ++i)
+	const uint32_t last_ring_start_vertex_index = top_vertex_index - num_vertices_per_ring;
+	for (uint32_t i = 0; i < num_vertices_per_ring; ++i)
 	{
-		uint32_t nextIndex = (i + 1) % vertices_per_ring;
+		uint32_t nextIndex = (i + 1) % num_vertices_per_ring;
 		mesh.indices.push_back(bottom_vertex_index);
 		mesh.indices.push_back(last_ring_start_vertex_index + i);
 		mesh.indices.push_back(last_ring_start_vertex_index + nextIndex);
@@ -361,8 +376,8 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 	const uint32_t num_vertices_x = num_grid_x + 1;
 	const uint32_t num_vertices_z = num_grid_z + 1;
 
-	mesh.vertices.reserve(num_vertices_x * num_vertices_z);
-	uint32_t faceCount = (num_grid_x) * (num_grid_z) * 2; // number of triangles
+	const uint32_t num_vertices = num_vertices_x * num_vertices_z;
+	mesh.vertices.reserve(num_vertices);
 
 	const float quad_width = width / num_grid_x;
 	const float quad_depth = depth / num_grid_z;
@@ -389,8 +404,9 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 		}
 	}
 
-	const uint32_t vertices_per_quad = 6;
-	mesh.indices.reserve(faceCount * vertices_per_quad);
+	const uint32_t num_triangles = (num_grid_x) * (num_grid_z) * 2; // number of triangles
+	const uint32_t num_indices = num_triangles * num_indices_per_triangle;
+	mesh.indices.reserve(num_indices);
 
 	for (int i = 0; i < num_grid_x; ++i)
 	{
