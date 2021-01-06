@@ -1,6 +1,6 @@
 
-#define NUM_DIRECTIONAL_LIGHT 0
-#define NUM_POINT_LIGHT 1
+#define NUM_DIRECTIONAL_LIGHT 3
+#define NUM_POINT_LIGHT 0
 #define NUM_SPOT_LIGHT 0
 
 #include "common.hlsli"

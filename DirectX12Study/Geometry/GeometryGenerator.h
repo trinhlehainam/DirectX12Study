@@ -27,5 +27,13 @@ namespace GeometryGenerator
 	/// <returns>Mesh of created grid for rendering</returns>
 	Geometry::Mesh CreateGrid(float width, float depth, uint32_t num_grid_x, uint32_t num_grid_z);
 
+	/// <summary>
+	/// Create Box with center at origin
+	/// </summary>
+	/// <param name="width: ">length in X-axis</param>
+	/// <param name="height: ">length in Y-axis</param>
+	/// <param name="depth: ">length in Z-axis</param>
+	/// <returns></returns>
+	Geometry::Mesh CreateBox(float width, float height, float depth);
 };
 

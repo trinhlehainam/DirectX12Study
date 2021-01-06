@@ -192,8 +192,7 @@ bool PrimitiveManager::Impl::CreatePipelineStateObject()
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 	// Rasterizer
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FrontCounterClockwise = true;
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// Pixel Shader
 	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");

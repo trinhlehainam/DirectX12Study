@@ -1,5 +1,5 @@
-#define NUM_DIRECTIONAL_LIGHT 0
-#define NUM_POINT_LIGHT 1
+#define NUM_DIRECTIONAL_LIGHT 3
+#define NUM_POINT_LIGHT 0
 #define NUM_SPOT_LIGHT 0
 
 #include "common.hlsli"
@@ -51,8 +51,8 @@ PSOutput PS(VsOutput input)
 	float4 color = float4(max(g_ambient, toon * g_diffuse) + g_specular * specular, g_alpha);
 	
 	// test lighting
-	float distance = length(input.pos.xyz - g_lights[0].Position);
-	color *= CalculateAttenuation(distance, g_lights[0].FallOffStart, g_lights[0].FallOffEnd);
+	//float distance = length(input.pos.xyz - g_lights[0].Position);
+	//color *= CalculateAttenuation(distance, g_lights[0].FallOffStart, g_lights[0].FallOffEnd);
 	//
 	
 	//

@@ -1288,29 +1288,33 @@ bool D3D12App::CreateWorldPassConstant()
         XMVECTOR lightPos = { 10,30,0,1 };
        
         mappedData->Lights[0] = Light();
-        //mappedData->Lights[1] = Light();
-        //mappedData->Lights[2] = Light();
-        //mappedData->Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
-        //mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
-        //mappedData->Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
-        //mappedData->Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-        //mappedData->Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-        //mappedData->Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+        mappedData->Lights[1] = Light();
+        mappedData->Lights[2] = Light();
+        mappedData->Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+        mappedData->Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+        mappedData->Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+        mappedData->Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
-        //auto lightDirection = XMLoadFloat3(&mappedData->Lights[0].Direction);
-        //auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
-        //    XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
+        auto lightDirection = XMLoadFloat3(&mappedData->Lights[0].Direction);
+        auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
+            XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
 
-        XMStoreFloat3(&mappedData->Lights[0].Position, lightPos);
-        mappedData->Lights[0].Strength = { 1.0f, 1.0f, 1.0f };
-
-        XMVECTOR targetPos = { 0.0f,0.0f,0.0f,1.0f };
-        auto lightDirection = XMVectorSubtract(targetPos, lightPos);
-        lightDirection = XMVector4Normalize(lightDirection);
-        XMStoreFloat3(&mappedData->Lights[0].Direction, lightDirection);
-
-        auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0.0f,1.0f,0.0f,0.0f }) *
-            XMMatrixPerspectiveFovRH(XM_PIDIV2, 1.0f, 1.0f, 500.0f);
+        //
+        // test point/ spot lighting
+        //
+        //XMStoreFloat3(&mappedData->Lights[0].Position, lightPos);
+        //mappedData->Lights[0].Strength = { 1.0f, 1.0f, 1.0f };
+        //
+        //XMVECTOR targetPos = { 0.0f,0.0f,0.0f,1.0f };
+        //auto lightDirection = XMVectorSubtract(targetPos, lightPos);
+        //lightDirection = XMVector4Normalize(lightDirection);
+        //XMStoreFloat3(&mappedData->Lights[0].Direction, lightDirection);
+        //
+        //auto lightViewProj = XMMatrixLookAtRH(lightPos, targetPos, { 0.0f,1.0f,0.0f,0.0f }) *
+        //    XMMatrixPerspectiveFovRH(XM_PIDIV2, 1.0f, 1.0f, 500.0f);
+        /*----------------------------------------------------------------*/
 
         XMStoreFloat4x4(&mappedData->Lights[0].ProjectMatrix, lightViewProj);
 
@@ -1408,6 +1412,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
+    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), brickGpuAdress);
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;
@@ -1457,6 +1462,8 @@ void D3D12App::CreatePrimitive()
     startX -= offsetX;
     m_primitiveManager->Move("sphere13", startX, 25, startZ);
     m_primitiveManager->Move("cylinder13", startX, 10, startZ);
+
+    m_primitiveManager->Move("box", 0.0f, 40.0f, 0.0f);
 }
 
 bool D3D12App::ProcessMessage()

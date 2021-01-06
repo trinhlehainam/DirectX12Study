@@ -12,6 +12,7 @@ namespace
 {
 	constexpr uint32_t num_indices_per_quad = 6;
 	constexpr uint32_t num_indices_per_triangle = 3;
+	constexpr uint32_t num_cube_faces = 6;
 }
 
 namespace
@@ -421,6 +422,90 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 			mesh.indices.push_back((i + 1) * num_vertices_z + j + 1);
 		}
 	}
+
+	return mesh;
+}
+
+Geometry::Mesh GeometryGenerator::CreateBox(float width, float height, float depth)
+{
+	Geometry::Mesh mesh;
+
+	// 
+	/* ADD VERTICES*/
+	//
+	const uint32_t num_faces = num_cube_faces;
+	const uint32_t num_vertices_per_face = 4;
+	const uint32_t num_vertices = num_vertices_per_face * num_faces;
+	mesh.vertices.reserve(num_vertices);
+
+	const float w2 = width / 2.0f;
+	const float h2 = height / 2.0f;
+	const float d2 = depth / 2.0f;
+
+	// Facing along positive z-axis
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+
+	// Facing along positive x-axis
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f));
+
+	// Facing along negative z-axis
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+
+	// Facing along negative x-axis
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f));
+
+	// Facing along positive y-axis
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f));
+
+	// Facing along negative y-axis
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, -d2, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(+w2, -h2, +d2, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, +d2, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f));
+	mesh.vertices.push_back(Geometry::Vertex(-w2, -h2, -d2, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f));
+
+	// 
+	/* ADD INDICES */
+	//
+	const uint32_t num_indices = num_faces * num_indices_per_quad;
+
+	// Facing along positive z-axis
+	mesh.indices.push_back(0); mesh.indices.push_back(1); mesh.indices.push_back(2);
+	mesh.indices.push_back(0); mesh.indices.push_back(2); mesh.indices.push_back(3);
+
+	// Facing along positive x-axis
+	mesh.indices.push_back(4); mesh.indices.push_back(5); mesh.indices.push_back(6);
+	mesh.indices.push_back(4); mesh.indices.push_back(6); mesh.indices.push_back(7);
+
+	// Facing along negative z-axis
+	mesh.indices.push_back(8); mesh.indices.push_back(9); mesh.indices.push_back(10);
+	mesh.indices.push_back(8); mesh.indices.push_back(10); mesh.indices.push_back(11);
+
+	// Facing along negative x-axis
+	mesh.indices.push_back(12); mesh.indices.push_back(13); mesh.indices.push_back(14);
+	mesh.indices.push_back(12); mesh.indices.push_back(14); mesh.indices.push_back(15);
+
+	// Facing along positive y-axis
+	mesh.indices.push_back(16); mesh.indices.push_back(17); mesh.indices.push_back(18);
+	mesh.indices.push_back(16); mesh.indices.push_back(18); mesh.indices.push_back(19);
+
+	// Facing along negative y-axis
+	mesh.indices.push_back(20); mesh.indices.push_back(21); mesh.indices.push_back(22);
+	mesh.indices.push_back(20); mesh.indices.push_back(22); mesh.indices.push_back(23);
 
 	return mesh;
 }
