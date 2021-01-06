@@ -120,8 +120,9 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 
 	// Number of vertices include :
 	// The number of vertices at center of rings			(number of rings)
-	// The number of vertices around center of each ring	(number of slice) * (number of rings)
-	const uint32_t num_vertices = ringCount * (vertices_per_ring + 1);
+	// The number of vertices around center of each ring	(number of rings) * (number of slice)
+	// The number of vertices on top cap and bottom cap		(number of slice + vertex at center) * 2
+	const uint32_t num_vertices = ringCount * vertices_per_ring + (vertices_per_ring + 1) * 2;
 	// Reserve vector for performance
 	mesh.vertices.reserve(num_vertices);
 
@@ -166,10 +167,12 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 	}
 
 	// number of quad in one ring
-	float quadCount = vertices_per_ring + 1;
+	const uint32_t& num_quad_per_ring = vertices_per_ring;
 
-	constexpr float indices_per_quad = 6;
-	const float num_indices = indices_per_quad * quadCount * stackCount;
+	constexpr uint32_t indices_per_quad = 6;
+	constexpr uint32_t indices_per_triangle = 3;
+	const uint32_t indices_per_cap = vertices_per_ring * indices_per_triangle;
+	const uint32_t num_indices = indices_per_quad * num_quad_per_ring * stackCount + indices_per_cap * 2;
 	mesh.indices.reserve(num_indices);
 
 	// Count indices per quad (2 triangles)
