@@ -20,7 +20,7 @@ struct Material
 };
 	
 // Calculate the brighness percentage depend on distance of (spot /point light)
-float CalculateAttenuation(float FallOfStart, float FallOfEnd, float Distance)
+float CalculateAttenuation(float Distance, float FallOfStart, float FallOfEnd)
 {
 	// clamp value to (0 ~ 1)
 	return saturate((FallOfEnd - Distance) / (FallOfEnd - FallOfStart));
@@ -80,7 +80,7 @@ float3 ComputePointLight(Light light, Material material, float3 position, float3
 	// normalize light vector
 	lightVector /= distance;
 
-	float attenuation = CalculateAttenuation(light.FallOffStart, light.FallOffEnd, distance);
+	float attenuation = CalculateAttenuation(distance, light.FallOffStart, light.FallOffEnd);
 	
 	float3 lightStrength = light.Strength * max(dot(-lightVector, normalUnitVector), 0.0f);
 	lightStrength *= attenuation;
@@ -104,7 +104,7 @@ float3 ComputeSpotLight(Light light, Material material, float3 position, float3 
 	// normalize light vector
 	lightVector /= distance;
 
-	float attenuation = CalculateAttenuation(light.FallOffStart, light.FallOffEnd, distance);
+	float attenuation = CalculateAttenuation(distance, light.FallOffStart, light.FallOffEnd);
 	
 	float spotFactor = pow(max(dot(lightVector, light.Direction), 0.0f), light.SpotPower);
 	
@@ -115,14 +115,14 @@ float3 ComputeSpotLight(Light light, Material material, float3 position, float3 
 	return BlinnPhong(lightStrength, lightVector, viewUnitVector, normalUnitVector, material);
 }
 
-float4 ComputeLighting(Light lights[MAX_LIGHTS], Material material, float3 position, float3 viewVector, float3 normalVector)
+float4 ComputeLighting(Light lights[MAX_LIGHTS], Material material, float3 position, float3 viewPos, float3 normalVector)
 {
 	float4 ret = float4(0.0f, 0.0f, 0.0f, 1.0f);
 	
 	uint i = 0;
 	
 	float3 normalUnitVec = normalize(normalVector);
-	float3 viewUnitVec = normalize(viewVector);
+	float3 viewUnitVec = normalize(position - viewPos);
 	
 #if (NUM_DIRECTIONAL_LIGHT > 0)
 	for (i = 0; i < NUM_DIRECTIONAL_LIGHT; ++i)

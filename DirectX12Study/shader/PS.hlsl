@@ -1,3 +1,7 @@
+#define NUM_DIRECTIONAL_LIGHT 0
+#define NUM_POINT_LIGHT 1
+#define NUM_SPOT_LIGHT 0
+
 #include "common.hlsli"
 #include "modelcommon.hlsli"
 
@@ -42,17 +46,18 @@ PSOutput PS(VsOutput input)
 	float3 eyePos = g_viewPos;
 	float3 eyeRay = normalize(input.pos.xyz - eyePos);
 	float3 refectLight = reflect(lightRay, input.norm.xyz);
-	float sat = saturate(pow(saturate(dot(eyeRay, -refectLight)), g_specularity));	// saturate
-
-	// transform xy coordinate to uv coordinate
-	float2 sphereUV = input.norm.xy * float2(0.5, -0.5) + 0.5;
-	float4 color = float4(max(g_ambient, toon * g_diffuse) + g_specular * sat, g_alpha);
+	float specular = saturate(pow(saturate(dot(eyeRay, -refectLight)), g_specularity));	// saturate
 	
-	// test
-	//float3 testDepth = g_viewDepthTex.Sample(g_smp, input.uv);
-	//return float4(testDepth,1);
+	float4 color = float4(max(g_ambient, toon * g_diffuse) + g_specular * specular, g_alpha);
+	
+	// test lighting
+	float distance = length(input.pos.xyz - g_lights[0].Position);
+	color *= CalculateAttenuation(distance, g_lights[0].FallOffStart, g_lights[0].FallOffEnd);
 	//
-
+	
+	//
+	/*-------------SHADOW---------------*/
+	//
 	const float bias = 0.005f;
 	float shadowValue = 1.f;
 	float2 shadowUV = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
@@ -60,7 +65,9 @@ PSOutput PS(VsOutput input)
 	// PCF (percentage closest filtering)
 	shadowValue = g_shadowDepthTex.SampleCmpLevelZero(g_shadowCmpSmp, shadowUV, input.lvpos.z - bias);
 	shadowValue = lerp(0.5f, 1.0f, shadowValue);
-
+	//
+	//
+	
 	// Shadow Depth Offset
 	//if (input.lvpos.z - bias > shadowTex.SampleCmp(shadowCmpSmp, uv))
 	//{
@@ -69,12 +76,15 @@ PSOutput PS(VsOutput input)
 
 	color *= shadowValue;
 	
+	// transform xy coordinate to uv coordinate
+	float2 sphereUV = input.norm.xy * float2(0.5f, -0.5f) + 0.5f;
+	
 	ret.rtTexColor = color
 		* g_tex.Sample(g_smp, input.uv)
 		* g_sph.Sample(g_smp, sphereUV)
 		+ g_spa.Sample(g_smp, sphereUV);
 	
-	ret.rtNormalTexColor = float4(input.norm.xyz, 1);
+	ret.rtNormalTexColor = float4(input.norm.xyz, 1.0f);
 
 	return ret;
 }
