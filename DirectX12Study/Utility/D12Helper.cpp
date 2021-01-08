@@ -1,5 +1,7 @@
 #include "D12Helper.h"
 
+#include <vector>
+
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
@@ -127,12 +129,13 @@ ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const
     return byteCode;
 }
 
+
 ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevice, const std::wstring& path)
+/*-----------------LOAD TEXTURE-----------------*/
+// Load texture from file path using varaible and method DirectXTex library
 {
     HRESULT result = S_OK;
     
-    /*-----------------LOAD TEXTURE-----------------*/
-    // Load texture from file path using varaible and method DirectXTex library
     TexMetadata metadata;
     ScratchImage scratch;
 
@@ -148,7 +151,7 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevic
         result = LoadFromTGAFile(path.c_str(), &metadata, scratch);
     // WIC ( Windows Imaging Component )
     else 
-        result = LoadFromWICFile(path.c_str(), WIC_FLAGS_IGNORE_SRGB, &metadata, scratch);
+        result = LoadFromWICFile(path.c_str(), WIC_FLAGS_FORCE_RGB, &metadata, scratch);
     if (FAILED(result)) return nullptr;
     
     /*-----------------CREATE BUFFER-----------------*/
@@ -158,16 +161,21 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevic
     heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
     heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 
-    D3D12_RESOURCE_DESC rsDesc = {};
-    rsDesc.Format = metadata.format;
-    rsDesc.Width = metadata.width;
-    rsDesc.Height = metadata.height;
-    rsDesc.DepthOrArraySize = metadata.arraySize;
-    rsDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-    rsDesc.MipLevels = metadata.mipLevels;
-    rsDesc.SampleDesc.Count = 1;
-    rsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    rsDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    CD3DX12_RESOURCE_DESC rsDesc = {};
+    switch (metadata.dimension)
+    {
+    case TEX_DIMENSION_TEXTURE1D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex1D(metadata.format, metadata.width, metadata.arraySize, metadata.mipLevels);
+        break;
+    case TEX_DIMENSION_TEXTURE2D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(metadata.format, metadata.width, metadata.height, metadata.arraySize, metadata.mipLevels);
+        break;
+    case TEX_DIMENSION_TEXTURE3D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex3D(metadata.format, metadata.width, metadata.height, metadata.depth, metadata.mipLevels);
+        break;
+    default:
+        return nullptr;
+    }
 
     ComPtr<ID3D12Resource> buffer = nullptr;
     ThrowIfFailed(pDevice->CreateCommittedResource(
@@ -179,12 +187,17 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevic
         IID_PPV_ARGS(buffer.GetAddressOf())
     ));
 
-    auto image = scratch.GetImage(0, 0, 0);
-    ThrowIfFailed(buffer->WriteToSubresource(0,
-        nullptr,
-        image->pixels,
-        image->rowPitch,
-        image->slicePitch));
+    auto image = scratch.GetImages();
+    const size_t num_images = scratch.GetImageCount();
+    for (size_t i = 0; i < num_images; ++i)
+    {
+        ThrowIfFailed(buffer->WriteToSubresource(
+            i,
+            nullptr,
+            image[i].pixels,
+            image[i].rowPitch,
+            image[i].slicePitch));
+    }
 
     return buffer;
 }
