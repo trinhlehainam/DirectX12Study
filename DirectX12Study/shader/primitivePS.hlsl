@@ -35,7 +35,7 @@ PSOutput primitivePS(PrimitiveOut input)
 	static const float bias = 0.005f;
 	if (input.lvpos.z - bias > g_shadowTex.Sample(g_smpBorder, uv))
 	{
-		//ret.rtTexColor = float4(color.rgb * 0.3, 1);
+		ret.rtTexColor = float4(color.rgb * 0.3, 1);
 	}
 	
 	ret.rtNormalTexColor = float4(input.normal.xyz, 1);

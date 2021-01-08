@@ -1,9 +1,34 @@
 #include "D12Helper.h"
+
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 
+#include "StringHelper.h"
+
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
+
+namespace
+{
+    class HrException : public std::runtime_error
+    {
+    public:
+        HrException(HRESULT hr);
+        HRESULT Error() const;
+    private:
+        HRESULT m_hr;
+        friend std::string D12Helper::HrToString(HRESULT hr);
+    };
+
+    HrException::HrException(HRESULT hr) :std::runtime_error(D12Helper::HrToString(hr)), m_hr(hr)
+    {
+    }
+
+    HRESULT HrException::Error() const
+    {
+        return m_hr;
+    }
+}
 
 ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
 {
@@ -78,7 +103,7 @@ void D12Helper::ThrowIfFailed(HRESULT hr)
     assert(SUCCEEDED(hr));
 #endif
     if (FAILED(hr))
-        throw D12Helper::HrException(hr);
+        throw HrException(hr);
 }
 
 ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
@@ -110,11 +135,20 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevic
     // Load texture from file path using varaible and method DirectXTex library
     TexMetadata metadata;
     ScratchImage scratch;
-    result = LoadFromWICFile(
-        path.c_str(),
-        WIC_FLAGS_IGNORE_SRGB,
-        &metadata,
-        scratch);
+
+    auto fileExtension = StringHelper::GetFileExtensionW(path);
+    // Direct Draw Surface
+    if (fileExtension == L"dds") 
+        result = LoadFromDDSFile(path.c_str(), DDS_FLAGS_FORCE_RGB, &metadata, scratch);
+    // High Dynamic Range
+    else if (fileExtension == L"hdr") 
+        result = LoadFromHDRFile(path.c_str(), &metadata, scratch);
+    // Truevision Graphics Adapter
+    else if (fileExtension == L"tga") 
+        result = LoadFromTGAFile(path.c_str(), &metadata, scratch);
+    // WIC ( Windows Imaging Component )
+    else 
+        result = LoadFromWICFile(path.c_str(), WIC_FLAGS_IGNORE_SRGB, &metadata, scratch);
     if (FAILED(result)) return nullptr;
     
     /*-----------------CREATE BUFFER-----------------*/
@@ -206,15 +240,6 @@ std::string D12Helper::HrToString(HRESULT hr)
     char s_str[64] = {};
     sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
     return std::string(s_str);
-}
-
-D12Helper::HrException::HrException(HRESULT hr):std::runtime_error(D12Helper::HrToString(hr)),m_hr(hr)
-{
-}
-
-HRESULT D12Helper::HrException::Error() const
-{
-    return m_hr;
 }
 
 bool UpdateTextureBuffers::Add(const std::string& bufferName, const void* pData, LONG_PTR rowPitch,

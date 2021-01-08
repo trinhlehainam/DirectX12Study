@@ -50,16 +50,6 @@ namespace D12Helper
 	void ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
 		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
 
-	class HrException : public std::runtime_error
-	{
-	public:
-		HrException(HRESULT hr);
-		HRESULT Error() const;
-	private:
-		HRESULT m_hr;
-		friend std::string HrToString(HRESULT hr);
-	};
-
 	std::string HrToString(HRESULT hr);
 };
 

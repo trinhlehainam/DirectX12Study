@@ -31,6 +31,12 @@ std::string StringHelper::GetFileExtension(const std::string& path)
 	return idx == std::string::npos ? "" : path.substr(idx, path.length() - idx);
 }
 
+std::wstring StringHelper::GetFileExtensionW(const std::wstring& path)
+{
+	auto idx = path.rfind('.') + 1;
+	return idx == std::wstring::npos ? L"" : path.substr(idx, path.length() - idx);
+}
+
 std::vector<std::string> StringHelper::SplitFilePath(const std::string& path, const char splitter)
 {
 	std::vector <std::string> ret;

@@ -10,6 +10,8 @@ namespace StringHelper
 
 	std::string GetFileExtension(const std::string& path);
 
+	std::wstring GetFileExtensionW(const std::wstring& path);
+
 	std::vector<std::string> SplitFilePath(const std::string& path, const char splitter = ' *');
 };
 
