@@ -23,7 +23,7 @@ namespace
 		auto baseIndex = mesh.vertices.size();
 
 		float y = 0.5f * height;
-		float theta = XM_2PI / verticesPerRing;
+		float theta = -XM_2PI / verticesPerRing;
 		const XMFLOAT3 top_cap_normal = { 0,1.f,0 };
 
 		for (uint32_t i = 0; i < verticesPerRing; ++i)
@@ -68,7 +68,7 @@ namespace
 		auto baseIndex = mesh.vertices.size();
 
 		float y = -0.5f * height;
-		float theta = XM_2PI / verticesPerRing;
+		float theta = -XM_2PI / verticesPerRing;
 		const XMFLOAT3 bottom_cap_normal = { 0,-1.f,0 };
 
 		for (uint32_t i = 0; i < verticesPerRing; ++i)
@@ -81,16 +81,16 @@ namespace
 
 			mesh.vertices.push_back(Geometry::Vertex(
 				x, y, z,
-				0, 1.f, 0,
-				1.f, 0, 0,
+				0, -1.0f, 0,
+				1.0f, 0, 0,
 				u, v));
 		}
 
 		// Vertex of cap center
 		mesh.vertices.push_back(Geometry::Vertex(
 			0, y, 0,
-			0, 1.f, 0,
-			1.f, 0, 0,
+			0, -1.0f, 0,
+			1.0f, 0, 0,
 			0.5f, 0.5f));
 
 		// Save index of vertex in center of cap
@@ -137,10 +137,10 @@ Geometry::Mesh GeometryGenerator::CreateCylinder(float bottomRadius, float topRa
 	{
 		// Place center of shape at origin
 		// Minus half height of shape to move center of shape to origin
-		float y = -0.5f * height + i*stackHeight;
+		float y = 0.5f * height - i*stackHeight;
 
 		// raidus of ring
-		float r = bottomRadius + i*deltaRadius;
+		float r = topRadius - i*deltaRadius;
 
 		// angle in ring surface
 		float theta = XM_2PI / num_vertices_per_ring;
@@ -227,9 +227,9 @@ Geometry::Mesh GeometryGenerator::CreateSphere(float radius, uint32_t stackCount
 	//
 
 	// angle step to offset value of each step when ring moves
-	const float deltaTheta = XM_PI / stackCount;
+	const float deltaTheta = -XM_PI / stackCount;
 	// angle step to offset vertex around the ring
-	const float deltaPhi = XM_2PI / sliceCount;
+	const float deltaPhi = -XM_2PI / sliceCount;
 
 	// Top and bottom poles don't count as ring
 	// ( stackCount - 1 ) -> number of rings in QUAD stacks
@@ -396,7 +396,7 @@ Geometry::Mesh GeometryGenerator::CreateGrid(float width, float depth, uint32_t 
 		{
 			Geometry::Vertex vertex;
 
-			vertex.position = { posX, 0.0f, half_depth - j * quad_depth };
+			vertex.position = { posX, 0.0f, -half_depth + j * quad_depth };
 			vertex.normal = { 0.0f,1.0f,0.0f };
 			vertex.texCoord = { i * du, j * dv };
 			vertex.tangentU = { 1.0f,0.0f,0.0f };
