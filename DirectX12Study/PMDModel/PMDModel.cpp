@@ -1,14 +1,15 @@
 #include "PMDModel.h"
+
+#include <stdio.h>
+#include <array>
+
+#include <Windows.h>
+
 #include "../Application.h"
 #include "VMD/VMDMotion.h"
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
 #include "PMDLoader.h"
-
-#include <stdio.h>
-#include <Windows.h>
-#include <array>
-#include <d3dcompiler.h>
 
 namespace
 {
@@ -212,6 +213,7 @@ void PMDModel::LoadTextureToBuffer()
 
 	for (int i = 0; i < Textures.size(); ++i)
 	{
+		// Load toon file
 		if (!m_pmdLoader->ToonPaths[i].empty())
 		{
 			std::string toonPath;
@@ -224,7 +226,8 @@ void PMDModel::LoadTextureToBuffer()
 				ToonTextures[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			}
 		}
-		if (!m_pmdLoader->ToonPaths[i].empty())
+		// Load png, sph, spa
+		if (!m_pmdLoader->ModelPaths[i].empty())
 		{
 			auto splittedPaths = StringHelper::SplitFilePath(m_pmdLoader->ModelPaths[i]);
 			for (auto& path : splittedPaths)
@@ -248,5 +251,7 @@ void PMDModel::LoadTextureToBuffer()
 			}
 		}
 	}
+
+	int i = 0;
 
 }

@@ -202,6 +202,73 @@ ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevic
     return buffer;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D12Device* pDevice, 
+    ID3D12GraphicsCommandList* pCmdList, ComPtr<ID3D12Resource>& uploadResource, const std::wstring& path)
+{
+    HRESULT result = S_OK;
+
+    TexMetadata metadata;
+    ScratchImage scratch;
+
+    auto fileExtension = StringHelper::GetFileExtensionW(path);
+    // Direct Draw Surface
+    if (fileExtension == L"dds")
+        result = LoadFromDDSFile(path.c_str(), DDS_FLAGS_FORCE_RGB, &metadata, scratch);
+    // High Dynamic Range
+    else if (fileExtension == L"hdr")
+        result = LoadFromHDRFile(path.c_str(), &metadata, scratch);
+    // Truevision Graphics Adapter
+    else if (fileExtension == L"tga")
+        result = LoadFromTGAFile(path.c_str(), &metadata, scratch);
+    // WIC ( Windows Imaging Component )
+    else
+        result = LoadFromWICFile(path.c_str(), WIC_FLAGS_FORCE_RGB, &metadata, scratch);
+    if (FAILED(result)) return nullptr;
+
+    /*-----------------CREATE BUFFER-----------------*/
+    CD3DX12_RESOURCE_DESC rsDesc = {};
+    switch (metadata.dimension)
+    {
+    case TEX_DIMENSION_TEXTURE1D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex1D(metadata.format, metadata.width, metadata.arraySize, metadata.mipLevels);
+        break;
+    case TEX_DIMENSION_TEXTURE2D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex2D(metadata.format, metadata.width, metadata.height, metadata.arraySize, metadata.mipLevels);
+        break;
+    case TEX_DIMENSION_TEXTURE3D:
+        rsDesc = CD3DX12_RESOURCE_DESC::Tex3D(metadata.format, metadata.width, metadata.height, metadata.depth, metadata.mipLevels);
+        break;
+    default:
+        return nullptr;
+    }
+
+    ComPtr<ID3D12Resource> texture = nullptr;
+    auto heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    ThrowIfFailed(pDevice->CreateCommittedResource(
+        &heapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &rsDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(texture.GetAddressOf())
+    ));
+
+    auto image = scratch.GetImages();
+    const size_t num_images = scratch.GetImageCount();
+    std::vector<D3D12_SUBRESOURCE_DATA> subreousrces;
+    subreousrces.reserve(num_images);
+    for (size_t i = 0; i < num_images; ++i)
+    {
+        subreousrces.push_back({ static_cast<void*>(image[i].pixels),
+                                static_cast<LONG_PTR>(image[i].rowPitch),
+                                static_cast<LONG_PTR>(image[i].slicePitch) });
+    }
+
+    UpdateDataToTextureBuffer(pDevice, pCmdList, texture, uploadResource, subreousrces.data(), subreousrces.size());
+
+    return texture;
+}
+
 ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
     ComPtr<ID3D12Resource>& emptyUploadBuffer, const void* pData, size_t dataSize)
 {
@@ -225,16 +292,17 @@ ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3
 }
 
 bool D12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
-    ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource)
+    ComPtr<ID3D12Resource>& textureBuffer, ComPtr<ID3D12Resource>& emptyUploadBuffer, 
+    const D3D12_SUBRESOURCE_DATA* pSubresources, uint32_t numResources)
 {
     emptyUploadBuffer.Reset();
 
-    auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, 1);
+    auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, numResources);
     emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize);
 
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
-    UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
+    UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, numResources, pSubresources);
     D12Helper::ChangeResourceState(pCmdList, textureBuffer.Get(), 
         D3D12_RESOURCE_STATE_COPY_DEST,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -273,14 +341,14 @@ bool UpdateTextureBuffers::Clear()
     return m_updateBuffers.size();
 }
 
-const D3D12_SUBRESOURCE_DATA& UpdateTextureBuffers::GetSubresource(const std::string& bufferName)
+const D3D12_SUBRESOURCE_DATA* UpdateTextureBuffers::GetSubresource(const std::string& bufferName)
 {
     // Check if there is any buffer
     assert(m_updateBuffers.size());
     // Check if bufferName is in this list
     assert(m_updateBuffers.count(bufferName));
 
-    return m_updateBuffers[bufferName].second;
+    return &m_updateBuffers[bufferName].second;
 }
 
 ComPtr<ID3D12Resource>& UpdateTextureBuffers::GetBuffer(const std::string& bufferName)

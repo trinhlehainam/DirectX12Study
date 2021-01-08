@@ -30,8 +30,12 @@ namespace D12Helper
 	// ->Return shader's bytecode
 	Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
 
+	// Use CPU to copy data into subreousrces
 	// Return nullptr if FAILED to load texture from file
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureFromFilePath(ID3D12Device* pDevice, const std::wstring& path);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureFromFilePath(ID3D12Device* pDevice, 
+		ID3D12GraphicsCommandList* pCmdList, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadResource, const std::wstring& path);
 
 	// Create resource has default heap type (GPU read only)
 	// Use upload buffer to UPDATE resource to default buffer
@@ -44,7 +48,8 @@ namespace D12Helper
 	// *** NEED TO KEEP UPLOAD BUFFER ALIVE UNTIL GPU UPDATE DATA 
 	//  FROM UPLOAD BUFFER TO DEFAULT BUFFER
 	bool UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList,
-		Microsoft::WRL::ComPtr<ID3D12Resource>& textureBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& emptyUploadBuffer, const D3D12_SUBRESOURCE_DATA& subResource);
+		Microsoft::WRL::ComPtr<ID3D12Resource>& textureBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& emptyUploadBuffer, 
+		const D3D12_SUBRESOURCE_DATA* pSubresources, uint32_t numResources);
 
 	// Change resource state at GPU executing time
 	void ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
@@ -61,7 +66,7 @@ public:
 
 	bool Add(const std::string& bufferName, const void* pData, LONG_PTR rowPitch, LONG_PTR slicePitch);
 	bool Clear();
-	const D3D12_SUBRESOURCE_DATA& GetSubresource(const std::string& bufferName);
+	const D3D12_SUBRESOURCE_DATA* GetSubresource(const std::string& bufferName);
 	Microsoft::WRL::ComPtr<ID3D12Resource>& GetBuffer(const std::string& bufferName);
 private:
 	UpdateTextureBuffers(const UpdateTextureBuffers&) = delete;

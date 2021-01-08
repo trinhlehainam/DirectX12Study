@@ -9,15 +9,16 @@
 #include <Effekseer/Effekseer.h>
 #include <EffekseerRendererDX12/EffekseerRendererDX12.h>
 
+#include "../common.h"
 #include "Camera.h"
 #include "UploadBuffer.h"
-#include "../Input/Keyboard.h"
-#include "../Input/Mouse.h"
-#include "../Utility/D12Helper.h"
-#include "../common.h"
 #include "FrameResource.h"
 #include "Material.h"
 #include "Light.h"
+#include "TextureManager.h"
+#include "../Input/Keyboard.h"
+#include "../Input/Mouse.h"
+#include "../Utility/D12Helper.h"
 
 constexpr uint16_t MAX_LIGHTS = 16;
 
@@ -112,6 +113,9 @@ private:
 	ComPtr<ID3D12Resource> m_gradTexture ;
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
+
+	TextureManager m_textureMng;
+	void CreateTextureManager();
 
 	void UpdateFence();
 	void WaitForGPU();

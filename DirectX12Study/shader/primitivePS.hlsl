@@ -7,7 +7,9 @@
 #include "primitiveCommon.hlsli"
 
 Texture2D<float> g_shadowTex:register(t0);
-SamplerState g_smpBorder:register(s0);
+Texture2D<float4> g_texture : register(t1);
+SamplerState g_smpWrap : register(s0);
+SamplerState g_smpBorder:register(s1);
 
 cbuffer Materials : register(b2)
 {
@@ -31,7 +33,13 @@ PSOutput primitivePS(PrimitiveOut input)
 	// convert NDC to TEXCOORD
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	
-	ret.rtTexColor = color;
+	float4 texColor = g_texture.Sample(g_smpWrap, input.uv);
+	
+	//ret.rtTexColor = color;
+	
+	//test
+	ret.rtTexColor = texColor;
+	//
 	static const float bias = 0.005f;
 	if (input.lvpos.z - bias > g_shadowTex.Sample(g_smpBorder, uv))
 	{

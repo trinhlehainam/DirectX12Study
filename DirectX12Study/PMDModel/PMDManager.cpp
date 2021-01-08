@@ -5,11 +5,13 @@
 
 #include <d3dx12.h>
 
-#include "../Graphics/UploadBuffer.h"
-#include "PMDModel.h"
-#include "VMD/VMDMotion.h"
-#include "PMDMesh.h"
 #include "../common.h"
+#include "PMDModel.h"
+#include "PMDMesh.h"
+#include "VMD/VMDMotion.h"
+#include "../Graphics/UploadBuffer.h"
+#include "../Graphics/TextureManager.h"
+
 
 #define IMPL (*m_impl)
 
@@ -81,6 +83,8 @@ private:
 	// Descriptor heap stores descriptor of shadow depth buffer
 	// Use for binding resource of engine to this pipeline
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
+
+	TextureManager m_textureMng;
 
 private:
 	std::unordered_map<std::string, PMDModel> m_loaders;

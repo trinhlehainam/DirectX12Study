@@ -161,6 +161,7 @@
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="Graphics\DefaultBuffer.cpp" />
     <ClCompile Include="Geometry\PrimitiveManager.cpp" />
+    <ClCompile Include="Graphics\TextureManager.cpp" />
     <ClCompile Include="Utility\D12Helper.cpp" />
     <ClCompile Include="Geometry\GeometryGenerator.cpp" />
     <ClCompile Include="Input\Keyboard.cpp" />
@@ -188,6 +189,7 @@
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="Graphics\DefaultBuffer.h" />
     <ClInclude Include="Geometry\PrimitiveManager.h" />
+    <ClInclude Include="Graphics\TextureManager.h" />
     <ClInclude Include="Utility\D12Helper.h" />
     <ClInclude Include="Geometry\GeometryGenerator.h" />
     <ClInclude Include="Input\Keyboard.h" />

@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "../Utility/D12Helper.h"
+#include "../Graphics/TextureManager.h"
 #include "../Graphics/UploadBuffer.h"
 #include "Mesh.h"
 
@@ -43,6 +44,8 @@ private:
 
 	UploadBuffer<XMFLOAT4X4> m_objectConstant;
 	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
+
+	ComPtr<ID3D12DescriptorHeap> m_textureHeap = nullptr;
 private:
 	Mesh<Geometry::Vertex> m_mesh;
 	struct Loader
@@ -57,6 +60,8 @@ private:
 		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAddress;
 	};
 	std::unordered_map<std::string, DrawData> m_drawDatas;
+
+
 };
 
 PrimitiveManager::Impl::Impl()
@@ -89,8 +94,8 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[2] = {};
-	D3D12_ROOT_PARAMETER parameter[4] = {};
+	D3D12_DESCRIPTOR_RANGE range[3] = {};
+	D3D12_ROOT_PARAMETER parameter[5] = {};
 
 	// world pass constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -112,11 +117,20 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 	// material constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[3], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
 
+	// texture
+	range[2] = CD3DX12_DESCRIPTOR_RANGE(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1,
+		1);
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[4], 1, &range[2],D3D12_SHADER_VISIBILITY_PIXEL);
+
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
 
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0,
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
+
+	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[1], 1,
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER,
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER);
@@ -344,12 +358,30 @@ bool PrimitiveManager::SetViewDepth(ID3D12Resource* pViewDepthBuffer)
 	return true;
 }
 
-bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive, D3D12_GPU_VIRTUAL_ADDRESS materialCBGpuAddress)
+bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive, 
+	D3D12_GPU_VIRTUAL_ADDRESS materialCBGpuAddress, ID3D12Resource* pTexture)
 {
 	assert(!IMPL.Has(name));
 	auto& loader = IMPL.m_loaders[name];
 	loader.Primitive = primitive;
 	loader.MaterialCBAdress = materialCBGpuAddress;
+
+	
+
+	if(IMPL.m_textureHeap == nullptr)
+		D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_textureHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_textureHeap->GetCPUDescriptorHandleForHeapStart());
+	if (pTexture != nullptr)
+	{
+		auto texDesc = pTexture->GetDesc();
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = texDesc.Format;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		IMPL.m_device->CreateShaderResourceView(pTexture, &srvDesc, heapHandle);
+	}
+
 	return true;
 }
 
@@ -464,6 +496,10 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 
 		pCmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
 		pCmdList->SetGraphicsRootConstantBufferView(3, materialCBGpuAddress);
+		// Set up texture table
+		CD3DX12_GPU_DESCRIPTOR_HANDLE texHeapHandle(IMPL.m_textureHeap->GetGPUDescriptorHandleForHeapStart());
+		pCmdList->SetDescriptorHeaps(1, IMPL.m_textureHeap.GetAddressOf());
+		pCmdList->SetGraphicsRootDescriptorTable(4, texHeapHandle);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 		objectHeapHandle.Offset(1, heap_size);
 	}

@@ -24,7 +24,8 @@ public:
 	bool SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer);
 	bool SetViewDepth(ID3D12Resource* pViewDepthBuffer);
 
-	bool Create(const std::string& name, Geometry::Mesh primitive , D3D12_GPU_VIRTUAL_ADDRESS materialCBGpuAddress);
+	bool Create(const std::string& name, Geometry::Mesh primitive,
+		D3D12_GPU_VIRTUAL_ADDRESS materialCBGpuAddress, ID3D12Resource* pTexture = nullptr);
 	// Need to set up all resource for PMD Manager BEFORE initialize it
 	bool Init(ID3D12GraphicsCommandList* cmdList);
 

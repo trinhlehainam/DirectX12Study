@@ -10,8 +10,8 @@
 
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
-#include "../Geometry/GeometryGenerator.h"
 #include "../PMDModel/PMDManager.h"
+#include "../Geometry/GeometryGenerator.h"
 #include "../Geometry/PrimitiveManager.h"
 
 #pragma comment(lib,"d3dcompiler.lib")
@@ -63,7 +63,7 @@ void D3D12App::CreateDefaultTexture()
     m_updateBuffers.Add(whiteTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
     D12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture, 
         m_updateBuffers.GetBuffer(whiteTexStr),
-        m_updateBuffers.GetSubresource(whiteTexStr));
+        m_updateBuffers.GetSubresource(whiteTexStr),1);
 
     std::vector<Color> blackTex(4 * 4);
     std::fill(blackTex.begin(), blackTex.end(), Color(0x00, 0x00, 0x00, 0xff));
@@ -71,7 +71,7 @@ void D3D12App::CreateDefaultTexture()
     m_updateBuffers.Add(blackTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
     D12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture,
         m_updateBuffers.GetBuffer(blackTexStr),
-        m_updateBuffers.GetSubresource(blackTexStr));
+        m_updateBuffers.GetSubresource(blackTexStr),1);
     
     std::vector<Color> gradTex(4 * 4);
     gradTex.resize(256);
@@ -81,7 +81,7 @@ void D3D12App::CreateDefaultTexture()
     m_updateBuffers.Add(gradTexStr, whiteTex.data(), sizeof(whiteTex[0]) * 4, whiteTex.size() * 4);
     D12Helper::UpdateDataToTextureBuffer(m_device.Get(), m_cmdList.Get(), m_whiteTexture,
         m_updateBuffers.GetBuffer(gradTexStr),
-        m_updateBuffers.GetSubresource(gradTexStr));
+        m_updateBuffers.GetSubresource(gradTexStr),1);
     
 }
 
@@ -1138,6 +1138,13 @@ void D3D12App::WaitForGPU()
     };
 }
 
+void D3D12App::CreateTextureManager()
+{
+    m_textureMng.SetDevice(m_device.Get());
+
+    m_textureMng.Create(m_cmdList.Get(), "crate", L"resource/image/Textures/WoodCrate02.dds");
+}
+
 void D3D12App::UpdateFence()
 {
     // Set current GPU target fence value to next process frame
@@ -1238,6 +1245,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     
     CreateSwapChain(hwnd);
     CreateBackBufferView();
+    CreateTextureManager();
     CreateDepthBuffer();  
     CreateWorldPassConstant();
     CreateMaterials();
@@ -1412,7 +1420,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
-    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), brickGpuAdress);
+    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), brickGpuAdress, m_textureMng.Get("brick"));
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;
