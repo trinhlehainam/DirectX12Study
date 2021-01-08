@@ -20,6 +20,7 @@ public:
 	~PrimitiveManager();
 
 	bool SetDevice(ID3D12Device* pDevice);
+	bool SetDefaultTexture(ID3D12Resource* whiteTexture, ID3D12Resource* blackTexture, ID3D12Resource* gradiationTexture);
 	bool SetWorldPassConstantGpuAddress(D3D12_GPU_VIRTUAL_ADDRESS worldPassConstantGpuAddress);
 	bool SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer);
 	bool SetViewDepth(ID3D12Resource* pViewDepthBuffer);

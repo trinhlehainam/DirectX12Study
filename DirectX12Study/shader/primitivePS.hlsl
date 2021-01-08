@@ -27,19 +27,16 @@ struct PSOutput
 PSOutput primitivePS(PrimitiveOut input)
 {
 	PSOutput ret;
-	Material material = { g_diffuseAlbedo, g_fresnelF0, 1.0f - g_roughness };
-	float4 ambient = g_ambientLight * g_diffuseAlbedo;
+	
+	float4 diffuseAlbedo = g_texture.Sample(g_smpWrap, input.uv) * g_diffuseAlbedo;
+	Material material = { diffuseAlbedo, g_fresnelF0, 1.0f - g_roughness };
+	float4 ambient = g_ambientLight * diffuseAlbedo;
 	float4 color = ComputeLighting(g_lights, material, input.pos.xyz, g_viewPos, input.normal.xyz);
 	// convert NDC to TEXCOORD
 	float2 uv = (input.lvpos.xy + float2(1,-1)) * float2(0.5, -0.5);
 	
-	float4 texColor = g_texture.Sample(g_smpWrap, input.uv);
+	ret.rtTexColor = color;
 	
-	//ret.rtTexColor = color;
-	
-	//test
-	ret.rtTexColor = texColor;
-	//
 	static const float bias = 0.005f;
 	if (input.lvpos.z - bias > g_shadowTex.Sample(g_smpBorder, uv))
 	{

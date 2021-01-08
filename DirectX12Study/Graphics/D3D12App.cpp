@@ -1143,6 +1143,7 @@ void D3D12App::CreateTextureManager()
     m_textureMng.SetDevice(m_device.Get());
 
     m_textureMng.Create(m_cmdList.Get(), "crate", L"resource/image/Textures/WoodCrate02.dds");
+    m_textureMng.Create(m_cmdList.Get(), "tile", L"resource/image/Textures/tile.dds");
 }
 
 void D3D12App::UpdateFence()
@@ -1388,10 +1389,11 @@ void D3D12App::CreatePrimitive()
     auto tileGpuAdress = m_materialCB.GetGPUVirtualAddress(m_materialIndices["tile0"]);
 
     m_primitiveManager->SetDevice(m_device.Get());
+    m_primitiveManager->SetDefaultTexture(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress());
     m_primitiveManager->SetWorldShadowMap(m_shadowDepthBuffer.Get());
     //m_primitiveManager->SetViewDepth(m_viewDepthBuffer.Get());
-    m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40), tileGpuAdress);
+    m_primitiveManager->Create("grid", GeometryGenerator::CreateGrid(200.0f, 100.0f, 30, 40), tileGpuAdress, m_textureMng.Get("tile"));
     m_primitiveManager->Create("sphere", GeometryGenerator::CreateSphere(5.0f, 20, 20) , stoneGpuAdress);
     m_primitiveManager->Create("sphere1", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
     m_primitiveManager->Create("sphere2", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
@@ -1406,7 +1408,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("sphere11", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
     m_primitiveManager->Create("sphere12", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
     m_primitiveManager->Create("sphere13", GeometryGenerator::CreateSphere(5.0f, 20, 20), stoneGpuAdress);
-    m_primitiveManager->Create("cylinder", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1) , brickGpuAdress);
+    m_primitiveManager->Create("cylinder", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1) , brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder1", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder2", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);
     m_primitiveManager->Create("cylinder3", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress);

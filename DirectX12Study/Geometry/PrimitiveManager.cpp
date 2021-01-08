@@ -45,13 +45,17 @@ private:
 	UploadBuffer<XMFLOAT4X4> m_objectConstant;
 	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
 
-	ComPtr<ID3D12DescriptorHeap> m_textureHeap = nullptr;
+	ID3D12Resource* m_whiteTex = nullptr;
+	ID3D12Resource* m_blackTex = nullptr;
+	ID3D12Resource* m_gradTex = nullptr;
+
 private:
 	Mesh<Geometry::Vertex> m_mesh;
 	struct Loader
 	{
 		Geometry::Mesh Primitive;
 		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAdress;
+		ID3D12Resource* Texture;
 	};
 	std::unordered_map<std::string, Loader> m_loaders;
 	struct DrawData
@@ -60,8 +64,6 @@ private:
 		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAddress;
 	};
 	std::unordered_map<std::string, DrawData> m_drawDatas;
-
-
 };
 
 PrimitiveManager::Impl::Impl()
@@ -77,6 +79,9 @@ PrimitiveManager::Impl::Impl(ID3D12Device* pDevice):m_device(pDevice)
 PrimitiveManager::Impl::~Impl()
 {
 	m_device = nullptr;
+	m_whiteTex = nullptr;
+	m_blackTex = nullptr;
+	m_gradTex = nullptr;
 }
 
 bool PrimitiveManager::Impl::CreatePipeline()
@@ -95,7 +100,7 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 
 	// Descriptor table
 	D3D12_DESCRIPTOR_RANGE range[3] = {};
-	D3D12_ROOT_PARAMETER parameter[5] = {};
+	D3D12_ROOT_PARAMETER parameter[4] = {};
 
 	// world pass constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -107,22 +112,21 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 		0);                                     // base shader register
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
 
-	// object constant
+	// object constant (transform, texture)
 	range[1] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
 		1,                                      // number of descriptors
 		1);                                     // base shader register
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
-
-	// material constant
-	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[3], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	// texture
 	range[2] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1,
 		1);
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[4], 1, &range[2],D3D12_SHADER_VISIBILITY_PIXEL);
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 2, &range[1], D3D12_SHADER_VISIBILITY_ALL);
+
+	// material constant
+	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[3], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -232,6 +236,19 @@ bool PrimitiveManager::Impl::CreatePipelineStateObject()
 	return true;
 }
 
+bool PrimitiveManager::SetDefaultTexture(ID3D12Resource* whiteTexture, ID3D12Resource* blackTexture, ID3D12Resource* gradiationTexture)
+{
+	if (!whiteTexture) return false;
+	if (!blackTexture) return false;
+	if (!gradiationTexture) return false;
+
+	IMPL.m_whiteTex = whiteTexture;
+	IMPL.m_blackTex = blackTexture;
+	IMPL.m_gradTex = gradiationTexture;
+
+	return true;
+}
+
 bool PrimitiveManager::Impl::CreateObjectHeap()
 {
 	const auto num_primitive = m_drawDatas.size();
@@ -242,6 +259,7 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 	const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = m_objectConstant.ElementSize();
+
 	for (const auto& drawData : m_drawDatas)
 	{
 		const auto& name = drawData.first;
@@ -253,6 +271,18 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 		XMStoreFloat4x4(handleMappedData, XMMatrixIdentity());
 
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+		heapHandle.Offset(1, heap_size);
+
+		auto texture = m_loaders[name].Texture;
+		texture = texture != nullptr ? texture : m_whiteTex;
+		auto texDesc = texture->GetDesc();
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = texDesc.Format;
+		srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		m_device->CreateShaderResourceView(texture, &srvDesc, heapHandle);
+
 		heapHandle.Offset(1, heap_size);
 	}
 
@@ -365,22 +395,7 @@ bool PrimitiveManager::Create(const std::string& name, Geometry::Mesh primitive,
 	auto& loader = IMPL.m_loaders[name];
 	loader.Primitive = primitive;
 	loader.MaterialCBAdress = materialCBGpuAddress;
-
-	
-
-	if(IMPL.m_textureHeap == nullptr)
-		D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_textureHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_textureHeap->GetCPUDescriptorHandleForHeapStart());
-	if (pTexture != nullptr)
-	{
-		auto texDesc = pTexture->GetDesc();
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = texDesc.Format;
-		srvDesc.Texture2D.MipLevels = 1;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		IMPL.m_device->CreateShaderResourceView(pTexture, &srvDesc, heapHandle);
-	}
+	loader.Texture = pTexture;
 
 	return true;
 }
@@ -494,14 +509,12 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 		const auto& materialCBGpuAddress = data.MaterialCBAddress;
 		const auto& drawArgs = IMPL.m_mesh.DrawArgs[name];
 
+		// Set table for object constant
 		pCmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
+		objectHeapHandle.Offset(2, heap_size);
+		// Set table for material constant
 		pCmdList->SetGraphicsRootConstantBufferView(3, materialCBGpuAddress);
-		// Set up texture table
-		CD3DX12_GPU_DESCRIPTOR_HANDLE texHeapHandle(IMPL.m_textureHeap->GetGPUDescriptorHandleForHeapStart());
-		pCmdList->SetDescriptorHeaps(1, IMPL.m_textureHeap.GetAddressOf());
-		pCmdList->SetGraphicsRootDescriptorTable(4, texHeapHandle);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
-		objectHeapHandle.Offset(1, heap_size);
 	}
 }
 
