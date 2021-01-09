@@ -100,7 +100,7 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 
 	// Descriptor table
 	D3D12_DESCRIPTOR_RANGE range[3] = {};
-	D3D12_ROOT_PARAMETER parameter[4] = {};
+	D3D12_ROOT_PARAMETER parameter[5] = {};
 
 	// world pass constant
 	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -117,16 +117,17 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
 		1,                                      // number of descriptors
 		1);                                     // base shader register
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
 
 	// texture
 	range[2] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1,
 		1);
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 2, &range[1], D3D12_SHADER_VISIBILITY_ALL);
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[3], 1, &range[2], D3D12_SHADER_VISIBILITY_ALL);
 
 	// material constant
-	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[3], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
+	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[4], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	rtSigDesc.pParameters = parameter;
 	rtSigDesc.NumParameters = _countof(parameter);
@@ -272,17 +273,24 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 		heapHandle.Offset(1, heap_size);
+	}
+
+	for (const auto& drawData : m_drawDatas)
+	{
+		const auto& name = drawData.first;
+		const auto& data = drawData.second;
+		const auto& index = data.Index;
 
 		auto texture = m_loaders[name].Texture;
 		texture = texture != nullptr ? texture : m_whiteTex;
 		auto texDesc = texture->GetDesc();
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = texDesc.Format;
-		srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
+		srvDesc.Texture2D.MipLevels = 1;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		m_device->CreateShaderResourceView(texture, &srvDesc, heapHandle);
-
+		
 		heapHandle.Offset(1, heap_size);
 	}
 
@@ -501,6 +509,9 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(IMPL.m_objectHeap->GetGPUDescriptorHandleForHeapStart());
 	const auto heap_size = IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	auto texHeapHandle = objectHeapHandle;
+	texHeapHandle.Offset(IMPL.m_drawDatas.size(), heap_size);
+
 	for (const auto& drawData : IMPL.m_drawDatas)
 	{
 		const auto& name = drawData.first;
@@ -511,9 +522,12 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 
 		// Set table for object constant
 		pCmdList->SetGraphicsRootDescriptorTable(2, objectHeapHandle);
-		objectHeapHandle.Offset(2, heap_size);
+		objectHeapHandle.Offset(1, heap_size);
+		// Set table for texture shader
+		pCmdList->SetGraphicsRootDescriptorTable(3, texHeapHandle);
+		texHeapHandle.Offset(1, heap_size);
 		// Set table for material constant
-		pCmdList->SetGraphicsRootConstantBufferView(3, materialCBGpuAddress);
+		pCmdList->SetGraphicsRootConstantBufferView(4, materialCBGpuAddress);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 	}
 }
