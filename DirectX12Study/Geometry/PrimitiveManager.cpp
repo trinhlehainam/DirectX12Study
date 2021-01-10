@@ -534,17 +534,24 @@ void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 
 void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 {
-	// World constant
-	pCmdList->SetGraphicsRootConstantBufferView(0, IMPL.m_worldPassAdress);
-
 	// Set Input Assembler
 	pCmdList->IASetVertexBuffers(0, 1, &IMPL.m_mesh.VertexBufferView);
 	pCmdList->IASetIndexBuffer(&IMPL.m_mesh.IndexBufferView);
 	pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// World constant
+	pCmdList->SetGraphicsRootConstantBufferView(0, IMPL.m_worldPassAdress);
+
+	// Object Constant
+	pCmdList->SetDescriptorHeaps(1, IMPL.m_objectHeap.GetAddressOf());
+	CD3DX12_GPU_DESCRIPTOR_HANDLE objectHeapHandle(IMPL.m_objectHeap->GetGPUDescriptorHandleForHeapStart());
+	const auto heap_size = IMPL.m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
 	for (auto& primitive : IMPL.m_mesh.DrawArgs)
 	{
 		auto& drawArgs = primitive.second;
+		pCmdList->SetGraphicsRootDescriptorTable(1, objectHeapHandle);
+		objectHeapHandle.Offset(2, heap_size);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 	}
 }

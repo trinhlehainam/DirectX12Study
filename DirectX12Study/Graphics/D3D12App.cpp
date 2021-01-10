@@ -1085,6 +1085,9 @@ void D3D12App::RenderToShadowDepthBuffer()
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
 
+    m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_primitiveManager->RenderDepth(m_cmdList.Get());
+
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
     D3D12_RESOURCE_BARRIER barrier =
@@ -1113,6 +1116,9 @@ void D3D12App::RenderToViewDepthBuffer()
 
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
+
+    m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_primitiveManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
