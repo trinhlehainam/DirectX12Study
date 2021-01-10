@@ -604,6 +604,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	{
 		m_defaultMatrices.push_back(XMMatrixIdentity());
 	}
+
 	// Create object constant
 	m_objectConstant.Create(m_device, model_count, true);
 	for (uint16_t i = 0; i < model_count; ++i)
