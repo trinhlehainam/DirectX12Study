@@ -28,7 +28,8 @@ namespace D12Helper
 
 	// Compile shader file at RUNTIME and convert it to bytecode for PSO (pipeline state object) use it
 	// ->Return shader's bytecode
-	Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines = nullptr);
+	Microsoft::WRL::ComPtr<ID3DBlob> CompileShaderFromFile(const wchar_t* filePath, const char* entryName, 
+		const char* targetVersion, const D3D_SHADER_MACRO* defines = nullptr);
 
 	// Use CPU to copy data into subreousrces
 	// Return nullptr if FAILED to load texture from file

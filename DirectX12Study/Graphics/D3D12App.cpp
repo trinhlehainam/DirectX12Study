@@ -300,6 +300,8 @@ void D3D12App::CreateBoardViewDepthView()
 
 void D3D12App::RenderToRenderTargetTexture()
 {
+    auto worldPCB = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
+
     auto wsize = Application::Instance().GetWindowSize();
     CD3DX12_VIEWPORT vp(m_backBuffer[m_currentBackBuffer].Get());
     m_cmdList->RSSetViewports(1, &vp);
@@ -307,7 +309,8 @@ void D3D12App::RenderToRenderTargetTexture()
     CD3DX12_RECT rc(0, 0, wsize.width, wsize.height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    float rtTexDefaultColor[4] = { 0.0f,0.0f,0.0f,0.0f };
+    float rtTexDefaultColor[4] = { 0.0f,0.0f,0.0f,1.0f };
+    float fogColor[4] = { worldPCB->FogColor.x,worldPCB->FogColor.y,worldPCB->FogColor.z,worldPCB->FogColor.w };
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtNormalTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
     rtNormalTexHeap.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
@@ -316,7 +319,7 @@ void D3D12App::RenderToRenderTargetTexture()
     auto dsvHeap = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
     m_cmdList->OMSetRenderTargets(2, rtHeapHandle, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    m_cmdList->ClearRenderTargetView(rtTexHeap, rtTexDefaultColor, 0, nullptr);
+    m_cmdList->ClearRenderTargetView(rtTexHeap, fogColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
@@ -346,7 +349,7 @@ void D3D12App::RenderToBackBuffer()
     const auto rtvIncreSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     bbRTVHeap.Offset(m_currentBackBuffer, rtvIncreSize);
 
-    float bbDefaultColor[] = { 0.0f,0.0f,0.0f,1.f };
+    float bbDefaultColor[] = { 0.0f,0.0f,0.0f,1.0f };
     m_cmdList->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
     m_cmdList->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
 
@@ -1304,6 +1307,11 @@ bool D3D12App::CreateWorldPassConstant()
         mappedData->ViewPos = m_camera.GetCameraPosition();
         mappedData->ViewProj = m_camera.GetViewProjectionMatrix();
 
+        // fog
+        mappedData->FogColor = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+        mappedData->FogRange = 150.0f;
+        mappedData->FogStart = 10.0f;
+
         XMVECTOR lightPos = { 0,30,40,1 };
        
         mappedData->Lights[0] = Light();
@@ -1321,7 +1329,7 @@ bool D3D12App::CreateWorldPassConstant()
             XMMatrixOrthographicRH(200.0f, 200.0f, 1.0f, 500.0f);
 
         //
-        // test point/ spot lighting
+        /*------------test point/ spot lighting---------*/
         //
         //XMStoreFloat3(&mappedData->Lights[0].Position, lightPos);
         //mappedData->Lights[0].Strength = { 1.0f, 1.0f, 1.0f };

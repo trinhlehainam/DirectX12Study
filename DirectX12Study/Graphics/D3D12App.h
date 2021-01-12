@@ -26,7 +26,13 @@ struct WorldPassConstant {
 	DirectX::XMFLOAT4X4 ViewProj;
 	DirectX::XMFLOAT3 ViewPos;
 	float padding0;
-	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	DirectX::XMFLOAT4 FogColor;
+	float FogStart;				// distance from eye to start seeing fog
+	float FogRange;				// distance eye can see only fog
+	float padding1;
+	float padding2;
 
 	Light Lights[MAX_LIGHTS];
 };

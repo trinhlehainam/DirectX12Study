@@ -108,7 +108,7 @@ void D12Helper::ThrowIfFailed(HRESULT hr)
         throw HrException(hr);
 }
 
-ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, D3D_SHADER_MACRO* defines)
+ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const char* entryName, const char* targetVersion, const D3D_SHADER_MACRO* defines)
 {
     UINT compileFlag1 = 0;
 #if defined (_DEBUG) || defined(DEBUG)

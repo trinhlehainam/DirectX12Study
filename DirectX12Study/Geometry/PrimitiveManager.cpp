@@ -220,7 +220,11 @@ bool PrimitiveManager::Impl::CreatePSO()
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
+	const D3D_SHADER_MACRO defines[] =
+	{	"ALPHA_TEST", "1",
+		"FOG", "1",
+		nullptr, nullptr };
+	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1", defines);
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 	// Other set up
 	psoDesc.NodeMask = 0;

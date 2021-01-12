@@ -12,7 +12,6 @@
 #include "../Graphics/UploadBuffer.h"
 #include "../Graphics/TextureManager.h"
 
-
 #define IMPL (*m_impl)
 
 class PMDManager::Impl
@@ -60,7 +59,7 @@ private:
 
 	bool CreatePipeline();
 	bool CreateRootSignature();
-	bool CreatePipelineStateObject();
+	bool CreatePSO();
 	// check default buffers are initialized or not
 	bool CheckDefaultBuffers();
 
@@ -279,7 +278,7 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 bool PMDManager::Impl::CreatePipeline()
 {
 	if (!CreateRootSignature()) return false;
-	if (!CreatePipelineStateObject()) return false;
+	if (!CreatePSO()) return false;
 	return true;
 }
 
@@ -348,7 +347,7 @@ bool PMDManager::Impl::CreateRootSignature()
 	return true;
 }
 
-bool PMDManager::Impl::CreatePipelineStateObject()
+bool PMDManager::Impl::CreatePSO()
 {
 	HRESULT result = S_OK;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -415,7 +414,12 @@ bool PMDManager::Impl::CreatePipelineStateObject()
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	// Pixel Shader
-	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/ps.hlsl", "PS", "ps_5_1");
+	const D3D_SHADER_MACRO defines[] =
+	{
+		"FOG" , "1",
+		nullptr, nullptr
+	};
+	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/ps.hlsl", "PS", "ps_5_1", defines);
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 	// Other set up
 	// Depth/Stencil

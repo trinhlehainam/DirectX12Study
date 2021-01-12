@@ -79,6 +79,11 @@ PSOutput PS(VsOutput input)
 	// transform xy coordinate to uv coordinate
 	float2 sphereUV = input.norm.xy * float2(0.5f, -0.5f) + 0.5f;
 	
+#ifdef FOG
+	float clampFogDistance = saturate(distance(g_viewPos, input.pos.xyz) / g_fogRange);
+	color = lerp(color, g_fogColor, clampFogDistance);
+#endif
+	
 	ret.rtTexColor = color
 		* g_tex.Sample(g_smp, input.uv)
 		* g_sph.Sample(g_smp, sphereUV)
