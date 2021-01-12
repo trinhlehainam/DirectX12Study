@@ -42,7 +42,13 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 	uint16_t m_depthBufferCount = 0;
 
-	UploadBuffer<XMFLOAT4X4> m_objectConstant;
+	struct ObjectConstant
+	{
+		XMFLOAT4X4 World;
+		XMFLOAT4X4 TexTransform;
+	};
+
+	UploadBuffer<ObjectConstant> m_objectConstant;
 	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
 
 	ID3D12Resource* m_whiteTex = nullptr;
@@ -269,7 +275,8 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 
 		cbvDesc.BufferLocation = m_objectConstant.GetGPUVirtualAddress(index);
 		auto handleMappedData = m_objectConstant.GetHandleMappedData(index);
-		XMStoreFloat4x4(handleMappedData, XMMatrixIdentity());
+		XMStoreFloat4x4(&handleMappedData->World, XMMatrixIdentity());
+		XMStoreFloat4x4(&handleMappedData->TexTransform, XMMatrixIdentity());
 
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 		heapHandle.Offset(1, heap_size);
@@ -479,7 +486,16 @@ bool PrimitiveManager::Move(const std::string& name, float x, float y, float z)
 	const auto& drawData = IMPL.m_drawDatas[name];
 	const auto& index = drawData.Index;
 	auto handleMappedData = IMPL.m_objectConstant.GetHandleMappedData(index);
-	XMStoreFloat4x4(handleMappedData, XMMatrixTranslation(x, y, z));
+	XMStoreFloat4x4(&handleMappedData->World, XMMatrixTranslation(x, y, z));
+	return true;
+}
+
+bool PrimitiveManager::ScaleTexture(const std::string& name, float u, float v)
+{
+	const auto& drawData = IMPL.m_drawDatas[name];
+	const auto& index = drawData.Index;
+	auto handleMappedData = IMPL.m_objectConstant.GetHandleMappedData(index);
+	XMStoreFloat4x4(&handleMappedData->TexTransform, XMMatrixScaling(u, v, 0.0f));
 	return true;
 }
 

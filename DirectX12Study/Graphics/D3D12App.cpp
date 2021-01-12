@@ -1491,6 +1491,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Move("cylinder13", startX, 10, startZ);
 
     m_primitiveManager->Move("box", 0.0f, 40.0f, 0.0f);
+    m_primitiveManager->ScaleTexture("grid", 4.0f, 4.0f);
 }
 
 bool D3D12App::ProcessMessage()

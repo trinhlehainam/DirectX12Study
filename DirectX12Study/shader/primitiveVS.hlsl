@@ -4,6 +4,7 @@
 cbuffer ObjectConstant : register(b1)
 {
 	float4x4 g_world;
+	float4x4 g_texTransform;
 }
 
 struct PrimitiveInput
@@ -24,13 +25,8 @@ PrimitiveOut primitiveVS(PrimitiveInput input)
 	wrl._14_24_34 = 0.0f;
 	ret.normal = mul(wrl, input.normal);
 	
-	// Test
-	//ret.pos = input.pos;
-	//ret.normal = input.normal;
-	//
-	
 	ret.tangent = input.tangent;
-	ret.uv = input.uv;
+	ret.uv = mul(g_texTransform, input.uv);
 	ret.svpos = mul(g_viewproj, ret.pos);
 	ret.lvpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 	

@@ -33,6 +33,7 @@ public:
 	bool ClearSubresources();
 public:
 	bool Move(const std::string& name, float x, float y, float z);
+	bool ScaleTexture(const std::string& name, float u, float v);
 public:
 	void Update(const float& deltaTime);
 	void Render(ID3D12GraphicsCommandList* pCmdList);

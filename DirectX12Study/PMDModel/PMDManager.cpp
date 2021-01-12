@@ -611,6 +611,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto hMappedData = m_objectConstant.GetHandleMappedData(i);
 		hMappedData->world = XMMatrixIdentity();
+		hMappedData->texTransform = XMMatrixIdentity();
 		std::copy(m_defaultMatrices.begin(), m_defaultMatrices.end(), hMappedData->bones);
 	}
 

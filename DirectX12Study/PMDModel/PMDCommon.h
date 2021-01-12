@@ -37,5 +37,6 @@ struct PMDBone
 struct PMDObjectConstant
 {
 	DirectX::XMMATRIX world;
+	DirectX::XMMATRIX texTransform;
 	DirectX::XMMATRIX bones[512];
 };
