@@ -361,7 +361,7 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_cmdList->DrawInstanced(4, 1, 0, 0);
 
-    EffekseerRender();
+    //EffekseerRender();
 
 }
 
@@ -477,12 +477,12 @@ void D3D12App::EffekseerTerminate()
 {
     ES_SAFE_RELEASE(m_effekEffect);
 
-    m_effekManager->Destroy();
+    //m_effekManager->Destroy();
 
     ES_SAFE_RELEASE(m_effekCmdList);
     ES_SAFE_RELEASE(m_effekPool);
 
-    m_effekRenderer->Destroy();
+    //m_effekRenderer->Destroy();
 }
 
 void D3D12App::UpdateCamera(const float& deltaTime)
@@ -1082,11 +1082,11 @@ void D3D12App::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_pmdManager->RenderDepth(m_cmdList.Get());
-
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->RenderDepth(m_cmdList.Get());
+
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_pmdManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1114,11 +1114,11 @@ void D3D12App::RenderToViewDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_pmdManager->RenderDepth(m_cmdList.Get());
-
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->RenderDepth(m_cmdList.Get());
+
+    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_pmdManager->RenderDepth(m_cmdList.Get());
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1271,7 +1271,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     UpdateFence();
     WaitForGPU();
 
-    EffekseerInit();
+    //EffekseerInit();
 
     m_updateBuffers.Clear();
     m_pmdManager->ClearSubresources();
@@ -1303,16 +1303,16 @@ bool D3D12App::CreateWorldPassConstant()
         mappedData->ViewPos = m_camera.GetCameraPosition();
         mappedData->ViewProj = m_camera.GetViewProjectionMatrix();
 
-        XMVECTOR lightPos = { 10,30,0,1 };
+        XMVECTOR lightPos = { 0,30,40,1 };
        
         mappedData->Lights[0] = Light();
         mappedData->Lights[1] = Light();
         mappedData->Lights[2] = Light();
-        mappedData->Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[0].Direction = { 0.0f, -1.0f, -1.0f };
         mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
-        mappedData->Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+        mappedData->Lights[1].Direction = { -1.0f, -1.0f, 0.0f };
         mappedData->Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-        mappedData->Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+        mappedData->Lights[2].Direction = { -1.0f, -1.0f, -1.0f };
         mappedData->Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
 
         auto lightDirection = XMLoadFloat3(&mappedData->Lights[0].Direction);
@@ -1503,7 +1503,7 @@ bool D3D12App::ProcessMessage()
 bool D3D12App::Update(const float& deltaTime)
 {
     UpdateCamera(deltaTime);
-    EffekseerUpdate(deltaTime);
+    //EffekseerUpdate(deltaTime);
 
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
     m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];

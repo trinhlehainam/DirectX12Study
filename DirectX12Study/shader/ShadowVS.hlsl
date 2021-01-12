@@ -13,7 +13,7 @@ struct VsInput
 
 cbuffer objectConstant : register(b1)
 {
-	matrix g_world; // transform to world space matrix
+	float4x4 g_world; // transform to world space matrix
 	matrix g_bones[512];
 }
 

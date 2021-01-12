@@ -26,7 +26,8 @@ VsOutput VS( VsInput input )
 	VsOutput ret;
 	
 	matrix skinMat = g_bones[input.boneno.x] * input.weight + g_bones[input.boneno.y] * (1.0f - input.weight);
-	ret.pos = mul(g_world, mul(skinMat, input.pos));
+	//ret.pos = mul(g_world, mul(skinMat, input.pos));
+	ret.pos = mul(g_world, input.pos);
 
 	skinMat._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
 	ret.norm = mul(g_world, mul(skinMat, input.normal)); // normal vector DOESN'T TRANSLATE position

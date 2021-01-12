@@ -551,7 +551,7 @@ void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 	{
 		auto& drawArgs = primitive.second;
 		pCmdList->SetGraphicsRootDescriptorTable(1, objectHeapHandle);
-		objectHeapHandle.Offset(2, heap_size);
+		objectHeapHandle.Offset(1, heap_size);
 		pCmdList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.StartIndexLocation, drawArgs.BaseVertexLocation, 0);
 	}
 }
