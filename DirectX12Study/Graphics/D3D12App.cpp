@@ -1149,6 +1149,7 @@ void D3D12App::CreateTextureManager()
     m_textureMng.SetDevice(m_device.Get());
 
     m_textureMng.Create(m_cmdList.Get(), "crate", L"resource/image/Textures/WoodCrate02.dds");
+    m_textureMng.Create(m_cmdList.Get(), "wire-fence", L"resource/image/Textures/WireFence.dds");
     m_textureMng.Create(m_cmdList.Get(), "tile", L"resource/image/Textures/tile.dds");
     m_textureMng.Create(m_cmdList.Get(), "brick", L"resource/image/Textures/bricks.dds");
     m_textureMng.Create(m_cmdList.Get(), "stone", L"resource/image/Textures/stone.dds");
@@ -1439,7 +1440,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
-    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), woodCrateGpuAdress, m_textureMng.Get("crate"));
+    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), woodCrateGpuAdress, m_textureMng.Get("wire-fence"));
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;

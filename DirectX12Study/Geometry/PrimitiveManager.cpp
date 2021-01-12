@@ -24,7 +24,7 @@ private:
 
 	bool CreatePipeline();
 	bool CreateRootSignature();
-	bool CreatePipelineStateObject();
+	bool CreatePSO();
 	bool CreateObjectHeap();
 	bool Has(const std::string& name);
 private:
@@ -93,7 +93,7 @@ PrimitiveManager::Impl::~Impl()
 bool PrimitiveManager::Impl::CreatePipeline()
 {
 	if (!CreateRootSignature()) return false;
-	if (!CreatePipelineStateObject()) return false;
+	if (!CreatePSO()) return false;
 	return true;
 }
 
@@ -163,7 +163,7 @@ bool PrimitiveManager::Impl::CreateRootSignature()
 
 	return true;
 }
-bool PrimitiveManager::Impl::CreatePipelineStateObject()
+bool PrimitiveManager::Impl::CreatePSO()
 {
 	HRESULT result = S_OK;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -217,7 +217,7 @@ bool PrimitiveManager::Impl::CreatePipelineStateObject()
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 	// Rasterizer
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// Pixel Shader
 	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1");
@@ -233,6 +233,20 @@ bool PrimitiveManager::Impl::CreatePipelineStateObject()
 	psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	// Blend
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc = {};
+	rtBlendDesc.BlendEnable = true;
+	rtBlendDesc.LogicOpEnable = false;
+	rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	psoDesc.BlendState.RenderTarget[0] = rtBlendDesc;
+
+	// Depth stencil
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	// Root Signature

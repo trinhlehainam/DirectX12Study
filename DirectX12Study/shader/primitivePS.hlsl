@@ -29,6 +29,9 @@ PSOutput primitivePS(PrimitiveOut input)
 	PSOutput ret;
 	
 	float4 diffuseAlbedo = g_texture.Sample(g_smpWrap, input.uv) * g_diffuseAlbedo;
+	
+	clip(diffuseAlbedo.a - 0.1f);
+	
 	Material material = { diffuseAlbedo, g_fresnelF0, 1.0f - g_roughness };
 	float4 ambient = g_ambientLight * diffuseAlbedo;
 	float4 color = ComputeLighting(g_lights, material, input.pos.xyz, g_viewPos, input.normal.xyz);
