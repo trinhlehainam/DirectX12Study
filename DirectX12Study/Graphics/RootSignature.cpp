@@ -71,14 +71,14 @@ void RootSignature::AddRootParameterAsDescriptorTable(UINT16 numCBV, UINT16 numS
 	IMPL.m_uavIndex += numUAV;
 }
 
-bool RootSignature::AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor)
+bool RootSignature::AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor, D3D12_SHADER_VISIBILITY shaderVisibility)
 {
 	CD3DX12_ROOT_PARAMETER param;
 	
 	switch (rootDescriptor)
 	{
 	case CONSTANT_BUFFER_VIEW:
-		CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(param, IMPL.m_cbvIndex);
+		CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(param, IMPL.m_cbvIndex, shaderVisibility);
 		IMPL.m_params.push_back(std::move(param));
 		++IMPL.m_cbvIndex;
 		break;

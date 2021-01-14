@@ -74,7 +74,6 @@ private:
 	ID3D12Resource* m_gradTexture = nullptr;
 	/*-----------------------------------------*/
 	
-	RootSignature m_rootSignature;
 	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
 	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
@@ -286,20 +285,20 @@ bool PMDManager::Impl::CreatePipeline()
 
 bool PMDManager::Impl::CreateRootSignature()
 {
+	RootSignature rootSignature;
+
 	// World pass constant
-	m_rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CONSTANT_BUFFER_VIEW);
+	rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CONSTANT_BUFFER_VIEW);
 	// Depth
-	m_rootSignature.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootSignature.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	// Object Constant
-	m_rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
+	rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
 	// Material Constant
-	m_rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_rootSignature.AddStaticSampler();
-	m_rootSignature.Init(m_device);
+	rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootSignature.AddStaticSampler();
+	rootSignature.Init(m_device);
 
-	m_rootSig = m_rootSignature.Get();
-
-	m_rootSignature.SetEmpty();
+	m_rootSig = rootSignature.Get();
 
 	return true;
 }
