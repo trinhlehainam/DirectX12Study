@@ -7,13 +7,13 @@
 
 #include "../Application.h"
 #include "VMD/VMDMotion.h"
+#include "PMDLoader.h"
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
-#include "PMDLoader.h"
+#include "../Graphics/TextureManager.h"
 
 namespace
 {
-	const char* pmd_path = "resource/PMD/";
 	constexpr unsigned int material_descriptor_count_per_block = 5;
 }
 
@@ -59,7 +59,7 @@ void PMDModel::ClearSubresources()
 	m_pmdLoader.reset();
 }
 
-void PMDModel::SetDefaultTexture(ID3D12Resource* whiteTexture, 
+void PMDModel::SetDefaultTextures(ID3D12Resource* whiteTexture, 
 	ID3D12Resource* blackTexture, ID3D12Resource* gradTexture)
 {
 	m_whiteTexture = whiteTexture;
@@ -70,6 +70,11 @@ void PMDModel::SetDefaultTexture(ID3D12Resource* whiteTexture,
 void PMDModel::SetDevice(ID3D12Device* pDevice)
 {
 	m_device = pDevice;
+}
+
+void PMDModel::SetDefaultToonTextures(TextureManager* defaultToonTextutures)
+{
+	mp_texMng = defaultToonTextutures;
 }
 
 bool PMDModel::Load(const char* path)
@@ -222,8 +227,7 @@ void PMDModel::LoadTextureToBuffer()
 			ToonTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
 			if (!ToonTextures[i])
 			{
-				toonPath = std::string(pmd_path) + "toon/" + m_pmdLoader->ToonPaths[i];
-				ToonTextures[i]= D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+				ToonTextures[i] = mp_texMng->Get(m_pmdLoader->ToonPaths[i]);
 			}
 		}
 		// Load png, sph, spa

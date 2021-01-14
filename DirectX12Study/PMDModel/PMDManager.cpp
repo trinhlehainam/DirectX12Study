@@ -2,8 +2,7 @@
 
 #include <unordered_map>
 #include <cassert>
-
-#include <d3dx12.h>
+#include <sstream>
 
 #include "../common.h"
 #include "PMDModel.h"
@@ -12,6 +11,8 @@
 #include "../Graphics/UploadBuffer.h"
 #include "../Graphics/TextureManager.h"
 #include "../Graphics/RootSignature.h"
+#include "../Utility/D12Helper.h"
+#include "../Utility/StringHelper.h"
 
 #define IMPL (*m_impl)
 
@@ -84,9 +85,12 @@ private:
 	// Use for binding resource of engine to this pipeline
 	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
-	TextureManager m_textureMng;
-
 private:
+	TextureManager m_texMng;
+
+	void CreateDefaultToonTextures(ID3D12GraphicsCommandList* pCmdList);
+private:
+	
 	std::unordered_map<std::string, PMDModel> m_loaders;
 	std::vector<PMDResource> m_resources;
 	std::vector<PMDRenderResource> m_renderResources;
@@ -404,6 +408,39 @@ bool PMDManager::Impl::CheckDefaultBuffers()
 	return m_whiteTexture && m_blackTexture && m_gradTexture;
 }
 
+namespace
+{
+	const char* toon_path = "resource/PMD/toon/";
+	constexpr char toon1[] = "toon01.bmp";
+	constexpr char toon2[] = "toon02.bmp";
+	constexpr char toon3[] = "toon03.bmp";
+	constexpr char toon4[] = "toon04.bmp";
+	constexpr char toon5[] = "toon05.bmp";
+	constexpr char toon6[] = "toon06.bmp";
+	constexpr char toon7[] = "toon07.bmp";
+	constexpr char toon8[] = "toon08.bmp";
+	constexpr char toon9[] = "toon09.bmp";
+	constexpr char toon10[] = "toon10.bmp";
+}
+
+void PMDManager::Impl::CreateDefaultToonTextures(ID3D12GraphicsCommandList* pCmdList)
+{
+	const std::string toon_base = "toon";
+	for (int i = 1; i < 11; ++i)
+	{
+		std::stringstream texName;
+		texName << toon_base;
+		if(i < 10)
+			texName << '0';
+		texName << i;
+
+		std::string texPath = toon_path + texName.str() + ".bmp";
+
+		m_texMng.Create(pCmdList, texName.str(), StringHelper::ConvertStringToWideString(texPath));
+	}
+	
+}
+
 void PMDManager::Impl::UpdateMotionTransform(uint16_t modelIndex, const size_t& currentFrame)
 {
 	// If model don't have animtion, don't need to do motion
@@ -507,6 +544,9 @@ bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 	if (!CheckDefaultBuffers()) return false;
 	if (!CreatePipeline()) return false;
 
+	m_texMng.SetDevice(m_device);
+	CreateDefaultToonTextures(cmdList);
+
 	InitModels(cmdList);
 
 	m_updateFunc = &PMDManager::Impl::NormalUpdate;
@@ -539,10 +579,13 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_transformConstantHeapStart.Offset(materials_descriptor_count, heapSize);
 
-	for (auto& model : m_loaders)
+	for (auto& loader : m_loaders)
 	{
-		model.second.SetDefaultTexture(m_whiteTexture, m_blackTexture, m_gradTexture);
-		model.second.CreateModel(cmdList, heapHandle);
+		auto& model = loader.second;
+
+		model.SetDefaultTextures(m_whiteTexture, m_blackTexture, m_gradTexture);
+		model.SetDefaultToonTextures(&m_texMng);
+		model.CreateModel(cmdList, heapHandle);
 	}
 
 	// Load model datas to Manager's resources

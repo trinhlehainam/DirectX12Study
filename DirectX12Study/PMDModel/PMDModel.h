@@ -14,6 +14,7 @@ using namespace DirectX;
 
 class VMDMotion;
 class PMDLoader;
+class TextureManager;
 
 struct PMDResource
 {
@@ -75,10 +76,11 @@ public:
 	~PMDModel();
 
 	void SetDevice(ID3D12Device* pDevice);
-	bool Load(const char* path);
-	void SetDefaultTexture(ID3D12Resource* whiteTexture,
+	void SetDefaultToonTextures(TextureManager* defaultToonTextutures);
+	void SetDefaultTextures(ID3D12Resource* whiteTexture,
 						   ID3D12Resource* blackTexture,
 						   ID3D12Resource* gradTexture);
+	bool Load(const char* path);
 	void CreateModel(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
 	const std::vector<uint16_t>& Indices() const;
@@ -100,6 +102,8 @@ private:
 	ID3D12Resource* m_gradTexture = nullptr;
 
 	std::unique_ptr<PMDLoader> m_pmdLoader;
+
+	TextureManager* mp_texMng = nullptr;
 
 private:
 	// Create texture from PMD file
