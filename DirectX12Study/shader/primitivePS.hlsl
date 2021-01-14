@@ -31,6 +31,7 @@ PSOutput primitivePS(PrimitiveOut input)
 	float4 diffuseAlbedo = g_texture.Sample(g_smpWrap, input.uv) * g_diffuseAlbedo;
 	
 #ifdef ALPHA_TEST
+	// discard pixel that have zero alpha when sampling texture
 	clip(diffuseAlbedo.a - 0.1f);
 #endif
 	

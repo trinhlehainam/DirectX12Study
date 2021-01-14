@@ -101,9 +101,9 @@ void D3D12App::CreateRenderTargetTexture()
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    D12Helper::CreateDescriptorHeap(m_device.Get(),m_boardRTVHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    D12Helper::CreateDescriptorHeap(m_device.Get(),m_rtvHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     // Main render target
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -311,12 +311,12 @@ void D3D12App::RenderToRenderTargetTexture()
 
     float rtTexDefaultColor[4] = { 0.0f,0.0f,0.0f,1.0f };
     float fogColor[4] = { worldPCB->FogColor.x,worldPCB->FogColor.y,worldPCB->FogColor.z,worldPCB->FogColor.w };
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtNormalTexHeap(m_boardRTVHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtTexHeap(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtNormalTexHeap(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     rtNormalTexHeap.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtHeapHandle[] = { rtTexHeap , rtNormalTexHeap };
-    auto dsvHeap = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto dsvHeap = m_viewDSVHeap->GetCPUDescriptorHandleForHeapStart();
     m_cmdList->OMSetRenderTargets(2, rtHeapHandle, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtTexHeap, fogColor, 0, nullptr);
@@ -333,6 +333,15 @@ void D3D12App::RenderToRenderTargetTexture()
         m_rtTexture.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    // After draw to shadow buffer, change its state from DSV -> SRV
+    // -> Ready to be used as SRV when Render to Back Buffer
+    barrier =
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            m_viewDepthBuffer.Get(),                       // resource buffer
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
     m_cmdList->ResourceBarrier(1, &barrier);
 }
 
@@ -687,36 +696,6 @@ bool D3D12App::CreateBackBufferView()
     return true;
 }
 
-bool D3D12App::CreateDepthBuffer()
-{
-    HRESULT result = S_OK;
-    auto rtvDesc = m_backBuffer[0]->GetDesc();
-
-    CD3DX12_CLEAR_VALUE clearValue(
-        DEFAULT_DEPTH_BUFFER_FORMAT                       // format
-        ,1.0f                                       // depth
-        ,0);                                        // stencil
-
-    m_depthBuffer = D12Helper::CreateTexture2D(m_device.Get(),
-        rtvDesc.Width, rtvDesc.Height, DEFAULT_DEPTH_BUFFER_FORMAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-        D3D12_HEAP_TYPE_DEFAULT,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &clearValue);
-
-    D12Helper::CreateDescriptorHeap(m_device.Get(), m_dsvHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Texture2D.MipSlice = 0; // number order[No] (NOT count of)
-    dsvDesc.Format = DEFAULT_DEPTH_BUFFER_FORMAT;
-    m_device->CreateDepthStencilView(
-        m_depthBuffer.Get(),
-        &dsvDesc,
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    return true;
-}
-
 void D3D12App::CreateShadowMapping()
 {
     CreateShadowDepthBuffer();
@@ -896,8 +875,6 @@ void D3D12App::CreateShadowPipelineState()
 void D3D12App::CreateViewDepth()
 {
     CreateViewDepthBuffer();
-    CreateViewDepthRootSignature();
-    CreateViewDepthPipelineState();
 }
 
 bool D3D12App::CreateViewDepthBuffer()
@@ -930,145 +907,6 @@ bool D3D12App::CreateViewDepthBuffer()
     return true;
 }
 
-void D3D12App::CreateViewDepthRootSignature()
-{
-    HRESULT result = S_OK;
-    //Root Signature
-    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
-    D3D12_ROOT_PARAMETER rootParam[2] = {};
-
-    // World pass constant
-    CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(rootParam[0], 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    // Object constant
-    range[0] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
-        1);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
-
-    rtSigDesc.pParameters = rootParam;
-    rtSigDesc.NumParameters = _countof(rootParam);
-
-    ComPtr<ID3DBlob> rootSigBlob;
-    ComPtr<ID3DBlob> errBlob;
-    result = D3D12SerializeRootSignature(&rtSigDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-        &rootSigBlob,
-        &errBlob);
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
-        IID_PPV_ARGS(m_viewDepthRootSig.GetAddressOf()));
-    assert(SUCCEEDED(result));
-}
-
-void D3D12App::CreateViewDepthPipelineState()
-{
-    HRESULT result = S_OK;
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    //IA(Input-Assembler...つまり頂点入力)
-    //まず入力レイアウト（ちょうてんのフォーマット）
-
-    D3D12_INPUT_ELEMENT_DESC layout[] = {
-    {
-    "POSITION",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    0,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0},
-    {
-    "NORMAL",
-    0,
-    DXGI_FORMAT_R32G32B32_FLOAT,
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0
-    },
-        // UV layout
-        {
-        "TEXCOORD",
-        0,
-        DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        },
-        {
-        "BONENO",
-        0,
-        DXGI_FORMAT_R16G16_UINT,
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        },
-        {
-        "WEIGHT",
-        0,
-        DXGI_FORMAT_R32_FLOAT,
-        0,
-        D3D12_APPEND_ALIGNED_ELEMENT,
-        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-        0
-        }
-    };
-
-    // Input Assembler
-    psoDesc.InputLayout.NumElements = _countof(layout);
-    psoDesc.InputLayout.pInputElementDescs = layout;
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-    // Vertex Shader
-    ComPtr<ID3DBlob> errBlob;
-    ComPtr<ID3DBlob> vsBlob;
-    result = D3DCompileFromFile(
-        L"Shader/VS.hlsl",                                  // path to shader file
-        nullptr,                                            // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
-        "VS",                                               // entry name
-        "vs_5_1",                                           // shader version
-        0, 0,                                               // Flag1, Flag2 (unknown)
-        vsBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
-    // Rasterizer
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-    // Other set up
-
-    // Depth/Stencil
-    psoDesc.DSVFormat = DEFAULT_DEPTH_BUFFER_FORMAT;
-    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
-    psoDesc.NodeMask = 0;
-    psoDesc.SampleDesc.Count = 1;
-    psoDesc.SampleDesc.Quality = 0;
-    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-    // Output set up
-    // Blend
-    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-    // Root Signature
-    psoDesc.pRootSignature = m_viewDepthRootSig.Get();
-
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_viewDepthPipeline.GetAddressOf()));
-    assert(SUCCEEDED(result));
-}
-
 void D3D12App::RenderToShadowDepthBuffer()
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(m_shadowDSVHeap->GetCPUDescriptorHandleForHeapStart());
@@ -1096,38 +934,6 @@ void D3D12App::RenderToShadowDepthBuffer()
     D3D12_RESOURCE_BARRIER barrier =
         CD3DX12_RESOURCE_BARRIER::Transition(
             m_shadowDepthBuffer.Get(),                       // resource buffer
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
-    m_cmdList->ResourceBarrier(1, &barrier);
-}
-
-void D3D12App::RenderToViewDepthBuffer()
-{
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeap(m_viewDSVHeap->GetCPUDescriptorHandleForHeapStart());
-    m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
-    m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-
-    m_cmdList->SetPipelineState(m_viewDepthPipeline.Get());
-    m_cmdList->SetGraphicsRootSignature(m_viewDepthRootSig.Get());
-
-    CD3DX12_VIEWPORT vp(m_viewDepthBuffer.Get());
-    m_cmdList->RSSetViewports(1, &vp);
-
-    auto desc = m_viewDepthBuffer->GetDesc();
-    CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
-    m_cmdList->RSSetScissorRects(1, &rc);
-
-    m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_primitiveManager->RenderDepth(m_cmdList.Get());
-
-    m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_pmdManager->RenderDepth(m_cmdList.Get());
-
-    // After draw to shadow buffer, change its state from DSV -> SRV
-    // -> Ready to be used as SRV when Render to Back Buffer
-    D3D12_RESOURCE_BARRIER barrier =
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            m_viewDepthBuffer.Get(),                       // resource buffer
             D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
     m_cmdList->ResourceBarrier(1, &barrier);
@@ -1260,7 +1066,6 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateSwapChain(hwnd);
     CreateBackBufferView();
     CreateTextureManager();
-    CreateDepthBuffer();  
     CreateWorldPassConstant();
     CreateMaterials();
     CreateShadowMapping();
@@ -1575,7 +1380,6 @@ bool D3D12App::Render()
     m_cmdList->Reset(cmdAlloc.Get(), nullptr);
 
     RenderToShadowDepthBuffer();
-    RenderToViewDepthBuffer();
     RenderToRenderTargetTexture();
     RenderToBackBuffer();
     SetResourceStateForNextFrame();

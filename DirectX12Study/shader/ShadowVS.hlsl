@@ -24,7 +24,11 @@ VsOutput ShadowVS(VsInput input)
 
 	matrix skinMat = g_bones[input.boneno.x] * input.weight + g_bones[input.boneno.y] * (1.0f - input.weight);
 	//ret.pos = mul(g_world, mul(skinMat, input.pos));
+	
+	// test
 	ret.pos = mul(g_world, input.pos);
+	//
+	
 	ret.svpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 
 	return ret;

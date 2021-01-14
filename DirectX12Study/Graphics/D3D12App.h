@@ -108,10 +108,11 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_bbRTVHeap;
 	bool CreateBackBufferView();
 
-	// Depth/Stencil Buffer
-	ComPtr<ID3D12Resource> m_depthBuffer;
-	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-	bool CreateDepthBuffer();
+	// View depth buffer
+	void CreateViewDepth();
+	bool CreateViewDepthBuffer();
+	ComPtr<ID3D12Resource> m_viewDepthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
 
 	// White Texture
 	ComPtr<ID3D12Resource> m_whiteTexture;
@@ -158,7 +159,7 @@ private:
 
 	ComPtr<ID3D12Resource> m_rtTexture = nullptr;
 	ComPtr<ID3D12Resource> m_rtNormalTexture = nullptr;
-	ComPtr<ID3D12DescriptorHeap> m_boardRTVHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> m_boardSRVHeap = nullptr;
 
 	// ‚Ø‚çƒ|ƒŠ’¸“_
@@ -182,20 +183,10 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
 	ComPtr<ID3D12PipelineState> m_shadowPipeline;
 	ComPtr<ID3D12RootSignature> m_shadowRootSig;
-private:
-	void CreateViewDepth();
-	bool CreateViewDepthBuffer();
-	void CreateViewDepthRootSignature();
-	void CreateViewDepthPipelineState();
 
-	ComPtr<ID3D12Resource> m_viewDepthBuffer;
-	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
-	ComPtr<ID3D12PipelineState> m_viewDepthPipeline;
-	ComPtr<ID3D12RootSignature> m_viewDepthRootSig;
 private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();
-	void RenderToViewDepthBuffer();
 	void RenderToRenderTargetTexture();
 	void RenderToBackBuffer();
 
@@ -215,6 +206,5 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
-
 };
 
