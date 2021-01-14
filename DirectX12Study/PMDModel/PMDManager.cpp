@@ -11,6 +11,7 @@
 #include "VMD/VMDMotion.h"
 #include "../Graphics/UploadBuffer.h"
 #include "../Graphics/TextureManager.h"
+#include "../Graphics/RootSignature.h"
 
 #define IMPL (*m_impl)
 
@@ -72,16 +73,17 @@ private:
 	ID3D12Resource* m_blackTexture = nullptr;
 	ID3D12Resource* m_gradTexture = nullptr;
 	/*-----------------------------------------*/
-
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
+	
+	RootSignature m_rootSignature;
+	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
+	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
 
 	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassGpuAdress = 0;
 
 	// Shadow depth buffer binds only to PIXEL SHADER
 	// Descriptor heap stores descriptor of shadow depth buffer
 	// Use for binding resource of engine to this pipeline
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
 
 	TextureManager m_textureMng;
 
@@ -284,65 +286,20 @@ bool PMDManager::Impl::CreatePipeline()
 
 bool PMDManager::Impl::CreateRootSignature()
 {
-	HRESULT result = S_OK;
-	//Root Signature
-	D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	CD3DX12_ROOT_PARAMETER parameter[4] = {};
-	CD3DX12_DESCRIPTOR_RANGE range[4] = {};
-
-	// World Pass Constant
-	parameter[0].InitAsConstantBufferView(0);
-
+	// World pass constant
+	m_rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CONSTANT_BUFFER_VIEW);
 	// Depth
-	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
-	parameter[1].InitAsDescriptorTable(1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
-
+	m_rootSignature.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	// Object Constant
-	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	parameter[2].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_VERTEX);
+	m_rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
+	// Material Constant
+	m_rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_rootSignature.AddStaticSampler();
+	m_rootSignature.Init(m_device);
 
-	// Material
-	range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-	range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 2);
-	parameter[3].InitAsDescriptorTable(2, &range[2], D3D12_SHADER_VISIBILITY_PIXEL);
+	m_rootSig = m_rootSignature.Get();
 
-	rtSigDesc.pParameters = parameter;
-	rtSigDesc.NumParameters = _countof(parameter);
-
-	//サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
-	//動きyや、UVをもとに色をとってくるときのルールを指定するもの
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
-	//WRAPは繰り返しを表す。
-	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
-		0,                                  // shader register location
-		D3D12_FILTER_MIN_MAG_MIP_POINT);    // Filter     
-
-	samplerDesc[1] = samplerDesc[0];
-	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	samplerDesc[1].ShaderRegister = 1;
-
-	samplerDesc[2] = samplerDesc[0];
-	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-	samplerDesc[2].ShaderRegister = 2;
-	samplerDesc[2].MaxAnisotropy = 1;
-	samplerDesc[2].MipLODBias = 0.0f;
-
-	rtSigDesc.pStaticSamplers = samplerDesc;
-	rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
-
-	ComPtr<ID3DBlob> rootSigBlob;
-	ComPtr<ID3DBlob> errBlob;
-	D12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&rtSigDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-		&rootSigBlob,
-		&errBlob));
-	D12Helper::OutputFromErrorBlob(errBlob);
-	D12Helper::ThrowIfFailed(m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(),
-		rootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_rootSig.ReleaseAndGetAddressOf())));
+	m_rootSignature.SetEmpty();
 
 	return true;
 }

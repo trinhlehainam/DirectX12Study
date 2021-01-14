@@ -158,10 +158,13 @@
     <ClCompile Include="Input\MouseEvent.cpp" />
     <ClCompile Include="Graphics\Material.cpp" />
     <ClCompile Include="Graphics\Light.cpp" />
+    <ClCompile Include="Graphics\PipelineState.cpp" />
+    <ClCompile Include="Graphics\PipelineManager.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="Graphics\DefaultBuffer.cpp" />
     <ClCompile Include="Geometry\PrimitiveManager.cpp" />
     <ClCompile Include="Graphics\TextureManager.cpp" />
+    <ClCompile Include="Graphics\RootSignature.cpp" />
     <ClCompile Include="Utility\D12Helper.cpp" />
     <ClCompile Include="Geometry\GeometryGenerator.cpp" />
     <ClCompile Include="Input\Keyboard.cpp" />
@@ -186,10 +189,13 @@
     <ClInclude Include="Input\MouseEvent.h" />
     <ClInclude Include="Graphics\Material.h" />
     <ClInclude Include="Graphics\Light.h" />
+    <ClInclude Include="Graphics\PipelineState.h" />
+    <ClInclude Include="Graphics\PipelineManager.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="Graphics\DefaultBuffer.h" />
     <ClInclude Include="Geometry\PrimitiveManager.h" />
     <ClInclude Include="Graphics\TextureManager.h" />
+    <ClInclude Include="Graphics\RootSignature.h" />
     <ClInclude Include="Utility\D12Helper.h" />
     <ClInclude Include="Geometry\GeometryGenerator.h" />
     <ClInclude Include="Input\Keyboard.h" />
