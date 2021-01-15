@@ -292,7 +292,7 @@ bool PMDManager::Impl::CreateRootSignature()
 	RootSignature rootSignature;
 
 	// World pass constant
-	rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CONSTANT_BUFFER_VIEW);
+	rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CBV);
 	// Depth
 	rootSignature.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	// Object Constant
@@ -300,10 +300,11 @@ bool PMDManager::Impl::CreateRootSignature()
 	// Material Constant
 	rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootSignature.AddStaticSampler();
-	rootSignature.Init(m_device);
+	rootSignature.Create(m_device);
 
 	m_rootSig = rootSignature.Get();
-
+	rootSignature.Reset();
+	
 	return true;
 }
 

@@ -16,7 +16,7 @@ private:
 	Impl();
 	~Impl();
 private:
-	ID3D12RootSignature* m_rootSig = nullptr;
+	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
 	std::unordered_map<uint16_t,std::vector<CD3DX12_DESCRIPTOR_RANGE>> m_ranges;
 	std::vector<CD3DX12_ROOT_PARAMETER> m_params;
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> m_samplers;
@@ -34,7 +34,7 @@ RootSignature::Impl::Impl()
 
 RootSignature::Impl::~Impl()
 {
-	m_rootSig = nullptr;
+
 }
 
 RootSignature::RootSignature():m_impl(new Impl())
@@ -77,14 +77,14 @@ bool RootSignature::AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDe
 	
 	switch (rootDescriptor)
 	{
-	case CONSTANT_BUFFER_VIEW:
+	case CBV:
 		CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(param, IMPL.m_cbvIndex, shaderVisibility);
 		IMPL.m_params.push_back(std::move(param));
 		++IMPL.m_cbvIndex;
 		break;
-	case SHADER_RESOURCE_VIEW:
+	case SRV:
 		break;
-	case UNORDERED_ACCESS_VIEW:
+	case UAV:
 		break;
 	default:
 		return false;
@@ -110,7 +110,7 @@ void RootSignature::AddStaticSampler()
 	IMPL.m_samplers.push_back(sampler2);
 }
 
-bool RootSignature::Init(ID3D12Device* pDevice)
+bool RootSignature::Create(ID3D12Device* pDevice)
 {
 	CD3DX12_ROOT_SIGNATURE_DESC desc(
 		IMPL.m_params.size(), IMPL.m_params.data(),
@@ -128,26 +128,25 @@ bool RootSignature::Init(ID3D12Device* pDevice)
 		rootSigBlob->GetBufferSize(),IID_PPV_ARGS(&IMPL.m_rootSig))
 	);
 
-	IMPL.m_ranges.clear();
-	IMPL.m_samplers.clear();
-	IMPL.m_params.clear();
-
 	return true;
 }
 
-ID3D12RootSignature* RootSignature::Get()
+ID3D12RootSignature* RootSignature::Get() const
 {
-	return IMPL.m_rootSig;
+	return IMPL.m_rootSig.Get();
 }
 
-void RootSignature::SetEmpty()
+void RootSignature::Reset()
 {
-	IMPL.m_rootSig = nullptr;
+	IMPL.m_rootSig.Reset();
 	IMPL.m_cbvIndex = 0;
 	IMPL.m_srvIndex = 0;
 	IMPL.m_uavIndex = 0;
 	IMPL.m_samplerCnt = 0;
 	IMPL.m_rangeIndex = 0;
+	IMPL.m_ranges.clear();
+	IMPL.m_samplers.clear();
+	IMPL.m_params.clear();
 }
 
 RootSignature::RootSignature(const RootSignature&)

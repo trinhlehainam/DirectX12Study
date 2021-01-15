@@ -2,16 +2,16 @@
 #include <d3d12.h>
 
 /*
-* Object encapsulates methods that using to create Root Signature Interface
+* Object encapsulates methods that using to create Root Signature
 */
 class RootSignature
 {
 public:
 	enum ROOT_DESCRIPTOR_TYPE
 	{
-		CONSTANT_BUFFER_VIEW,
-		SHADER_RESOURCE_VIEW,
-		UNORDERED_ACCESS_VIEW
+		CBV,
+		SRV,
+		UAV
 	};
 public:
 	RootSignature();
@@ -22,9 +22,9 @@ public:
 	bool AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor,
 		D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL);
 	void AddStaticSampler();
-	bool Init(ID3D12Device* pDevice);
-	ID3D12RootSignature* Get();
-	void SetEmpty();
+	bool Create(ID3D12Device* pDevice);
+	ID3D12RootSignature* Get() const;
+	void Reset();
 private:
 	RootSignature(const RootSignature&);
 	void operator = (const RootSignature&);
