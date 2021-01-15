@@ -30,16 +30,16 @@ private:
 private:
 	bool m_isInitDone = false;
 	// Device from engine
-	ID3D12Device* m_device = nullptr;
+	ComPtr<ID3D12Device> m_device;
 
-	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
+	ComPtr<ID3D12RootSignature> m_rootSig;
+	ComPtr<ID3D12PipelineState> m_pipeline;
 
 	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassAdress = 0;
 
 	// Descriptor heap stores descriptor of depth buffer
 	// Use for binding resource of engine to this pipeline
-	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_depthHeap;
 	uint16_t m_depthBufferCount = 0;
 
 	struct ObjectConstant
@@ -49,11 +49,11 @@ private:
 	};
 
 	UploadBuffer<ObjectConstant> m_objectConstant;
-	ComPtr<ID3D12DescriptorHeap> m_objectHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_objectHeap;
 
-	ID3D12Resource* m_whiteTex = nullptr;
-	ID3D12Resource* m_blackTex = nullptr;
-	ID3D12Resource* m_gradTex = nullptr;
+	ComPtr<ID3D12Resource> m_whiteTex;
+	ComPtr<ID3D12Resource> m_blackTex;
+	ComPtr<ID3D12Resource> m_gradTex;
 
 private:
 	Mesh<Geometry::Vertex> m_mesh;
@@ -61,7 +61,7 @@ private:
 	{
 		Geometry::Mesh Primitive;
 		D3D12_GPU_VIRTUAL_ADDRESS MaterialCBAdress;
-		ID3D12Resource* Texture;
+		ComPtr<ID3D12Resource> Texture;
 	};
 	std::unordered_map<std::string, Loader> m_loaders;
 	struct DrawData
@@ -85,9 +85,6 @@ PrimitiveManager::Impl::Impl(ID3D12Device* pDevice):m_device(pDevice)
 PrimitiveManager::Impl::~Impl()
 {
 	m_device = nullptr;
-	m_whiteTex = nullptr;
-	m_blackTex = nullptr;
-	m_gradTex = nullptr;
 }
 
 bool PrimitiveManager::Impl::CreatePipeline()
@@ -276,15 +273,16 @@ bool PrimitiveManager::SetDefaultTexture(ID3D12Resource* whiteTexture, ID3D12Res
 
 bool PrimitiveManager::Impl::CreateObjectHeap()
 {
-	const auto num_primitive = m_drawDatas.size();
-	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, num_primitive, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	m_objectConstant.Create(m_device, num_primitive, true);
+	const auto num_primitive = m_drawDatas.size() * 2;
+	D12Helper::CreateDescriptorHeap(m_device.Get(), m_objectHeap, num_primitive, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	m_objectConstant.Create(m_device.Get(), num_primitive, true);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
 	const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	// Transform Constant
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.SizeInBytes = m_objectConstant.ElementSize();
-
 	for (const auto& drawData : m_drawDatas)
 	{
 		const auto& name = drawData.first;
@@ -300,6 +298,11 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 		heapHandle.Offset(1, heap_size);
 	}
 
+	// Material
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	for (const auto& drawData : m_drawDatas)
 	{
 		const auto& name = drawData.first;
@@ -309,12 +312,9 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 		auto texture = m_loaders[name].Texture;
 		texture = texture != nullptr ? texture : m_whiteTex;
 		auto texDesc = texture->GetDesc();
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = texDesc.Format;
-		srvDesc.Texture2D.MipLevels = 1;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		m_device->CreateShaderResourceView(texture, &srvDesc, heapHandle);
+
+		m_device->CreateShaderResourceView(texture.Get(), &srvDesc, heapHandle);
 		
 		heapHandle.Offset(1, heap_size);
 	}
@@ -366,7 +366,7 @@ bool PrimitiveManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	assert(IMPL.m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	D12Helper::CreateDescriptorHeap(IMPL.m_device, IMPL.m_depthHeap, 1,
+	D12Helper::CreateDescriptorHeap(IMPL.m_device.Get(), IMPL.m_depthHeap, 1,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -486,7 +486,7 @@ bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
 
 	IMPL.CreateObjectHeap();
 
-	IMPL.m_mesh.CreateBuffers(IMPL.m_device, cmdList);
+	IMPL.m_mesh.CreateBuffers(IMPL.m_device.Get(), cmdList);
 	IMPL.m_mesh.CreateViews();
 	IMPL.m_loaders.clear();
 

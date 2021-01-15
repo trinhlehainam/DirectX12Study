@@ -8,6 +8,7 @@
 #include <DirectXTex.h>
 #include <DirectXColors.h>
 
+#include "RootSignature.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
@@ -735,39 +736,12 @@ bool D3D12App::CreateShadowDepthBuffer()
 
 void D3D12App::CreateShadowRootSignature()
 {
-    HRESULT result = S_OK;
-    //Root Signature
-    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    RootSignature rootSignature;
+    rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
+    rootSignature.Create(m_device.Get());
 
-    // Descriptor table
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
-    D3D12_ROOT_PARAMETER rootParam[2] = {};
-
-    // World pass constant
-    CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(rootParam[0], 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    // Object constant
-    range[0] = CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-        1,                                      // number of descriptors
-        1);                                     // base shader register
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(rootParam[1], 1, &range[0], D3D12_SHADER_VISIBILITY_VERTEX);
-   
-    rtSigDesc.pParameters = rootParam;
-    rtSigDesc.NumParameters = _countof(rootParam);
-
-    ComPtr<ID3DBlob> rootSigBlob;
-    ComPtr<ID3DBlob> errBlob;
-    result = D3D12SerializeRootSignature(&rtSigDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,             //¦ 
-        &rootSigBlob,
-        &errBlob);
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
-        IID_PPV_ARGS(m_shadowRootSig.GetAddressOf()));
-    assert(SUCCEEDED(result));
+    m_shadowRootSig = rootSignature.Get();
 }
 
 void D3D12App::CreateShadowPipelineState()
@@ -994,6 +968,7 @@ D3D12App::D3D12App()
 
 D3D12App::~D3D12App()
 {
+
 }
 
 bool D3D12App::Initialize(const HWND& hwnd)
@@ -1003,16 +978,17 @@ bool D3D12App::Initialize(const HWND& hwnd)
     result = CoInitializeEx(0, COINIT_MULTITHREADED);
     assert(SUCCEEDED(result));
 
+    UINT factoryFlag = 0;
 #if defined(DEBUG) || defined(_DEBUG)
-    //ComPtr<ID3D12Debug> debug;
-    //D3D12GetDebugInterface(IID_PPV_ARGS(debug.ReleaseAndGetAddressOf()));
-    //debug->EnableDebugLayer();
-
-    result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(m_dxgi.ReleaseAndGetAddressOf()));
-
-#else
-    result = CreateDXGIFactory2(0, IID_PPV_ARGS(dxgi_.GetAddressOf()));
+    ComPtr<ID3D12Debug> debug;
+    result = D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+    if (SUCCEEDED(result))
+    {
+        debug->EnableDebugLayer();
+        factoryFlag = DXGI_CREATE_FACTORY_DEBUG;
+    }
 #endif
+    result = CreateDXGIFactory2(factoryFlag, IID_PPV_ARGS(&m_dxgi));
     assert(SUCCEEDED(result));
 
     D3D_FEATURE_LEVEL featureLevels[] = {
@@ -1024,8 +1000,8 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     // Check all adapters (Graphics cards)
     UINT i = 0;
-    IDXGIAdapter* pAdapter = nullptr;
-    std::vector<IDXGIAdapter*> adapterList;
+    ComPtr<IDXGIAdapter> pAdapter;
+    std::vector<ComPtr<IDXGIAdapter>> adapterList;
     while (m_dxgi->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
     {
         DXGI_ADAPTER_DESC desc;
@@ -1035,8 +1011,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
         text += L"/n";
 
         std::cout << text.c_str() << std::endl;
-        adapterList.push_back(pAdapter);
-
+        adapterList.push_back(std::move(pAdapter));
         ++i;
     }
 
@@ -1044,12 +1019,12 @@ bool D3D12App::Initialize(const HWND& hwnd)
     {
         //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1], fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1].Get(), fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+
+        if (SUCCEEDED(result))
+            break;
+
         if (FAILED(result)) {
-            //IDXGIAdapter4* pAdapter;
-            //dxgi_->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter));
-            //result = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(dev_.ReleaseAndGetAddressOf()));
-            //OutputDebugString(L"Feature level not found");
             return false;
         }
     }
@@ -1399,6 +1374,7 @@ void D3D12App::Terminate()
 {
     EffekseerTerminate();
     m_currentFrameResource = nullptr;
+    CoUninitialize();
 }
 
 void D3D12App::ClearKeyState()

@@ -117,8 +117,8 @@ bool RootSignature::Create(ID3D12Device* pDevice)
 		IMPL.m_samplers.size(), IMPL.m_samplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	ComPtr<ID3DBlob> rootSigBlob = nullptr;
-	ComPtr<ID3DBlob> errorBlob = nullptr;
+	ComPtr<ID3DBlob> rootSigBlob;
+	ComPtr<ID3DBlob> errorBlob;
 	D12Helper::ThrowIfFailed(D3D12SerializeRootSignature(&desc,
 		D3D_ROOT_SIGNATURE_VERSION_1_0, rootSigBlob.GetAddressOf(), 
 		errorBlob.GetAddressOf())
@@ -127,6 +127,8 @@ bool RootSignature::Create(ID3D12Device* pDevice)
 	D12Helper::ThrowIfFailed(pDevice->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), 
 		rootSigBlob->GetBufferSize(),IID_PPV_ARGS(&IMPL.m_rootSig))
 	);
+
+	pDevice->Release();
 
 	return true;
 }
