@@ -3,10 +3,10 @@
 #include <cassert>
 #include <unordered_map>
 
+#include "Mesh.h"
 #include "../Utility/D12Helper.h"
 #include "../Graphics/TextureManager.h"
 #include "../Graphics/UploadBuffer.h"
-#include "Mesh.h"
 
 #define IMPL (*m_impl)
 

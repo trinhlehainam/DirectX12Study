@@ -30,10 +30,7 @@ PMDModel::PMDModel(ID3D12Device* device) :
 
 PMDModel::~PMDModel()
 {
-	m_device = nullptr;
-	m_whiteTexture = nullptr;
-	m_blackTexture = nullptr;
-	m_gradTexture = nullptr;
+	mp_texMng = nullptr;
 }
 
 void PMDModel::CreateModel(ID3D12GraphicsCommandList* cmdList, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
@@ -102,7 +99,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 	size_t strideBytes = D12Helper::AlignedConstantBufferMemory(sizeof(PMDMaterial));
 	size_t sizeInBytes = num_materials_block * strideBytes;
 
-	Resource.MaterialConstant = D12Helper::CreateBuffer(m_device, sizeInBytes);
+	Resource.MaterialConstant = D12Helper::CreateBuffer(m_device.Get(), sizeInBytes);
 	auto gpuAddress = Resource.MaterialConstant->GetGPUVirtualAddress();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -149,7 +146,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		// Create SRV for main texture (image)
 		srvDesc.Format = Resource.Textures[i] ? Resource.Textures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!Resource.Textures[i].Get() ? m_whiteTexture : Resource.Textures[i].Get(),
+			!Resource.Textures[i].Get() ? m_whiteTexture.Get() : Resource.Textures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -164,7 +161,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		// Create SRV for sphere mapping texture (sph)
 		srvDesc.Format = Resource.sphTextures[i] ? Resource.sphTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!Resource.sphTextures[i].Get() ? m_whiteTexture : Resource.sphTextures[i].Get(),
+			!Resource.sphTextures[i].Get() ? m_whiteTexture.Get() : Resource.sphTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -179,7 +176,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		// Create SRV for sphere mapping texture (spa)
 		srvDesc.Format = Resource.spaTextures[i] ? Resource.spaTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!Resource.spaTextures[i].Get() ? m_blackTexture : Resource.spaTextures[i].Get(),
+			!Resource.spaTextures[i].Get() ? m_blackTexture.Get() : Resource.spaTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -194,7 +191,7 @@ bool PMDModel::CreateMaterialAndTextureBuffer(ID3D12GraphicsCommandList* cmdList
 		// Create SRV for toon map
 		srvDesc.Format = Resource.ToonTextures[i] ? Resource.ToonTextures[i]->GetDesc().Format : DXGI_FORMAT_R8G8B8A8_UNORM;
 		m_device->CreateShaderResourceView(
-			!Resource.ToonTextures[i].Get() ? m_gradTexture : Resource.ToonTextures[i].Get(),
+			!Resource.ToonTextures[i].Get() ? m_gradTexture.Get() : Resource.ToonTextures[i].Get(),
 			&srvDesc,
 			heapAddress
 		);
@@ -224,7 +221,7 @@ void PMDModel::LoadTextureToBuffer()
 			std::string toonPath;
 			
 			toonPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, m_pmdLoader->ToonPaths[i].c_str());
-			ToonTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(toonPath));
+			ToonTextures[i] = D12Helper::CreateTextureFromFilePath(m_device.Get(), StringHelper::ConvertStringToWideString(toonPath));
 			if (!ToonTextures[i])
 			{
 				ToonTextures[i] = mp_texMng->Get(m_pmdLoader->ToonPaths[i]);
@@ -240,17 +237,17 @@ void PMDModel::LoadTextureToBuffer()
 				if (ext == "sph")
 				{
 					auto sphPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					sphTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(sphPath));
+					sphTextures[i] = D12Helper::CreateTextureFromFilePath(m_device.Get(), StringHelper::ConvertStringToWideString(sphPath));
 				}
 				else if (ext == "spa")
 				{
 					auto spaPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					spaTextures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(spaPath));
+					spaTextures[i] = D12Helper::CreateTextureFromFilePath(m_device.Get(), StringHelper::ConvertStringToWideString(spaPath));
 				}
 				else
 				{
 					auto texPath = StringHelper::GetTexturePathFromModelPath(m_pmdLoader->Path, path.c_str());
-					Textures[i] = D12Helper::CreateTextureFromFilePath(m_device, StringHelper::ConvertStringToWideString(texPath));
+					Textures[i] = D12Helper::CreateTextureFromFilePath(m_device.Get(), StringHelper::ConvertStringToWideString(texPath));
 				}
 			}
 		}

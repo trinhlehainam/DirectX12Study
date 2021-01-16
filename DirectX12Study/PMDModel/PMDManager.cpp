@@ -67,23 +67,23 @@ private:
 
 	/*----------RESOURCE FROM ENGINE----------*/
 	// Device from engine
-	ID3D12Device* m_device = nullptr;
+	ComPtr<ID3D12Device> m_device;
 
 	// Default resources from engine
-	ID3D12Resource* m_whiteTexture = nullptr;
-	ID3D12Resource* m_blackTexture = nullptr;
-	ID3D12Resource* m_gradTexture = nullptr;
+	ComPtr<ID3D12Resource> m_whiteTexture;
+	ComPtr<ID3D12Resource> m_blackTexture;
+	ComPtr<ID3D12Resource> m_gradTexture;
 	/*-----------------------------------------*/
 	
-	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
-	ComPtr<ID3D12PipelineState> m_pipeline = nullptr;
+	ComPtr<ID3D12RootSignature> m_rootSig;
+	ComPtr<ID3D12PipelineState> m_pipeline;
 
 	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassGpuAdress = 0;
 
 	// Shadow depth buffer binds only to PIXEL SHADER
 	// Descriptor heap stores descriptor of shadow depth buffer
 	// Use for binding resource of engine to this pipeline
-	ComPtr<ID3D12DescriptorHeap> m_depthHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> m_depthHeap;
 
 private:
 	TextureManager m_texMng;
@@ -147,10 +147,6 @@ PMDManager::Impl::Impl(ID3D12Device* pDevice) :m_device(pDevice)
 
 PMDManager::Impl::~Impl()
 {
-	m_device = nullptr;
-	m_whiteTexture = nullptr;
-	m_blackTexture = nullptr;
-	m_gradTexture = nullptr;
 }
 
 void PMDManager::Impl::Update(const float& deltaTime)
@@ -300,7 +296,7 @@ bool PMDManager::Impl::CreateRootSignature()
 	// Material Constant
 	rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootSignature.AddStaticSampler();
-	rootSignature.Create(m_device);
+	rootSignature.Create(m_device.Get());
 
 	m_rootSig = rootSignature.Get();
 	rootSignature.Reset();
@@ -545,7 +541,7 @@ bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 	if (!CheckDefaultBuffers()) return false;
 	if (!CreatePipeline()) return false;
 
-	m_texMng.SetDevice(m_device);
+	m_texMng.SetDevice(m_device.Get());
 	CreateDefaultToonTextures(cmdList);
 
 	InitModels(cmdList);
@@ -574,7 +570,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	descriptor_count = materials_descriptor_count + model_count;
 
 	// Create object constant heap
-	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, descriptor_count,
+	D12Helper::CreateDescriptorHeap(m_device.Get(), m_objectHeap, descriptor_count,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
 	m_transformConstantHeapStart = m_objectHeap->GetGPUDescriptorHandleForHeapStart();
@@ -585,7 +581,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	{
 		auto& model = loader.second;
 
-		model.SetDefaultTextures(m_whiteTexture, m_blackTexture, m_gradTexture);
+		model.SetDefaultTextures(m_whiteTexture.Get(), m_blackTexture.Get(), m_gradTexture.Get());
 		model.SetDefaultToonTextures(&m_texMng);
 		model.CreateModel(cmdList, heapHandle);
 	}
@@ -611,7 +607,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	}
 
 	// Create object constant
-	m_objectConstant.Create(m_device, model_count, true);
+	m_objectConstant.Create(m_device.Get(), model_count, true);
 	for (uint16_t i = 0; i < model_count; ++i)
 	{
 		auto hMappedData = m_objectConstant.GetHandleMappedData(i);
@@ -677,7 +673,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 			m_mesh.Vertices.push_back(vertex);
 	}
 
-	m_mesh.CreateBuffers(m_device, cmdList);
+	m_mesh.CreateBuffers(m_device.Get(), cmdList);
 	m_mesh.CreateViews();
 
 	m_loaders.clear();
@@ -778,7 +774,7 @@ bool PMDManager::SetWorldShadowMap(ID3D12Resource* pShadowDepthBuffer)
 	assert(IMPL.m_device);
 	if (pShadowDepthBuffer == nullptr) return false;
 
-	D12Helper::CreateDescriptorHeap(IMPL.m_device, m_impl->m_depthHeap, 2,
+	D12Helper::CreateDescriptorHeap(IMPL.m_device.Get(), m_impl->m_depthHeap, 2,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	auto rsDes = pShadowDepthBuffer->GetDesc();
@@ -842,7 +838,7 @@ bool PMDManager::CreateModel(const std::string& modelName, const char* modelFile
 {
 	assert(!IMPL.HasModel(modelName));
 	if (IMPL.HasModel(modelName)) return false;
-	IMPL.m_loaders[modelName].SetDevice(IMPL.m_device);
+	IMPL.m_loaders[modelName].SetDevice(IMPL.m_device.Get());
 	IMPL.m_loaders[modelName].Load(modelFilePath);
 	IMPL.m_modelIndices[modelName] = ++IMPL.m_count;
 	return true;

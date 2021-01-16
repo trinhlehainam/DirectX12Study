@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+
 #include <d3dx12.h>
 
 #include "PMDCommon.h"
@@ -96,10 +97,10 @@ public:
 	uint16_t MaterialDescriptorCount = 0;
 private:
 	// Resource from PMD Manager
-	ID3D12Device* m_device = nullptr;
-	ID3D12Resource* m_whiteTexture = nullptr;
-	ID3D12Resource* m_blackTexture = nullptr;
-	ID3D12Resource* m_gradTexture = nullptr;
+	ComPtr<ID3D12Device> m_device;
+	ComPtr<ID3D12Resource> m_whiteTexture;
+	ComPtr<ID3D12Resource> m_blackTexture;
+	ComPtr<ID3D12Resource> m_gradTexture;
 
 	std::unique_ptr<PMDLoader> m_pmdLoader;
 

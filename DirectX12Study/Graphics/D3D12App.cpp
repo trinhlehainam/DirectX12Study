@@ -376,7 +376,7 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_cmdList->DrawInstanced(4, 1, 0, 0);
 
-    //EffekseerRender();
+    EffekseerRender();
 
 }
 
@@ -470,7 +470,6 @@ void D3D12App::EffekseerUpdate(const float& deltaTime)
             Effekseer::Vector3D(cameraPos.x, cameraPos.y, cameraPos.z),
             Effekseer::Vector3D(targetPos.x, targetPos.y, targetPos.z),
             Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
-    
 }
 
 void D3D12App::EffekseerRender()
@@ -492,12 +491,12 @@ void D3D12App::EffekseerTerminate()
 {
     ES_SAFE_RELEASE(m_effekEffect);
 
-    //m_effekManager->Destroy();
+    m_effekManager->Destroy();
 
     ES_SAFE_RELEASE(m_effekCmdList);
     ES_SAFE_RELEASE(m_effekPool);
 
-    //m_effekRenderer->Destroy();
+    m_effekRenderer->Destroy();
 }
 
 void D3D12App::UpdateCamera(const float& deltaTime)
@@ -653,16 +652,13 @@ void D3D12App::CreateSwapChain(const HWND& hwnd)
     //scDesc.Scaling = DXGI_SCALING_STRETCH;
     scDesc.Stereo = false;
     scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    ComPtr<IDXGISwapChain1> swapchain1;
     auto result = m_dxgi->CreateSwapChainForHwnd(
         m_cmdQue.Get(),
         hwnd,
         &scDesc,
         nullptr,
         nullptr,
-        swapchain1.ReleaseAndGetAddressOf());
-    assert(SUCCEEDED(result));
-    result = swapchain1.As(&m_swapchain);
+        reinterpret_cast<IDXGISwapChain1**>(m_swapchain.GetAddressOf()));
     assert(SUCCEEDED(result));
 }
 
@@ -1056,7 +1052,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     UpdateFence();
     WaitForGPU();
 
-    //EffekseerInit();
+    EffekseerInit();
 
     m_updateBuffers.Clear();
     m_pmdManager->ClearSubresources();
@@ -1182,8 +1178,6 @@ void D3D12App::CreatePMDModel()
     assert(m_pmdManager->Init(m_cmdList.Get()));
     assert(m_pmdManager->Play("Miku", "Dancing1"));
     assert(m_pmdManager->Play("Hibiki", "Dancing1"));
-
-    return;
 }
 
 void D3D12App::CreatePrimitive()
@@ -1294,7 +1288,7 @@ bool D3D12App::ProcessMessage()
 bool D3D12App::Update(const float& deltaTime)
 {
     UpdateCamera(deltaTime);
-    //EffekseerUpdate(deltaTime);
+    EffekseerUpdate(deltaTime);
 
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
     m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];
@@ -1364,6 +1358,7 @@ bool D3D12App::Render()
     RenderToShadowDepthBuffer();
     RenderToRenderTargetTexture();
     RenderToBackBuffer();
+
     SetResourceStateForNextFrame();
 
     m_cmdList->Close();
