@@ -968,7 +968,6 @@ D3D12App::D3D12App()
 
 D3D12App::~D3D12App()
 {
-
 }
 
 bool D3D12App::Initialize(const HWND& hwnd)
@@ -1228,7 +1227,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
-    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), woodCrateGpuAdress, m_textureMng.Get("wire-fence"));
+    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), brickGpuAdress, m_textureMng.Get("wire-fence"));
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;

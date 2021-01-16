@@ -577,6 +577,7 @@ void PMDManager::Impl::InitModels(ID3D12GraphicsCommandList* cmdList)
 	D12Helper::CreateDescriptorHeap(m_device, m_objectHeap, descriptor_count,
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
+	m_transformConstantHeapStart = m_objectHeap->GetGPUDescriptorHandleForHeapStart();
 	auto heapSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_transformConstantHeapStart.Offset(materials_descriptor_count, heapSize);
 

@@ -92,7 +92,7 @@ void Camera::ConvertSphericalToCoordinate()
 {
 	m_pos.m128_f32[0] = m_targetDistance * sinf(m_phi) * cosf(m_theta); // x
 	m_pos.m128_f32[1] = m_targetDistance * cosf(m_phi);					// y
-	m_pos.m128_f32[2] = m_targetDistance * sinf(m_phi) * sin(m_theta);	// z
+	m_pos.m128_f32[2] = m_targetDistance * sinf(m_phi) * sinf(m_theta);	// z
 }
 
 void Camera::UpdateAfterTransformed()

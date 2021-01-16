@@ -298,7 +298,7 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 		heapHandle.Offset(1, heap_size);
 	}
 
-	// Material
+	// Material texture
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
