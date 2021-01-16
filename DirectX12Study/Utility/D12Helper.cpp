@@ -32,7 +32,8 @@ namespace
     }
 }
 
-ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType)
+ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t sizeInBytes, D3D12_HEAP_TYPE heapType,
+    D3D12_RESOURCE_STATES resourceState)
 {
     auto heapProp = CD3DX12_HEAP_PROPERTIES(heapType);
     auto rsDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
@@ -41,7 +42,7 @@ ComPtr<ID3D12Resource> D12Helper::CreateBuffer(ID3D12Device* pDevice ,size_t siz
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        resourceState,
         nullptr,
         IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf())));
     return buffer;
@@ -275,7 +276,7 @@ ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3
     ComPtr<ID3D12Resource> buffer = nullptr;
     emptyUploadBuffer.Reset();
 
-    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, dataSize);
+    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, dataSize, D3D12_HEAP_TYPE_UPLOAD);
     buffer = D12Helper::CreateBuffer(pDevice, dataSize, D3D12_HEAP_TYPE_DEFAULT);
     
     D3D12_SUBRESOURCE_DATA subResource = {};
@@ -284,9 +285,6 @@ ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3
     subResource.SlicePitch = subResource.RowPitch;
 
     UpdateSubresources(pCmdList, buffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
-    ChangeResourceState(pCmdList, buffer.Get(), 
-        D3D12_RESOURCE_STATE_COPY_DEST, 
-        D3D12_RESOURCE_STATE_GENERIC_READ);
 
     return buffer;
 }
@@ -298,14 +296,11 @@ bool D12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsC
     emptyUploadBuffer.Reset();
 
     auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, numResources);
-    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize);
+    emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize, D3D12_HEAP_TYPE_UPLOAD);
 
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
     UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, numResources, pSubresources);
-    D12Helper::ChangeResourceState(pCmdList, textureBuffer.Get(), 
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     return true;
 }

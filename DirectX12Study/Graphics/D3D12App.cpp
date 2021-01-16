@@ -95,7 +95,7 @@ void D3D12App::CreateRenderTargetTexture()
     m_rtTexture = D12Helper::CreateTexture2D(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
+        D3D12_RESOURCE_STATE_RENDER_TARGET, nullptr);
 
     m_rtNormalTexture = D12Helper::CreateTexture2D(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
@@ -338,8 +338,7 @@ void D3D12App::RenderToRenderTargetTexture()
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
-    barrier =
-        CD3DX12_RESOURCE_BARRIER::Transition(
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             m_viewDepthBuffer.Get(),                       // resource buffer
             D3D12_RESOURCE_STATE_DEPTH_WRITE,               // state before
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);    // state after
@@ -1132,7 +1131,7 @@ bool D3D12App::CreateWorldPassConstant()
 
 void D3D12App::CreateMaterials()
 {
-    m_materialCB.Create(m_device.Get(), 3, true);
+    m_materialCB.Create(m_device.Get(), 4, true);
 
     uint16_t index = 0;
     m_materialIndices["brick0"] = index;
@@ -1227,7 +1226,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder11", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_textureMng.Get("brick"));
-    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), brickGpuAdress, m_textureMng.Get("wire-fence"));
+    m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), woodCrateGpuAdress, m_textureMng.Get("wire-fence"));
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;
@@ -1334,6 +1333,12 @@ void D3D12App::SetResourceStateForNextFrame()
 
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         m_shadowDepthBuffer.Get(),                  // resource buffer
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,               // state before
+        D3D12_RESOURCE_STATE_DEPTH_WRITE);        // state after
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_viewDepthBuffer.Get(),                  // resource buffer
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,               // state before
         D3D12_RESOURCE_STATE_DEPTH_WRITE);        // state after
     m_cmdList->ResourceBarrier(1, &barrier);

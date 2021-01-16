@@ -7,7 +7,8 @@
 namespace D12Helper
 {
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t sizeInBytes, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* pDevice, size_t sizeInBytes, D3D12_HEAP_TYPE = D3D12_HEAP_TYPE_UPLOAD, 
+		D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	// (width, height, DXGI_FORMAT, D3D12_RESOURCE_FLAGS) -> D3D12_RESOURCE_DESC
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTexture2D(ID3D12Device* pdevice, UINT64 width, UINT height,  DXGI_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM,
