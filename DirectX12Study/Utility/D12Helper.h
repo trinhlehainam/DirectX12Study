@@ -54,7 +54,7 @@ namespace D12Helper
 		const D3D12_SUBRESOURCE_DATA* pSubresources, uint32_t numResources);
 
 	// Change resource state at GPU executing time
-	void ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
+	void TransitionResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, 
 		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
 
 	std::string HrToString(HRESULT hr);

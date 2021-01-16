@@ -298,14 +298,20 @@ bool D12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsC
     auto uploadBufferSize = GetRequiredIntermediateSize(textureBuffer.Get(), 0, numResources);
     emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize, D3D12_HEAP_TYPE_UPLOAD);
 
+    // Transition resource state to copy state to do copy subresource at GPU
+    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
     UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, numResources, pSubresources);
 
+    // Transition resource state back to normal use
+    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+
     return true;
 }
 
-void D12Helper::ChangeResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+void D12Helper::TransitionResourceState(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
     auto resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
     pCmdList->ResourceBarrier(1, &resourceBarrier);

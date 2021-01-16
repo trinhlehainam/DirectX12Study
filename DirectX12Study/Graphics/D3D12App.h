@@ -121,7 +121,7 @@ private:
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
 
-	TextureManager m_textureMng;
+	TextureManager m_texMng;
 	void CreateTextureManager();
 
 	void UpdateFence();

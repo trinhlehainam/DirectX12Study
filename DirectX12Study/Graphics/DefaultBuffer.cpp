@@ -71,14 +71,13 @@ bool DefaultBuffer::UpdateSubresource(ID3D12Device* pDevice, ID3D12GraphicsComma
 
     m_intermedinateBuffer = D12Helper::CreateBuffer(pDevice, sizeInBytes);
 
+    D12Helper::TransitionResourceState(pCmdList, m_buffer.Get(),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            D3D12_RESOURCE_STATE_COPY_DEST);
+
     UpdateSubresources(pCmdList, m_buffer.Get(), m_intermedinateBuffer.Get(), 0, 0, 1, m_subresource);
 
-    if(m_isShaderResourceBuffer)
-        D12Helper::ChangeResourceState(pCmdList, m_buffer.Get(),
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    else
-        D12Helper::ChangeResourceState(pCmdList, m_buffer.Get(),
+    D12Helper::TransitionResourceState(pCmdList, m_buffer.Get(),
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_GENERIC_READ);
         
