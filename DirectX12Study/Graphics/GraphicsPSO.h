@@ -11,6 +11,7 @@ public:
 	void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	void SetRenderTargetFormat(DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_D32_FLOAT,  UINT MsaaCount = 1, UINT MsaaQuality = 0);
+	void SetDepthStencilFormat(DXGI_FORMAT dsvFormat = DXGI_FORMAT_D32_FLOAT, UINT MsaaCount = 1, UINT MsaaQuality = 0);
 	void SetRenderTargetFormats(UINT numRTVs, DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_D32_FLOAT, UINT MsaaCount = 1, UINT MsaaQuality = 0);
 	void SetSampleMask(UINT sampleMask = D3D12_DEFAULT_SAMPLE_MASK);

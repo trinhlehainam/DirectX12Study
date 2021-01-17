@@ -126,7 +126,7 @@ private:
 	void CreateTextureManager();
 
 	std::unique_ptr<PipelineManager> m_psoMng;
-	void CreatePSOs();
+	void CreatePSOManager();
 
 	void UpdateFence();
 	void WaitForGPU();
@@ -174,7 +174,6 @@ private:
 	ComPtr<ID3D12Resource> m_normalMapTex;
 
 	ComPtr<ID3D12RootSignature> m_boardRootSig;
-	ComPtr<ID3D12PipelineState> m_boardPipeline;
 	
 private:
 	// ShadowMapping
@@ -185,7 +184,6 @@ private:
 
 	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
-	ComPtr<ID3D12PipelineState> m_shadowPipeline;
 	ComPtr<ID3D12RootSignature> m_shadowRootSig;
 
 private:

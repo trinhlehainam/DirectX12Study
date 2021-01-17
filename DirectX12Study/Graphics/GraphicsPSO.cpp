@@ -42,13 +42,9 @@ GraphicsPSO::~GraphicsPSO()
 	SAFE_DELETE(m_impl);
 }
 
-GraphicsPSO::GraphicsPSO(const GraphicsPSO&)
-{
-}
+GraphicsPSO::GraphicsPSO(const GraphicsPSO&) {}
 
-void GraphicsPSO::operator=(const GraphicsPSO&)
-{
-}
+void GraphicsPSO::operator=(const GraphicsPSO&) {}
 
 void GraphicsPSO::SetInputElements(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInput)
 {
@@ -65,6 +61,13 @@ void GraphicsPSO::SetRenderTargetFormat(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFo
 {
 	IMPL.m_desc.NumRenderTargets = 1;
 	IMPL.m_desc.RTVFormats[0] = rtvFormat;
+	IMPL.m_desc.DSVFormat = dsvFormat;
+	IMPL.m_desc.SampleDesc.Count = MsaaCount;
+	IMPL.m_desc.SampleDesc.Quality = MsaaQuality;
+}
+
+void GraphicsPSO::SetDepthStencilFormat(DXGI_FORMAT dsvFormat, UINT MsaaCount, UINT MsaaQuality)
+{
 	IMPL.m_desc.DSVFormat = dsvFormat;
 	IMPL.m_desc.SampleDesc.Count = MsaaCount;
 	IMPL.m_desc.SampleDesc.Quality = MsaaQuality;

@@ -202,7 +202,7 @@ void D3D12App::CreateBoardPipeline()
     pso.SetRootSignature(m_boardRootSig.Get());
     pso.Create(m_device.Get());
 
-    m_boardPipeline = pso.Get();
+    m_psoMng->Create("board", pso.Get());
 }
 
 void D3D12App::CreateBoardShadowDepthView()
@@ -322,7 +322,7 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
     m_cmdList->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
 
-    m_cmdList->SetPipelineState(m_boardPipeline.Get());
+    m_cmdList->SetPipelineState(m_psoMng->Get("board"));
     m_cmdList->SetGraphicsRootSignature(m_boardRootSig.Get());
 
     m_cmdList->SetDescriptorHeaps(1, m_boardSRVHeap.GetAddressOf());
@@ -700,11 +700,6 @@ void D3D12App::CreateShadowRootSignature()
 
 void D3D12App::CreateShadowPipelineState()
 {
-    HRESULT result = S_OK;
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    //IA(Input-Assembler...つまり頂点入力)
-    //まず入力レイアウト（ちょうてんのフォーマット）
-
     D3D12_INPUT_ELEMENT_DESC layout[] = {
     {
     "POSITION",                                   //semantic
@@ -753,35 +748,20 @@ void D3D12App::CreateShadowPipelineState()
     }
     };
 
-    // Input Assembler
-    psoDesc.InputLayout.NumElements = _countof(layout);
-    psoDesc.InputLayout.pInputElementDescs = layout;
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-    // Vertex Shader
+    GraphicsPSO pso;
+    pso.SetInputElements(_countof(layout), layout);
+    pso.SetPrimitiveTopology();
+    pso.SetSampleMask();
+    pso.SetDepthStencilFormat();
+    pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+    pso.SetRasterizerState(rasterizerDesc);
     ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/ShadowVS.hlsl", "ShadowVS", "vs_5_1", nullptr);
-    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
-    // Rasterizer
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-    // Other set up
-
-    // Depth/Stencil
-    psoDesc.DSVFormat = DEFAULT_DEPTH_BUFFER_FORMAT;
-    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
-    psoDesc.NodeMask = 0;
-    psoDesc.SampleDesc.Count = 1;
-    psoDesc.SampleDesc.Quality = 0;
-    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-    // Root Signature
-    psoDesc.pRootSignature = m_shadowRootSig.Get();
-
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_shadowPipeline.GetAddressOf()));
-    assert(SUCCEEDED(result));
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    pso.SetRootSignature(m_shadowRootSig.Get());
+    pso.Create(m_device.Get());
+    m_psoMng->Create("shadow", pso.Get());
 }
 
 void D3D12App::CreateViewDepth()
@@ -825,7 +805,7 @@ void D3D12App::RenderToShadowDepthBuffer()
     m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
-    m_cmdList->SetPipelineState(m_shadowPipeline.Get());
+    m_cmdList->SetPipelineState(m_psoMng->Get("shadow"));
     m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
 
     CD3DX12_VIEWPORT vp(m_shadowDepthBuffer.Get());
@@ -878,8 +858,9 @@ void D3D12App::CreateTextureManager()
     
 }
 
-void D3D12App::CreatePSOs()
+void D3D12App::CreatePSOManager()
 {
+    m_psoMng = std::make_unique<PipelineManager>();
 }
 
 void D3D12App::UpdateFence()
@@ -983,6 +964,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateSwapChain(hwnd);
     CreateBackBufferView();
     CreateTextureManager();
+    CreatePSOManager();
     CreateWorldPassConstant();
     CreateMaterials();
     CreateShadowMapping();
