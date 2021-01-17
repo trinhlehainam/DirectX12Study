@@ -1,5 +1,6 @@
 #include "TextureManager.h"
 
+#include <string>
 #include <vector>
 #include <unordered_map>
 
@@ -81,8 +82,8 @@ void TextureManager::SetDevice(ID3D12Device* pDevice)
 	IMPL.m_device = pDevice;
 }
 
-bool TextureManager::Create(ID3D12GraphicsCommandList* pCmdList, const std::string& name, 
-	const std::wstring& path)
+bool TextureManager::Create(ID3D12GraphicsCommandList* pCmdList, const const char* name,
+	const wchar_t* path)
 {
 	if (IMPL.Has(name)) return false;
 	if (!IMPL.m_device) return false;
@@ -98,7 +99,7 @@ bool TextureManager::Create(ID3D12GraphicsCommandList* pCmdList, const std::stri
 	return true;
 }
 
-ID3D12Resource* TextureManager::Get(const std::string& name)
+ID3D12Resource* TextureManager::Get(const char* name)
 {
 	return IMPL.m_textures[IMPL.m_indices[name]].Get();
 }

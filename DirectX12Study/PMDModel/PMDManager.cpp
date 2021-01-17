@@ -433,7 +433,7 @@ void PMDManager::Impl::CreateDefaultToonTextures(ID3D12GraphicsCommandList* pCmd
 
 		std::string texPath = toon_path + texName.str() + ".bmp";
 
-		m_texMng.Create(pCmdList, texName.str(), StringHelper::ConvertStringToWideString(texPath));
+		m_texMng.Create(pCmdList, texName.str().c_str(), StringHelper::ConvertStringToWideString(texPath).c_str());
 	}
 	
 }

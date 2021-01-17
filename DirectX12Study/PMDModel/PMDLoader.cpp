@@ -69,7 +69,7 @@ bool PMDLoader::Load(const char* path)
 	std::vector<Vertex> vertices(cVertex);
 	fread_s(vertices.data(), vertices.size() * sizeof(Vertex), vertices.size() * sizeof(Vertex), 1, fp);
 	Vertices.resize(cVertex);
-	for (int i = 0; i < cVertex; ++i)
+	for (uint32_t i = 0; i < cVertex; ++i)
 	{
 		Vertices[i].pos = vertices[i].pos;
 		Vertices[i].normal = vertices[i].normal_vec;
@@ -94,14 +94,14 @@ bool PMDLoader::Load(const char* path)
 	std::vector<BoneData> boneData(boneNum);
 	fread_s(boneData.data(), sizeof(boneData[0]) * boneData.size(), sizeof(boneData[0]) * boneData.size(), 1, fp);
 	Bones.resize(boneNum);
-	for (int i = 0; i < boneNum; ++i)
+	for (uint16_t i = 0; i < boneNum; ++i)
 	{
 		Bones[i].name = boneData[i].boneName;
 		Bones[i].pos = boneData[i].pos;
 		BonesTable[boneData[i].boneName] = i;
 	}
 
-	for (int i = 0; i < boneNum; ++i)
+	for (uint16_t i = 0; i < boneNum; ++i)
 	{
 		if (boneData[i].parentNo == 0xffff) continue;
 		auto pno = boneData[i].parentNo;
@@ -114,7 +114,7 @@ bool PMDLoader::Load(const char* path)
 	// IK(inverse kematic)
 	uint16_t ikNum = 0;
 	fread_s(&ikNum, sizeof(ikNum), sizeof(ikNum), 1, fp);
-	for (int i = 0; i < ikNum; ++i)
+	for (uint16_t i = 0; i < ikNum; ++i)
 	{
 		fseek(fp, 4, SEEK_CUR);
 		uint8_t chainNum;
@@ -125,7 +125,7 @@ bool PMDLoader::Load(const char* path)
 
 	uint16_t skinNum = 0;
 	fread_s(&skinNum, sizeof(skinNum), sizeof(skinNum), 1, fp);
-	for (int i = 0; i < skinNum; ++i)
+	for (uint16_t i = 0; i < skinNum; ++i)
 	{
 		fseek(fp, 20, SEEK_CUR);	// Name of facial skin
 		uint32_t skinVertCnt = 0;		// number of facial vertex

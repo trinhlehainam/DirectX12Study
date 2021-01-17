@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 
 #include <d3d12.h>
 
@@ -11,8 +10,8 @@ public:
 	~TextureManager();
 
 	void SetDevice(ID3D12Device* pDevice);
-	bool Create(ID3D12GraphicsCommandList* pCmdList, const std::string& name, const std::wstring& path);
-	ID3D12Resource* Get(const std::string& name);
+	bool Create(ID3D12GraphicsCommandList* pCmdList, const char* name, const wchar_t* path);
+	ID3D12Resource* Get(const char* name);
 private:
 	// don't allow copy semantics
 	TextureManager(const TextureManager&);
