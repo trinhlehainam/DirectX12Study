@@ -9,6 +9,7 @@
 #include <DirectXColors.h>
 
 #include "RootSignature.h"
+#include "GraphicsPSO.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
@@ -172,11 +173,6 @@ void D3D12App::CreateBoardPolygonVertices()
 
 void D3D12App::CreateBoardPipeline()
 {
-    HRESULT result = S_OK;
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    //IA(Input-Assembler...つまり頂点入力)
-    //まず入力レイアウト（ちょうてんのフォーマット）
-
     D3D12_INPUT_ELEMENT_DESC layout[] = {
     {
     "POSITION",                                   //semantic
@@ -188,64 +184,23 @@ void D3D12App::CreateBoardPipeline()
     0}
     };
 
-    // Input Assembler
-    psoDesc.InputLayout.NumElements = _countof(layout);
-    psoDesc.InputLayout.pInputElementDescs = layout;
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    GraphicsPSO pso;
+    pso.SetInputElements(_countof(layout), layout);
+    pso.SetPrimitiveTopology();
+    pso.SetRenderTargetFormat();
+    pso.SetSampleMask();
+    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+    pso.SetRasterizerState(rasterizerDesc);
+    pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
+    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
+    pso.SetRootSignature(m_boardRootSig.Get());
+    pso.Create(m_device.Get());
 
-    // Vertex Shader
-    ComPtr<ID3DBlob> errBlob;
-    ComPtr<ID3DBlob> vsBlob;
-    result = D3DCompileFromFile(
-        L"Shader/boardVS.hlsl",                                  // path to shader file
-        nullptr,                                            // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
-        "boardVS",                                               // entry name
-        "vs_5_1",                                           // shader version
-        0, 0,                                               // Flag1, Flag2 (unknown)
-        vsBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
-    // Rasterizer
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-    // Pixel Shader
-    ComPtr<ID3DBlob> psBlob;
-    result = D3DCompileFromFile(
-        L"Shader/boardPS.hlsl",                              // path to shader file
-        nullptr,                                        // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,              // include object
-        "boardPS",                                           // entry name
-        "ps_5_1",                                       // shader version
-        0, 0,                                            // Flag1, Flag2 (unknown)
-        psBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-
-    // Other set up
-
-    psoDesc.NodeMask = 0;
-    psoDesc.SampleDesc.Count = 1;
-    psoDesc.SampleDesc.Quality = 0;
-    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-    // Output set up
-    psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DEFAULT_BACK_BUFFER_FORMAT;
-    // Blend
-    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    // Root Signature
-    psoDesc.pRootSignature = m_boardRootSig.Get();
-
-    result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_boardPipeline.GetAddressOf()));
-    assert(SUCCEEDED(result));
-
+    m_boardPipeline = pso.Get();
 }
 
 void D3D12App::CreateBoardShadowDepthView()
@@ -803,19 +758,7 @@ void D3D12App::CreateShadowPipelineState()
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
     // Vertex Shader
-    ComPtr<ID3DBlob> errBlob;
-    ComPtr<ID3DBlob> vsBlob;
-    result = D3DCompileFromFile(
-        L"Shader/ShadowVS.hlsl",                                  // path to shader file
-        nullptr,                                            // define marcro object 
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,                  // include object
-        "ShadowVS",                                               // entry name
-        "vs_5_1",                                           // shader version
-        0, 0,                                               // Flag1, Flag2 (unknown)
-        vsBlob.GetAddressOf(),
-        errBlob.GetAddressOf());
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
+    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/ShadowVS.hlsl", "ShadowVS", "vs_5_1", nullptr);
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
     // Rasterizer
@@ -832,10 +775,6 @@ void D3D12App::CreateShadowPipelineState()
     psoDesc.SampleDesc.Count = 1;
     psoDesc.SampleDesc.Quality = 0;
     psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-    // Output set up
-    // Blend
-    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
     // Root Signature
     psoDesc.pRootSignature = m_shadowRootSig.Get();

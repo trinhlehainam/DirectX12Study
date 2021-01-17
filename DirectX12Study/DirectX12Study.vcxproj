@@ -158,7 +158,7 @@
     <ClCompile Include="Input\MouseEvent.cpp" />
     <ClCompile Include="Graphics\Material.cpp" />
     <ClCompile Include="Graphics\Light.cpp" />
-    <ClCompile Include="Graphics\PipelineState.cpp" />
+    <ClCompile Include="Graphics\GraphicsPSO.cpp" />
     <ClCompile Include="Graphics\PipelineManager.cpp" />
     <ClCompile Include="PMDModel\PMDLoader.cpp" />
     <ClCompile Include="Graphics\DefaultBuffer.cpp" />
@@ -189,7 +189,7 @@
     <ClInclude Include="Input\MouseEvent.h" />
     <ClInclude Include="Graphics\Material.h" />
     <ClInclude Include="Graphics\Light.h" />
-    <ClInclude Include="Graphics\PipelineState.h" />
+    <ClInclude Include="Graphics\GraphicsPSO.h" />
     <ClInclude Include="Graphics\PipelineManager.h" />
     <ClInclude Include="PMDModel\PMDLoader.h" />
     <ClInclude Include="Graphics\DefaultBuffer.h" />

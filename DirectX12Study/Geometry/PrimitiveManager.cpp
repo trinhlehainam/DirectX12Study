@@ -7,6 +7,8 @@
 #include "../Utility/D12Helper.h"
 #include "../Graphics/TextureManager.h"
 #include "../Graphics/UploadBuffer.h"
+#include "../Graphics/RootSignature.h"
+#include "../Graphics/GraphicsPSO.h"
 
 #define IMPL (*m_impl)
 
