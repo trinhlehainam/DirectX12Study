@@ -4,6 +4,7 @@
 /*
 * Object encapsulates methods that using to create Root Signature
 */
+
 class RootSignature
 {
 public:
@@ -26,6 +27,7 @@ public:
 	ID3D12RootSignature* Get() const;
 	void Reset();
 private:
+	// Don't allow copy semantics
 	RootSignature(const RootSignature&);
 	void operator = (const RootSignature&);
 private:

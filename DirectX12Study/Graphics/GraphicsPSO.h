@@ -29,7 +29,10 @@ public:
 	bool Create(ID3D12Device* pDevice);
 	ID3D12PipelineState* Get() const;
 	void Reset();
-
+private:
+	// Don't allow copy semantics
+	GraphicsPSO(const GraphicsPSO&);
+	void operator = (const GraphicsPSO&);
 private:
 	class Impl;
 	Impl* m_impl = nullptr;

@@ -15,7 +15,6 @@
 #include "FrameResource.h"
 #include "Material.h"
 #include "Light.h"
-#include "TextureManager.h"
 #include "../Input/Keyboard.h"
 #include "../Input/Mouse.h"
 #include "../Utility/D12Helper.h"
@@ -41,6 +40,8 @@ using Microsoft::WRL::ComPtr;
 
 class PrimitiveManager;
 class PMDManager;
+class TextureManager;
+class PipelineManager;
 
 /// <summary>
 /// DirectX12 feature
@@ -121,8 +122,11 @@ private:
 	// If texture from file path is null, it will reference white texture
 	void CreateDefaultTexture();
 
-	TextureManager m_texMng;
+	std::unique_ptr<TextureManager> m_texMng;
 	void CreateTextureManager();
+
+	std::unique_ptr<PipelineManager> m_psoMng;
+	void CreatePSOs();
 
 	void UpdateFence();
 	void WaitForGPU();

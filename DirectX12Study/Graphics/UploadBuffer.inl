@@ -177,5 +177,4 @@ inline void UploadBuffer<T>::Move(UploadBuffer& other)
 	other.m_isConstantBuffer = false;
 }
 
-
 #endif

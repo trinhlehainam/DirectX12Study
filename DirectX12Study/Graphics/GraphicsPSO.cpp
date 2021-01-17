@@ -42,6 +42,14 @@ GraphicsPSO::~GraphicsPSO()
 	SAFE_DELETE(m_impl);
 }
 
+GraphicsPSO::GraphicsPSO(const GraphicsPSO&)
+{
+}
+
+void GraphicsPSO::operator=(const GraphicsPSO&)
+{
+}
+
 void GraphicsPSO::SetInputElements(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInput)
 {
 	IMPL.m_desc.InputLayout.NumElements = numElements;
@@ -138,6 +146,7 @@ void GraphicsPSO::Reset()
 	IMPL.m_pso.Reset();
 	IMPL.m_desc = {};
 }
+
 
 
 

@@ -224,7 +224,7 @@ void PMDModel::LoadTextureToBuffer()
 			ToonTextures[i] = D12Helper::CreateTextureFromFilePath(m_device.Get(), StringHelper::ConvertStringToWideString(toonPath));
 			if (!ToonTextures[i])
 			{
-				ToonTextures[i] = mp_texMng->Get(m_pmdLoader->ToonPaths[i].c_str());
+				ToonTextures[i] = mp_texMng->Get(m_pmdLoader->ToonPaths[i]);
 			}
 		}
 		// Load png, sph, spa
