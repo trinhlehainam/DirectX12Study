@@ -27,7 +27,11 @@ PrimitiveOut primitiveVS(PrimitiveInput input)
 	
 	ret.tangent = input.tangent;
 	ret.uv = mul(g_texTransform, input.uv);
+#if SHADOW_PIPELINE
+	ret.svpos = mul(g_lights[0].ProjectMatrix, ret.pos);
+#else
 	ret.svpos = mul(g_viewproj, ret.pos);
+#endif
 	ret.lvpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 	
 	return ret;

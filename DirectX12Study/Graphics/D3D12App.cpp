@@ -763,6 +763,50 @@ void D3D12App::CreateShadowPipelineState()
     pso.SetRootSignature(m_shadowRootSig.Get());
     pso.Create(m_device.Get());
     m_psoMng->Create("shadow", pso.Get());
+
+
+    D3D12_INPUT_ELEMENT_DESC primitiveLayout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    {
+    "NORMAL",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+{
+    "TANGENT",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+    {
+    "TEXCOORD",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+    };
+    pso.SetInputElements(_countof(primitiveLayout), primitiveLayout);
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    pso.Create(m_device.Get());
+    m_psoMng->Create("primitiveShadow", pso.Get());
 }
 
 void D3D12App::CreateViewDepth()
@@ -806,9 +850,6 @@ void D3D12App::RenderToShadowDepthBuffer()
     m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
-    m_cmdList->SetPipelineState(m_psoMng->Get("shadow"));
-    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
-
     CD3DX12_VIEWPORT vp(m_shadowDepthBuffer.Get());
     m_cmdList->RSSetViewports(1, &vp);
 
@@ -816,8 +857,14 @@ void D3D12App::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
+    m_cmdList->SetPipelineState(m_psoMng->Get("primitiveShadow"));
+    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
+
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->RenderDepth(m_cmdList.Get());
+
+    m_cmdList->SetPipelineState(m_psoMng->Get("shadow"));
+    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
 
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
