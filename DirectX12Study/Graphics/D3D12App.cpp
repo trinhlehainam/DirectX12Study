@@ -186,8 +186,10 @@ void D3D12App::CreateBoardPipeline()
     0}
     };
 
+    m_psoMng->CreateInputLayout("board", _countof(layout), layout);
+
     GraphicsPSO pso;
-    pso.SetInputElements(_countof(layout), layout);
+    pso.SetInputLayout(m_psoMng->GetInputLayout("board"));
     pso.SetPrimitiveTopology();
     pso.SetRenderTargetFormat();
     pso.SetSampleMask();
@@ -199,10 +201,10 @@ void D3D12App::CreateBoardPipeline()
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
     pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
-    pso.SetRootSignature(m_boardRootSig.Get());
+    pso.SetRootSignature(m_psoMng->GetRootSignature("board"));
     pso.Create(m_device.Get());
 
-    m_psoMng->Create("board", pso.Get());
+    m_psoMng->CreatePSO("board", pso.Get());
 }
 
 void D3D12App::CreateBoardShadowDepthView()
@@ -322,8 +324,8 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->OMSetRenderTargets(1, &bbRTVHeap, false, nullptr);
     m_cmdList->ClearRenderTargetView(bbRTVHeap, bbDefaultColor, 0, nullptr);
 
-    m_cmdList->SetPipelineState(m_psoMng->Get("board"));
-    m_cmdList->SetGraphicsRootSignature(m_boardRootSig.Get());
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("board"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("board"));
 
     m_cmdList->SetDescriptorHeaps(1, m_boardSRVHeap.GetAddressOf());
     CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(m_boardSRVHeap->GetGPUDescriptorHandleForHeapStart());
@@ -557,9 +559,12 @@ void D3D12App::CreateBoardRootSignature()
         &errBlob);
     D12Helper::OutputFromErrorBlob(errBlob);
     assert(SUCCEEDED(result));
+    ComPtr<ID3D12RootSignature> rootSig;
     result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
-        IID_PPV_ARGS(m_boardRootSig.GetAddressOf()));
+        IID_PPV_ARGS(rootSig.GetAddressOf()));
     assert(SUCCEEDED(result));
+
+    m_psoMng->CreateRootSignature("board", rootSig.Get());
 }
 
 void D3D12App::CreateCommandFamily()
@@ -695,7 +700,7 @@ void D3D12App::CreateShadowRootSignature()
     rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
     rootSignature.Create(m_device.Get());
 
-    m_shadowRootSig = rootSignature.Get();
+    m_psoMng->CreateRootSignature("shadow", rootSignature.Get());
 }
 
 void D3D12App::CreateShadowPipelineState()
@@ -760,9 +765,9 @@ void D3D12App::CreateShadowPipelineState()
     D3D_SHADER_MACRO defines[] = { "SHADOW_PIPELINE", "1", nullptr, nullptr };
     ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1", defines);
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-    pso.SetRootSignature(m_shadowRootSig.Get());
+    pso.SetRootSignature(m_psoMng->GetRootSignature("shadow"));
     pso.Create(m_device.Get());
-    m_psoMng->Create("shadow", pso.Get());
+    m_psoMng->CreatePSO("shadow", pso.Get());
 
 
     D3D12_INPUT_ELEMENT_DESC primitiveLayout[] = {
@@ -806,7 +811,7 @@ void D3D12App::CreateShadowPipelineState()
     vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     pso.Create(m_device.Get());
-    m_psoMng->Create("primitiveShadow", pso.Get());
+    m_psoMng->CreatePSO("primitiveShadow", pso.Get());
 }
 
 void D3D12App::CreateViewDepth()
@@ -857,14 +862,13 @@ void D3D12App::RenderToShadowDepthBuffer()
     CD3DX12_RECT rc(0, 0, desc.Width, desc.Height);
     m_cmdList->RSSetScissorRects(1, &rc);
 
-    m_cmdList->SetPipelineState(m_psoMng->Get("primitiveShadow"));
-    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("primitiveShadow"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("shadow"));
 
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->RenderDepth(m_cmdList.Get());
 
-    m_cmdList->SetPipelineState(m_psoMng->Get("shadow"));
-    m_cmdList->SetGraphicsRootSignature(m_shadowRootSig.Get());
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("shadow"));
 
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());

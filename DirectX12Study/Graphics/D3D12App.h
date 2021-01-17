@@ -172,8 +172,6 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW m_boardVBV;
 
 	ComPtr<ID3D12Resource> m_normalMapTex;
-
-	ComPtr<ID3D12RootSignature> m_boardRootSig;
 	
 private:
 	// ShadowMapping
@@ -184,7 +182,6 @@ private:
 
 	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
-	ComPtr<ID3D12RootSignature> m_shadowRootSig;
 
 private:
 	// Function for Render

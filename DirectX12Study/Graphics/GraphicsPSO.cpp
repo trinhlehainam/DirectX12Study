@@ -46,6 +46,11 @@ GraphicsPSO::GraphicsPSO(const GraphicsPSO&) {}
 
 void GraphicsPSO::operator=(const GraphicsPSO&) {}
 
+void GraphicsPSO::SetInputLayout(const D3D12_INPUT_LAYOUT_DESC& inputLayout)
+{
+	IMPL.m_desc.InputLayout = inputLayout;
+}
+
 void GraphicsPSO::SetInputElements(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInput)
 {
 	IMPL.m_desc.InputLayout.NumElements = numElements;
