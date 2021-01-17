@@ -757,7 +757,8 @@ void D3D12App::CreateShadowPipelineState()
     auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
     pso.SetRasterizerState(rasterizerDesc);
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/ShadowVS.hlsl", "ShadowVS", "vs_5_1", nullptr);
+    D3D_SHADER_MACRO defines[] = { "SHADOW_PIPELINE", "1", nullptr, nullptr };
+    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1", defines);
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     pso.SetRootSignature(m_shadowRootSig.Get());
     pso.Create(m_device.Get());

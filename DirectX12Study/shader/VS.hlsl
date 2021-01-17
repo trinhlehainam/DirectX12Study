@@ -37,7 +37,12 @@ VsOutput VS( VsInput input )
 	//ret.pos.xyz += ret.norm.xyz;
 	//
 
+#if SHADOW_PIPELINE
+	ret.svpos = mul(g_lights[0].ProjectMatrix, ret.pos);
+#else
 	ret.svpos = mul(g_viewproj, ret.pos);
+#endif
+	
 	ret.lvpos = mul(g_lights[0].ProjectMatrix, ret.pos);
 	ret.uv = input.uv;
 	ret.instanceID = input.instanceID;
