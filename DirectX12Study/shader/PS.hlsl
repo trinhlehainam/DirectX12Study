@@ -35,20 +35,17 @@ struct PSOutput
 // Pixel Shader
 // return color to texture
 PSOutput PS(VsOutput input)
-{	
+{
 	PSOutput ret;
 	float3 lightRay = normalize(g_lights[0].Direction);
 	// calculate light with cos
 	/* use Phong method to calculate per-pixel lighting */
-	float brightness = dot(input.norm.xyz, lightRay);			
+	float brightness = dot(input.norm.xyz, lightRay);
 
-	float4 toon = g_toon.Sample(g_toonSmp, brightness);	// toon
-	float3 eyePos = g_viewPos;
-	float3 eyeRay = normalize(input.pos.xyz - eyePos);
-	float3 refectLight = reflect(lightRay, input.norm.xyz);
-	float specular = saturate(pow(saturate(dot(eyeRay, -refectLight)), g_specularity));	// saturate
+	float4 toon = g_toon.Sample(g_toonSmp, brightness); // toon
 	
-	float4 color = float4(max(g_ambient, toon * g_diffuse) + g_specular * specular, g_alpha);
+	Material material = { toon * float4(g_diffuse, 1.0f), g_specular, g_specularity };
+	float4 color = float4(g_ambient * g_diffuse, g_alpha) + ComputeLighting(g_lights, material, input.pos.xyz, g_viewPos, input.norm.xyz);
 	
 	// test lighting
 	//float distance = length(input.pos.xyz - g_lights[0].Position);
@@ -67,12 +64,6 @@ PSOutput PS(VsOutput input)
 	shadowValue = lerp(0.5f, 1.0f, shadowValue);
 	//
 	//
-	
-	// Shadow Depth Offset
-	//if (input.lvpos.z - bias > shadowTex.SampleCmp(shadowCmpSmp, uv))
-	//{
-	//	shadowValue = 0.5f;
-	//}
 
 	color *= shadowValue;
 	
