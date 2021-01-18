@@ -29,7 +29,7 @@ void Application::CalculatePerformance()
 	static float elapsedTime = 0.0f;
 	++frameCnt;
 
-	if (timer_.TotalTime() - elapsedTime >= 1.0f)
+	if (m_timer.TotalTime() - elapsedTime >= 1.0f)
 	{
 		float fps = static_cast<float>(frameCnt);
 		float mspf = second_to_millisecond / fps;
@@ -63,35 +63,35 @@ LRESULT Application::ProcessMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 
 		/*******************KEY BOARD*******************/
 	case WM_KILLFOCUS:
-		d3d12app->ClearKeyState();
+		m_d3d12app->ClearKeyState();
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
 	case WM_CHAR:
-		d3d12app->OnWindowsKeyboardMessage(Msg, wParam, lParam);
+		m_d3d12app->OnWindowsKeyboardMessage(Msg, wParam, lParam);
 		break;
 		/**************************************************/
 
 		/*******************MOUSE INPUT********************/
 	case WM_MOUSEMOVE:
-		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		m_d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		break;
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 	case WM_MBUTTONDOWN:
-		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		m_d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		::SetCapture(m_hWnd);
 		break;
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
 	case WM_MBUTTONUP:
-		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		m_d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		::ReleaseCapture();
 		break;
 	case WM_MOUSEWHEEL:
-		d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
+		m_d3d12app->OnWindowsMouseMessage(Msg, wParam, lParam);
 		break;
 		/**************************************************/
 	default:
@@ -114,7 +114,7 @@ bool Application::Initialize()
 	WNDCLASSEX wc = {};
 	wc.cbSize = sizeof(wc);
 	wc.style = CS_HREDRAW | CS_VREDRAW;;
-	wc.hInstance = inst_;
+	wc.hInstance = m_inst;
 	wc.lpszClassName = className;
 	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
 	
@@ -132,7 +132,7 @@ bool Application::Initialize()
 		WINDOW_HEIGHT,				// ウインドウ高さ
 		nullptr,					// 親ウインドウのハンドル
 		nullptr,					// メニューのハンドル
-		inst_,						// このアプリケーションのインスタント
+		m_inst,						// このアプリケーションのインスタント
 		nullptr);					// lparam
 
 	if (m_hWnd == 0)
@@ -155,8 +155,8 @@ bool Application::Initialize()
 	ShowWindow(m_hWnd, SW_SHOW);
 	UpdateWindow(m_hWnd);
 
-	d3d12app = std::make_unique<D3D12App>();
-	if (!d3d12app->Initialize(m_hWnd))
+	m_d3d12app = std::make_unique<D3D12App>();
+	if (!m_d3d12app->Initialize(m_hWnd))
 		return false;
 
 	return true;
@@ -166,7 +166,7 @@ void Application::Run()
 {
 	MSG msg = {};
 
-	timer_.Reset();
+	m_timer.Reset();
 
 	while (isRunning_)
 	{
@@ -183,18 +183,18 @@ void Application::Run()
 		}
 		if (!isRunning_)
 			break;
-		timer_.Tick();
+		m_timer.Tick();
 		CalculatePerformance();
-		d3d12app->ProcessMessage();
-		d3d12app->Update(timer_.DeltaTime());
-		d3d12app->Render();
+		m_d3d12app->ProcessMessage();
+		m_d3d12app->Update(m_timer.DeltaTime());
+		m_d3d12app->Render();
 	}
 }
 
 void Application::Terminate()
 {
-	d3d12app->Terminate();
-	UnregisterClassW(className, inst_);
+	m_d3d12app->Terminate();
+	UnregisterClassW(className, m_inst);
 }
 
 Size Application::GetWindowSize() const

@@ -944,6 +944,19 @@ D3D12App::D3D12App()
 
 D3D12App::~D3D12App()
 {
+    // Wait GPU finished process before destroy object
+    if (m_device != nullptr)
+    {
+        UpdateFence();
+        WaitForGPU();
+    }
+    m_currentFrameResource = nullptr;
+    
+    // Report live objects
+    ComPtr<ID3D12DebugDevice> debugDevice;
+    m_device->QueryInterface(IID_PPV_ARGS(&debugDevice));
+    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_SUMMARY);
+    //
 }
 
 bool D3D12App::Initialize(const HWND& hwnd)
@@ -994,7 +1007,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     {
         //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1].Get(), fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
+        result = D3D12CreateDevice(adapterList[1].Get(), fLevel, IID_PPV_ARGS(m_device.GetAddressOf()));
 
         if (SUCCEEDED(result))
             break;
@@ -1010,7 +1023,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
-    m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.ReleaseAndGetAddressOf()));
+    m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
     m_targetFenceValue = m_fence->GetCompletedValue();
     
     CreateSwapChain(hwnd);
@@ -1278,7 +1291,7 @@ bool D3D12App::Update(const float& deltaTime)
     if (m_currentFrameResource->FenceValue != 0 && m_fence->GetCompletedValue() < m_currentFrameResource->FenceValue)
     {
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-        m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
+        m_fence->SetEventOnCompletion(m_currentFrameResource->FenceValue, fenceEvent);
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
     }
@@ -1354,8 +1367,6 @@ bool D3D12App::Render()
 void D3D12App::Terminate()
 {
     EffekseerTerminate();
-    m_currentFrameResource = nullptr;
-    CoUninitialize();
 }
 
 void D3D12App::ClearKeyState()

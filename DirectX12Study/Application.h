@@ -32,16 +32,16 @@ private:
 	~Application();
 private:
 
-	HINSTANCE inst_;
+	HINSTANCE m_inst;
 	HWND m_hWnd;
-	std::unique_ptr<D3D12App> d3d12app;
+	std::unique_ptr<D3D12App> m_d3d12app;
 	
 	size_t clientWidth_ = 800;
 	size_t clientHeight_ = 600;
 
 private:
 	bool isRunning_;
-	Timer timer_;
+	Timer m_timer;
 	// Compute average frames per seconds, and also average time( milliseconds ) it takes to render one frame
 	// The information of theses values are written in window caption bar (window caption)
 	void CalculatePerformance();
