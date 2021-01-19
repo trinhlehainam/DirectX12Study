@@ -613,14 +613,16 @@ void D3D12App::CreateSwapChain(const HWND& hwnd)
     //scDesc.Scaling = DXGI_SCALING_STRETCH;
     scDesc.Stereo = false;
     scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    ComPtr<IDXGISwapChain1> swapChain1;
     auto result = m_dxgi->CreateSwapChainForHwnd(
         m_cmdQue.Get(),
         hwnd,
         &scDesc,
         nullptr,
         nullptr,
-        reinterpret_cast<IDXGISwapChain1**>(m_swapchain.GetAddressOf()));
+        swapChain1.GetAddressOf());
     assert(SUCCEEDED(result));
+    swapChain1->QueryInterface(IID_PPV_ARGS(&m_swapchain));
 }
 
 void D3D12App::CreateFrameResources()
@@ -943,15 +945,7 @@ D3D12App::D3D12App()
 }
 
 D3D12App::~D3D12App()
-{
-    // Wait GPU finished process before destroy object
-    if (m_device != nullptr)
-    {
-        UpdateFence();
-        WaitForGPU();
-    }
-    m_currentFrameResource = nullptr;
-    
+{    
     // Report live objects
     ComPtr<ID3D12DebugDevice> debugDevice;
     m_device->QueryInterface(IID_PPV_ARGS(&debugDevice));
@@ -1040,7 +1034,9 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreatePrimitive();
 
     m_cmdList->Close();
-    m_cmdQue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList*const*>(m_cmdList.GetAddressOf()));
+    ComPtr<ID3D12CommandList> cmdList;
+    m_cmdList->QueryInterface(IID_PPV_ARGS(&cmdList));
+    m_cmdQue->ExecuteCommandLists(1, cmdList.GetAddressOf());
     UpdateFence();
     WaitForGPU();
 
@@ -1366,6 +1362,13 @@ bool D3D12App::Render()
 
 void D3D12App::Terminate()
 {
+    // Wait GPU finished process before destroy object
+    if (m_device != nullptr)
+    {
+        UpdateFence();
+        WaitForGPU();
+    }
+    m_currentFrameResource = nullptr;
     EffekseerTerminate();
 }
 

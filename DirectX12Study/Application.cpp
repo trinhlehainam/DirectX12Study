@@ -17,7 +17,7 @@ Application::Application()
 
 Application::~Application()
 {
-
+	UnregisterClassW(className, m_inst);
 }
 
 void Application::CalculatePerformance()
@@ -181,8 +181,10 @@ void Application::Run()
 				break;
 			}
 		}
+		
 		if (!isRunning_)
 			break;
+
 		m_timer.Tick();
 		CalculatePerformance();
 		m_d3d12app->ProcessMessage();
@@ -194,7 +196,6 @@ void Application::Run()
 void Application::Terminate()
 {
 	m_d3d12app->Terminate();
-	UnregisterClassW(className, m_inst);
 }
 
 Size Application::GetWindowSize() const
