@@ -1,5 +1,6 @@
 #include "PipelineManager.h"
 
+#include <vector>
 #include <unordered_map>
 
 #include "../Utility/D12Helper.h"
@@ -22,6 +23,7 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3D12RootSignature>> m_rootSigs;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_psos;
 	std::unordered_map<std::string, D3D12_INPUT_LAYOUT_DESC> m_inputLayouts;
+	std::unordered_map<std::string, std::vector<D3D12_INPUT_ELEMENT_DESC>> m_inputs;
 };
 
 bool PipelineManager::Impl::HasPSO(const std::string& name)
@@ -84,7 +86,9 @@ bool PipelineManager::CreateRootSignature(const std::string& name, ID3D12RootSig
 bool PipelineManager::CreateInputLayout(const std::string& name, UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInputElementDesc)
 {
 	if (IMPL.HasInputLayout(name)) return false;
-	IMPL.m_inputLayouts[name] = { pInputElementDesc , numElements };
+	IMPL.m_inputs[name].reserve(numElements);
+	IMPL.m_inputs[name] = std::vector<D3D12_INPUT_ELEMENT_DESC>(pInputElementDesc, pInputElementDesc + numElements);
+	IMPL.m_inputLayouts[name] = { IMPL.m_inputs[name].data() , static_cast<UINT>(IMPL.m_inputs[name].size()) };
 	return true;
 }
 

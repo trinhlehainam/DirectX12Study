@@ -140,7 +140,7 @@ void GraphicsPSO::SetRootSignature(ID3D12RootSignature* pRootSignature)
 
 bool GraphicsPSO::Create(ID3D12Device* pDevice)
 {
-	auto result = pDevice->CreateGraphicsPipelineState(&IMPL.m_desc, IID_PPV_ARGS(IMPL.m_pso.ReleaseAndGetAddressOf()));
+	auto result = pDevice->CreateGraphicsPipelineState(&IMPL.m_desc, IID_PPV_ARGS(&IMPL.m_pso));
 	return SUCCEEDED(result);
 }
 

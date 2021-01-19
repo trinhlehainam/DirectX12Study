@@ -110,7 +110,6 @@ private:
 	bool CreateBackBufferView();
 
 	// View depth buffer
-	void CreateViewDepth();
 	bool CreateViewDepthBuffer();
 	ComPtr<ID3D12Resource> m_viewDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_viewDSVHeap;
@@ -127,6 +126,10 @@ private:
 
 	std::unique_ptr<PipelineManager> m_psoMng;
 	void CreatePSOManager();
+	void CreatePipelines();
+	void CreateInputLayouts();
+	void CreateRootSignatures();
+	void CreatePSOs();
 
 	void UpdateFence();
 	void WaitForGPU();
@@ -158,8 +161,6 @@ private:
 	void CreateNormalMapTexture();
 	void CreateBoardShadowDepthView();
 	void CreateBoardViewDepthView();
-	void CreateBoardRootSignature();
-	void CreateBoardPipeline();
 
 	ComPtr<ID3D12Resource> m_rtTexture;
 	ComPtr<ID3D12Resource> m_rtNormalTexture;
@@ -175,10 +176,7 @@ private:
 	
 private:
 	// ShadowMapping
-	void CreateShadowMapping();
 	bool CreateShadowDepthBuffer();
-	void CreateShadowRootSignature();
-	void CreateShadowPipelineState();
 
 	ComPtr<ID3D12Resource> m_shadowDepthBuffer;
 	ComPtr<ID3D12DescriptorHeap> m_shadowDSVHeap;
@@ -205,9 +203,5 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
-
-private:
-
-
 };
 

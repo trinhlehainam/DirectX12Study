@@ -174,40 +174,6 @@ void D3D12App::CreateBoardPolygonVertices()
 
 }
 
-void D3D12App::CreateBoardPipeline()
-{
-    D3D12_INPUT_ELEMENT_DESC layout[] = {
-    {
-    "POSITION",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    0,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0}
-    };
-
-    m_psoMng->CreateInputLayout("board", _countof(layout), layout);
-
-    GraphicsPSO pso;
-    pso.SetInputLayout(m_psoMng->GetInputLayout("board"));
-    pso.SetPrimitiveTopology();
-    pso.SetRenderTargetFormat();
-    pso.SetSampleMask();
-    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-    pso.SetRasterizerState(rasterizerDesc);
-    pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
-    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
-    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
-    pso.SetRootSignature(m_psoMng->GetRootSignature("board"));
-    pso.Create(m_device.Get());
-
-    m_psoMng->CreatePSO("board", pso.Get());
-}
-
 void D3D12App::CreateBoardShadowDepthView()
 {
     auto rsDes = m_shadowDepthBuffer->GetDesc();
@@ -513,61 +479,6 @@ void D3D12App::CreateNormalMapTexture()
     m_device->CreateShaderResourceView(m_normalMapTex.Get(), &srvDesc, heapHandle);
 }
 
-void D3D12App::CreateBoardRootSignature()
-{
-    HRESULT result = S_OK;
-    D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-    rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    D3D12_DESCRIPTOR_RANGE range[1] = {};
-    D3D12_ROOT_PARAMETER parameter[1] = {};
-
-    // Main Render target texture 
-    // Normal render target texture
-    // Normal texture
-    // Shadow depth texture
-    // View depth texture
-    range[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
-
-    CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[0], 1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
-
-    rtSigDesc.NumParameters = _countof(parameter);
-    rtSigDesc.pParameters = parameter;
-
-    //サンプラらの定義、サンプラとはUVが0未満とか1超えとかのときの
-    //動きyや、UVをもとに色をとってくるときのルールを指定するもの
-    D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
-    //WRAPは繰り返しを表す。
-    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0],
-        0,                                  // shader register location
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR);    // Filter    
-
-    CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[1],
-        1,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER);
-    samplerDesc[1].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-
-    rtSigDesc.pStaticSamplers = samplerDesc;
-    rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
-
-    ComPtr<ID3DBlob> rootSigBlob;
-    ComPtr<ID3DBlob> errBlob;
-    result = D3D12SerializeRootSignature(&rtSigDesc,
-        D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-        &rootSigBlob,
-        &errBlob);
-    D12Helper::OutputFromErrorBlob(errBlob);
-    assert(SUCCEEDED(result));
-    ComPtr<ID3D12RootSignature> rootSig;
-    result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), 
-        IID_PPV_ARGS(rootSig.GetAddressOf()));
-    assert(SUCCEEDED(result));
-
-    m_psoMng->CreateRootSignature("board", rootSig.Get());
-}
-
 void D3D12App::CreateCommandFamily()
 {
     const auto command_list_type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -659,13 +570,6 @@ bool D3D12App::CreateBackBufferView()
     return true;
 }
 
-void D3D12App::CreateShadowMapping()
-{
-    CreateShadowDepthBuffer();
-    CreateShadowRootSignature();
-    CreateShadowPipelineState();
-}
-
 bool D3D12App::CreateShadowDepthBuffer()
 {
     HRESULT result = S_OK;
@@ -694,132 +598,6 @@ bool D3D12App::CreateShadowDepthBuffer()
         m_shadowDSVHeap->GetCPUDescriptorHandleForHeapStart());
 
     return true;
-}
-
-void D3D12App::CreateShadowRootSignature()
-{
-    RootSignature rootSignature;
-    rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CBV);
-    rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
-    rootSignature.Create(m_device.Get());
-
-    m_psoMng->CreateRootSignature("shadow", rootSignature.Get());
-}
-
-void D3D12App::CreateShadowPipelineState()
-{
-    D3D12_INPUT_ELEMENT_DESC layout[] = {
-    {
-    "POSITION",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    0,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0},
-    {
-    "NORMAL",
-    0,
-    DXGI_FORMAT_R32G32B32_FLOAT,
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0
-    },
-    // UV layout
-    {
-    "TEXCOORD",
-    0,
-    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0
-    },
-    {
-    "BONENO",
-    0,
-    DXGI_FORMAT_R16G16_UINT,
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0
-    },
-    {
-    "WEIGHT",
-    0,
-    DXGI_FORMAT_R32_FLOAT,
-    0,
-    D3D12_APPEND_ALIGNED_ELEMENT,
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-    0
-    }
-    };
-
-    GraphicsPSO pso;
-    pso.SetInputLayout(_countof(layout), layout);
-    pso.SetPrimitiveTopology();
-    pso.SetSampleMask();
-    pso.SetDepthStencilFormat();
-    pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
-    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-    pso.SetRasterizerState(rasterizerDesc);
-    D3D_SHADER_MACRO defines[] = { "SHADOW_PIPELINE", "1", nullptr, nullptr };
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1", defines);
-    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-    pso.SetRootSignature(m_psoMng->GetRootSignature("shadow"));
-    pso.Create(m_device.Get());
-    m_psoMng->CreatePSO("shadow", pso.Get());
-
-
-    D3D12_INPUT_ELEMENT_DESC primitiveLayout[] = {
-    {
-    "POSITION",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    0,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0},
-    {
-    "NORMAL",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0
-    },
-{
-    "TANGENT",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0
-    },
-    {
-    "TEXCOORD",                                   //semantic
-    0,                                            //semantic index(配列の場合に配列番号を入れる)
-    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
-    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-    0
-    },
-    };
-    pso.SetInputLayout(_countof(primitiveLayout), primitiveLayout);
-    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
-    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-    pso.Create(m_device.Get());
-    m_psoMng->CreatePSO("primitiveShadow", pso.Get());
-}
-
-void D3D12App::CreateViewDepth()
-{
-    CreateViewDepthBuffer();
 }
 
 bool D3D12App::CreateViewDepthBuffer()
@@ -919,6 +697,177 @@ void D3D12App::CreatePSOManager()
     m_psoMng = std::make_unique<PipelineManager>();
 }
 
+void D3D12App::CreatePipelines()
+{
+    CreateInputLayouts();
+    CreateRootSignatures();
+    CreatePSOs();
+}
+
+void D3D12App::CreateInputLayouts()
+{
+    D3D12_INPUT_ELEMENT_DESC boardLayout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0}
+    };
+    m_psoMng->CreateInputLayout("board", _countof(boardLayout), boardLayout);
+
+    D3D12_INPUT_ELEMENT_DESC pmdLayout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    {
+    "NORMAL",
+    0,
+    DXGI_FORMAT_R32G32B32_FLOAT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    // UV layout
+    {
+    "TEXCOORD",
+    0,
+    DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    {
+    "BONENO",
+    0,
+    DXGI_FORMAT_R16G16_UINT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    },
+    {
+    "WEIGHT",
+    0,
+    DXGI_FORMAT_R32_FLOAT,
+    0,
+    D3D12_APPEND_ALIGNED_ELEMENT,
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+    0
+    }
+    };
+    m_psoMng->CreateInputLayout("pmd", _countof(pmdLayout), pmdLayout);
+
+    D3D12_INPUT_ELEMENT_DESC primitiveLayout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    {
+    "NORMAL",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+{
+    "TANGENT",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+    {
+    "TEXCOORD",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    },
+    };
+    m_psoMng->CreateInputLayout("primitive", _countof(primitiveLayout), primitiveLayout);
+}
+
+void D3D12App::CreateRootSignatures()
+{
+    RootSignature rootSig;
+    // Main Render target texture 
+    // Normal render target texture
+    // Normal texture
+    // Shadow depth texture
+    // View depth texture
+    rootSig.AddRootParameterAsDescriptorTable(0, 5, 0);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
+    rootSig.Create(m_device.Get());
+    m_psoMng->CreateRootSignature("board", rootSig.Get());
+
+    rootSig.Reset();
+    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
+    rootSig.Create(m_device.Get());
+    m_psoMng->CreateRootSignature("shadow", rootSig.Get());
+}
+
+void D3D12App::CreatePSOs()
+{
+    GraphicsPSO pso;
+    pso.SetInputLayout(m_psoMng->GetInputLayout("board"));
+    pso.SetPrimitiveTopology();
+    pso.SetRenderTargetFormat();
+    pso.SetSampleMask();
+    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+    pso.SetRasterizerState(rasterizerDesc);
+    pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
+    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
+    pso.SetRootSignature(m_psoMng->GetRootSignature("board"));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("board", pso.Get());
+
+    pso.Reset();
+    pso.SetInputLayout(m_psoMng->GetInputLayout("pmd"));
+    pso.SetPrimitiveTopology();
+    pso.SetSampleMask();
+    pso.SetDepthStencilFormat();
+    pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+    pso.SetRasterizerState(rasterizerDesc);
+    D3D_SHADER_MACRO defines[] = { "SHADOW_PIPELINE", "1", nullptr, nullptr };
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1", defines);
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    pso.SetRootSignature(m_psoMng->GetRootSignature("shadow"));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("shadow", pso.Get());
+
+    pso.SetInputLayout(m_psoMng->GetInputLayout("primitive"));
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("primitiveShadow", pso.Get());
+}
+
 void D3D12App::UpdateFence()
 {
     // Set current GPU target fence value to next process frame
@@ -937,9 +886,6 @@ void D3D12App::CreatePostEffect()
     CreateNormalMapTexture();
     CreateBoardShadowDepthView();
     CreateBoardViewDepthView();
-
-    CreateBoardRootSignature();
-    CreateBoardPipeline();
 }
 
 D3D12App::D3D12App()
@@ -1036,10 +982,11 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateBackBufferView();
     CreateTextureManager();
     CreatePSOManager();
+    CreatePipelines();
     CreateWorldPassConstant();
     CreateMaterials();
-    CreateShadowMapping();
-    CreateViewDepth();
+    CreateShadowDepthBuffer();
+    CreateViewDepthBuffer();
     CreatePostEffect();
     CreateDefaultTexture();
     CreatePMDModel();
