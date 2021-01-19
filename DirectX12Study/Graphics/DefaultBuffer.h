@@ -34,8 +34,8 @@ public:
 	bool ClearSubresource();
 private:
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_buffer = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_intermedinateBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_buffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_intermedinateBuffer;
 	D3D12_SUBRESOURCE_DATA* m_subresource = nullptr;
 	bool m_isShaderResourceBuffer = false;
 };

@@ -16,7 +16,7 @@ private:
 	Impl();
 	~Impl();
 private:
-	ComPtr<ID3D12RootSignature> m_rootSig = nullptr;
+	ComPtr<ID3D12RootSignature> m_rootSig;
 	std::unordered_map<uint16_t,std::vector<CD3DX12_DESCRIPTOR_RANGE>> m_ranges;
 	std::vector<CD3DX12_ROOT_PARAMETER> m_params;
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> m_samplers;

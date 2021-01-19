@@ -1,6 +1,13 @@
 #include "Application.h"
-#include "Graphics/D3D12App.h"
+
 #include <string>
+
+#if defined(DEBUG) || defined(_DEBUG)
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
+
+#include "Graphics/D3D12App.h"
 
 namespace
 {
@@ -109,6 +116,14 @@ Application& Application::Instance()
 
 bool Application::Initialize()
 {
+	auto result = CoInitializeEx(0, COINIT_MULTITHREADED);
+	assert(SUCCEEDED(result));
+
+	// Enable run-time memory check for debug builds.
+#if defined(DEBUG) | defined(_DEBUG)
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
 	isRunning_ = true;
 
 	WNDCLASSEX wc = {};

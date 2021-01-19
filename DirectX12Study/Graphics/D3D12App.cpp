@@ -7,6 +7,7 @@
 #include <d3dcompiler.h>
 #include <DirectXTex.h>
 #include <DirectXColors.h>
+#include <dxgidebug.h>
 
 #include "RootSignature.h"
 #include "GraphicsPSO.h"
@@ -890,7 +891,8 @@ void D3D12App::WaitForGPU()
     // Check GPU current fence value 
     // If GPU current fence value haven't reached target Fence Value
     // Tell CPU to wait until GPU reach current fence
-    if (m_fence->GetCompletedValue() < m_targetFenceValue)
+    auto fenceValue = m_fence->GetCompletedValue();
+    if (fenceValue < m_targetFenceValue)
     {
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
         m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
@@ -946,28 +948,38 @@ D3D12App::D3D12App()
 
 D3D12App::~D3D12App()
 {    
-    // Report live objects
-    ComPtr<ID3D12DebugDevice> debugDevice;
-    m_device->QueryInterface(IID_PPV_ARGS(&debugDevice));
-    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_SUMMARY);
-    //
+    
+#ifdef _DEBUG
+    {
+        ComPtr<IDXGIDebug1> dxgiDebug;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+        {
+            dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+        }
+    }
+#endif
+
 }
 
 bool D3D12App::Initialize(const HWND& hwnd)
 {
     HRESULT result = S_OK;
 
-    result = CoInitializeEx(0, COINIT_MULTITHREADED);
-    assert(SUCCEEDED(result));
-
     UINT factoryFlag = 0;
 #if defined(DEBUG) || defined(_DEBUG)
     ComPtr<ID3D12Debug> debug;
-    result = D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
-    if (SUCCEEDED(result))
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
     {
         debug->EnableDebugLayer();
+    }
+
+    ComPtr<IDXGIInfoQueue> dxgiInfoQue;
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQue))))
+    {
         factoryFlag = DXGI_CREATE_FACTORY_DEBUG;
+        
+        dxgiInfoQue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+        dxgiInfoQue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
     }
 #endif
     result = CreateDXGIFactory2(factoryFlag, IID_PPV_ARGS(&m_dxgi));
@@ -1284,7 +1296,8 @@ bool D3D12App::Update(const float& deltaTime)
     // Check if current GPU fence value is processing at current frame resource
     // If current GPU fence value < current frame resource value
     // -> GPU is processing at current frame resource
-    if (m_currentFrameResource->FenceValue != 0 && m_fence->GetCompletedValue() < m_currentFrameResource->FenceValue)
+    auto fenceValue = m_fence->GetCompletedValue();
+    if (m_currentFrameResource->FenceValue != 0 && fenceValue < m_currentFrameResource->FenceValue)
     {
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
         m_fence->SetEventOnCompletion(m_currentFrameResource->FenceValue, fenceEvent);
@@ -1362,7 +1375,7 @@ bool D3D12App::Render()
 
 void D3D12App::Terminate()
 {
-    // Wait GPU finished process before destroy object
+    // Wait GPU finished processing before terminate application
     if (m_device != nullptr)
     {
         UpdateFence();

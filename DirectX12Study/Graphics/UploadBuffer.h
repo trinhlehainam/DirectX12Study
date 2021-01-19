@@ -54,7 +54,7 @@ private:
 	UploadBuffer& operator = (const UploadBuffer&) = delete;
 
 private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_buffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_buffer;
 	// Pointer to multiple one-byte to do padding
 	uint8_t* m_mappedData = nullptr;
 	// uint16_t max value is 0xffff (65535)

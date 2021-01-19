@@ -75,16 +75,16 @@ private:
 	void UpdateCamera(const float& deltaTime);
 	void UpdateWorldPassConstant();
 private:
-
-	ComPtr<ID3D12Device> m_device;
 	ComPtr<IDXGIFactory6> m_dxgi;
-	ComPtr<ID3D12CommandAllocator> m_cmdAlloc;
-	ComPtr<ID3D12GraphicsCommandList> m_cmdList;
-	ComPtr<ID3D12CommandQueue> m_cmdQue;
 	ComPtr<IDXGISwapChain3> m_swapchain;
-
+	
+	ComPtr<ID3D12GraphicsCommandList> m_cmdList;
+	ComPtr<ID3D12CommandAllocator> m_cmdAlloc;
+	ComPtr<ID3D12CommandQueue> m_cmdQue;
+	ComPtr<ID3D12Device> m_device;
+	
 	// Object helps CPU keep track of GPU process
-	ComPtr<ID3D12Fence1> m_fence;	
+	ComPtr<ID3D12Fence1> m_fence;
 
 	// Current GPU target fence value use to check GPU is processing
 	// If value of fence object haven't reach this target value
