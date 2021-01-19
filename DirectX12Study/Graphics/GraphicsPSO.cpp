@@ -51,10 +51,10 @@ void GraphicsPSO::SetInputLayout(const D3D12_INPUT_LAYOUT_DESC& inputLayout)
 	IMPL.m_desc.InputLayout = inputLayout;
 }
 
-void GraphicsPSO::SetInputElements(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInput)
+void GraphicsPSO::SetInputLayout(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInputElementDesc)
 {
 	IMPL.m_desc.InputLayout.NumElements = numElements;
-	IMPL.m_desc.InputLayout.pInputElementDescs = pInput;
+	IMPL.m_desc.InputLayout.pInputElementDescs = pInputElementDesc;
 }
 
 void GraphicsPSO::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE primitiveTopology)

@@ -92,22 +92,45 @@ bool RootSignature::AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDe
 	return true;
 }
 
-void RootSignature::AddStaticSampler()
+void RootSignature::AddStaticSampler(STATIC_SAMPLER_TYPE type)
 {
-	CD3DX12_STATIC_SAMPLER_DESC sampler(0,D3D12_FILTER_MIN_MAG_MIP_LINEAR);
-	CD3DX12_STATIC_SAMPLER_DESC sampler1 = sampler;
-	sampler1.ShaderRegister = 1;
-	sampler1.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sampler1.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sampler1.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	CD3DX12_STATIC_SAMPLER_DESC sampler2 = sampler;
-	sampler2.ShaderRegister = 2;
-	sampler2.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-
-	IMPL.m_samplers.reserve(3);
-	IMPL.m_samplers.push_back(sampler);
-	IMPL.m_samplers.push_back(sampler1);
-	IMPL.m_samplers.push_back(sampler2);
+	switch (type)
+	{
+	case STATIC_SAMPLER_TYPE::LINEAR_WRAP:
+		IMPL.m_samplers.push_back(
+			CD3DX12_STATIC_SAMPLER_DESC(IMPL.m_samplerCnt, D3D12_FILTER_MIN_MAG_MIP_LINEAR));
+		++IMPL.m_samplerCnt;
+		break;
+	case STATIC_SAMPLER_TYPE::LINEAR_CLAMP:
+		IMPL.m_samplers.push_back(
+			CD3DX12_STATIC_SAMPLER_DESC(IMPL.m_samplerCnt, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP, 
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP, 
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+				));
+		++IMPL.m_samplerCnt;
+		break;
+	case STATIC_SAMPLER_TYPE::LINEAR_BORDER:
+		IMPL.m_samplers.push_back(
+			CD3DX12_STATIC_SAMPLER_DESC(IMPL.m_samplerCnt, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER
+			));
+		++IMPL.m_samplerCnt;
+		break;
+	case STATIC_SAMPLER_TYPE::COMPARISION_LINEAR_WRAP:
+		IMPL.m_samplers.push_back(
+			CD3DX12_STATIC_SAMPLER_DESC(IMPL.m_samplerCnt, D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER
+			));
+		++IMPL.m_samplerCnt;
+		break;
+	default:
+		break;
+	}
 }
 
 bool RootSignature::Create(ID3D12Device* pDevice)
@@ -125,10 +148,8 @@ bool RootSignature::Create(ID3D12Device* pDevice)
 	);
 	D12Helper::OutputFromErrorBlob(errorBlob);
 	D12Helper::ThrowIfFailed(pDevice->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), 
-		rootSigBlob->GetBufferSize(),IID_PPV_ARGS(&IMPL.m_rootSig))
+		rootSigBlob->GetBufferSize(),IID_PPV_ARGS(IMPL.m_rootSig.ReleaseAndGetAddressOf()))
 	);
-
-	pDevice->Release();
 
 	return true;
 }

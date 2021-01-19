@@ -8,7 +8,7 @@ public:
 	~GraphicsPSO();
 
 	void SetInputLayout(const D3D12_INPUT_LAYOUT_DESC& inputLayout);
-	void SetInputElements(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInput);
+	void SetInputLayout(UINT numElements, const D3D12_INPUT_ELEMENT_DESC* pInputElementDesc);
 	void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	void SetRenderTargetFormat(DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_D32_FLOAT,  UINT MsaaCount = 1, UINT MsaaQuality = 0);

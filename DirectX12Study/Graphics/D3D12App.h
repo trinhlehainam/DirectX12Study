@@ -205,5 +205,9 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
+
+private:
+
+
 };
 

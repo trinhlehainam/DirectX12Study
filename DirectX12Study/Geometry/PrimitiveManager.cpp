@@ -297,6 +297,7 @@ bool PrimitiveManager::Impl::CreateObjectHeap()
 		XMStoreFloat4x4(&handleMappedData->TexTransform, XMMatrixIdentity());
 
 		m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+
 		heapHandle.Offset(1, heap_size);
 	}
 

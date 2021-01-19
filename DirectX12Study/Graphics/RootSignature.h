@@ -14,6 +14,14 @@ public:
 		SRV,
 		UAV
 	};
+
+	enum STATIC_SAMPLER_TYPE
+	{
+		LINEAR_WRAP,
+		LINEAR_CLAMP,
+		LINEAR_BORDER,
+		COMPARISION_LINEAR_WRAP
+	};
 public:
 	RootSignature();
 	~RootSignature();
@@ -22,7 +30,7 @@ public:
 		D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL);
 	bool AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor,
 		D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL);
-	void AddStaticSampler();
+	void AddStaticSampler(STATIC_SAMPLER_TYPE);
 	bool Create(ID3D12Device* pDevice);
 	ID3D12RootSignature* Get() const;
 	void Reset();

@@ -757,7 +757,7 @@ void D3D12App::CreateShadowPipelineState()
     };
 
     GraphicsPSO pso;
-    pso.SetInputElements(_countof(layout), layout);
+    pso.SetInputLayout(_countof(layout), layout);
     pso.SetPrimitiveTopology();
     pso.SetSampleMask();
     pso.SetDepthStencilFormat();
@@ -810,7 +810,7 @@ void D3D12App::CreateShadowPipelineState()
     0
     },
     };
-    pso.SetInputElements(_countof(primitiveLayout), primitiveLayout);
+    pso.SetInputLayout(_countof(primitiveLayout), primitiveLayout);
     vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     pso.Create(m_device.Get());
