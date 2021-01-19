@@ -78,10 +78,10 @@ private:
 	ComPtr<IDXGIFactory6> m_dxgi;
 	ComPtr<IDXGISwapChain3> m_swapchain;
 	
+	ComPtr<ID3D12Device> m_device;
+	ComPtr<ID3D12CommandQueue> m_cmdQue;
 	ComPtr<ID3D12GraphicsCommandList> m_cmdList;
 	ComPtr<ID3D12CommandAllocator> m_cmdAlloc;
-	ComPtr<ID3D12CommandQueue> m_cmdQue;
-	ComPtr<ID3D12Device> m_device;
 	
 	// Object helps CPU keep track of GPU process
 	ComPtr<ID3D12Fence1> m_fence;

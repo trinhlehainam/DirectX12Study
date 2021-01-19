@@ -1026,12 +1026,12 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateCommandFamily();
     CreateFrameResources();
 
+    m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
+    m_targetFenceValue = m_fence->GetCompletedValue();
+
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
 
-    m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
-    m_targetFenceValue = m_fence->GetCompletedValue();
-    
     CreateSwapChain(hwnd);
     CreateBackBufferView();
     CreateTextureManager();

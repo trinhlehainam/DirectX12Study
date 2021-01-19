@@ -1,11 +1,12 @@
 #include "Application.h"
 
-#include <string>
-
 #if defined(DEBUG) || defined(_DEBUG)
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
+
+#include <string>
+#include <exception>
 
 #include "Graphics/D3D12App.h"
 
