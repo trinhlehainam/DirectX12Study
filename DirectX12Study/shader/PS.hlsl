@@ -44,13 +44,8 @@ PSOutput PS(VsOutput input)
 
 	float4 toon = g_toon.Sample(g_toonSmp, brightness); // toon
 	
-	Material material = { toon * float4(g_diffuse, 1.0f), g_specular, g_specularity };
+	Material material = { toon * float4(g_diffuse, 1.0f), g_specular, g_specularity / 256.0f };
 	float4 color = float4(g_ambient * g_diffuse, g_alpha) + ComputeLighting(g_lights, material, input.pos.xyz, g_viewPos, input.norm.xyz);
-	
-	// test lighting
-	//float distance = length(input.pos.xyz - g_lights[0].Position);
-	//color *= CalculateAttenuation(distance, g_lights[0].FallOffStart, g_lights[0].FallOffEnd);
-	//
 	
 	//
 	/*-------------SHADOW---------------*/
