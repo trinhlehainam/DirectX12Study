@@ -1174,7 +1174,7 @@ void D3D12App::CreatePrimitive()
     assert(m_primitiveManager->Init(m_cmdList.Get()));
 
     float startX = 100.0f;
-    float startZ = 50.0f;
+    float startZ = 50.0f - 3.0f;
     const float offsetX = 200.0f / 6;
     const float offsetZ = 100.0f / 6;
     m_primitiveManager->Move("sphere", startX, 25, startZ);
@@ -1199,7 +1199,7 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Move("cylinder6", startX, 10, startZ);
 
     startX = 100.0f;
-    startZ = -50.0f;
+    startZ = -50.0f + 3.0f;
     m_primitiveManager->Move("sphere7", startX, 25, startZ);
     m_primitiveManager->Move("cylinder7", startX, 10, startZ);
     startX -= offsetX;
