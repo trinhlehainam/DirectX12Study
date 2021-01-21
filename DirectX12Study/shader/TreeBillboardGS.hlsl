@@ -23,11 +23,11 @@ void TreeBillboardGS(
 )
 {
 	float3 look = g_viewPos - input[0].center;
-	look = normalize(look);
 	look.y = 0.0f;
+	look = normalize(look);
 	float3 right = cross(UP, look);
 	float halfWidth = input[0].size.x / 2.0f;
-	float halfHeight = input[0].size.x / 2.0f;
+	float halfHeight = input[0].size.y / 2.0f;
 	
 	float4 v[4];
 	v[0] = float4(input[0].center - halfWidth * right - halfHeight * UP, 1.0f);
