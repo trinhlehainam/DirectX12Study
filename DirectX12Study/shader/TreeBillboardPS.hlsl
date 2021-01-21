@@ -29,6 +29,6 @@ PixelOutput TreeBillboardPS(GSOutput input)
 	float4 color = g_tex.Sample(g_smpWrap, input.uv);
 	clip(color.a - 0.1f);
 	ret.color = color;
-	ret.normalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	ret.normalColor = float4(input.normal, 1.0f);
 	return ret;
 }

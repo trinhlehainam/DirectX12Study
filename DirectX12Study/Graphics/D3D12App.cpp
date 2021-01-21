@@ -511,6 +511,19 @@ void D3D12App::TreeRender()
     m_cmdList->DrawIndexedInstanced(1, 1, 0, 0, 0);
 }
 
+void D3D12App::TreeRenderDepth()
+{
+    m_cmdList->IASetVertexBuffers(0, 1, &m_treeVBV);
+    m_cmdList->IASetIndexBuffer(&m_treeIBV);
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+    m_cmdList->SetGraphicsRootConstantBufferView(0, m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_cmdList->SetDescriptorHeaps(1, m_treeObjectHeap.GetAddressOf());
+    m_cmdList->SetGraphicsRootDescriptorTable(1, m_treeObjectHeap->GetGPUDescriptorHandleForHeapStart());
+
+    m_cmdList->DrawIndexedInstanced(1, 1, 0, 0, 0);
+}
+
 void D3D12App::UpdateCamera(const float& deltaTime)
 {
     if (m_mouse.IsRightPressed())
@@ -731,14 +744,15 @@ void D3D12App::RenderToShadowDepthBuffer()
 
     m_cmdList->SetPipelineState(m_psoMng->GetPSO("primitiveShadow"));
     m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("shadow"));
-
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->RenderDepth(m_cmdList.Get());
 
     m_cmdList->SetPipelineState(m_psoMng->GetPSO("shadow"));
-
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->RenderDepth(m_cmdList.Get());
+
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("treeShadow"));
+    TreeRenderDepth();
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1043,6 +1057,18 @@ void D3D12App::CreatePSOs()
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("primitiveShadow", pso.Get());
+
+    //
+    // Billboard Sprite Shadow
+    //
+    pso.SetInputLayout(m_psoMng->GetInputLayout("tree"));
+    pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/TreeBillboardVS.hlsl", "TreeBillboardVS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    gsBlob = D12Helper::CompileShaderFromFile(L"Shader/TreeBillboardGS.hlsl", "TreeBillboardGS", "gs_5_1", defines);
+    pso.SetGeometryShader(CD3DX12_SHADER_BYTECODE(gsBlob.Get()));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("treeShadow", pso.Get());
 
     //
     // PMD

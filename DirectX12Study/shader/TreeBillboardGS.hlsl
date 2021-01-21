@@ -48,7 +48,11 @@ void TreeBillboardGS(
 	for (uint i = 0; i < 4; i++)
 	{
 		element.pos = v[i].xyz;
+#if SHADOW_PIPELINE
+		element.svpos = mul(g_lights[0].ProjectMatrix, v[i]);
+#else
 		element.svpos = mul(g_viewproj, v[i]);
+#endif
 		element.normal = look;
 		element.uv = uv[i];
 		

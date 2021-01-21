@@ -229,5 +229,6 @@ private:
 
 	void CreateTreeBillBoard();
 	void TreeRender();
+	void TreeRenderDepth();
 };
 
