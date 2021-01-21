@@ -10,8 +10,6 @@
 #include "VMD/VMDMotion.h"
 #include "../Graphics/UploadBuffer.h"
 #include "../Graphics/TextureManager.h"
-#include "../Graphics/RootSignature.h"
-#include "../Graphics/GraphicsPSO.h"
 #include "../Utility/D12Helper.h"
 #include "../Utility/StringHelper.h"
 

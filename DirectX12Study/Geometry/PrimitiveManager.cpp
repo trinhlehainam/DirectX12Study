@@ -7,8 +7,6 @@
 #include "../Utility/D12Helper.h"
 #include "../Graphics/TextureManager.h"
 #include "../Graphics/UploadBuffer.h"
-#include "../Graphics/RootSignature.h"
-#include "../Graphics/GraphicsPSO.h"
 
 #define IMPL (*m_impl)
 
@@ -24,18 +22,12 @@ public:
 private:
 	friend PrimitiveManager;
 
-	bool CreatePipeline();
-	bool CreateRootSignature();
-	bool CreatePSO();
 	bool CreateObjectHeap();
 	bool Has(const std::string& name);
 private:
 	bool m_isInitDone = false;
 	// Device from engine
 	ComPtr<ID3D12Device> m_device;
-
-	ComPtr<ID3D12RootSignature> m_rootSig;
-	ComPtr<ID3D12PipelineState> m_pipeline;
 
 	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassAdress = 0;
 
@@ -87,177 +79,6 @@ PrimitiveManager::Impl::Impl(ID3D12Device* pDevice):m_device(pDevice)
 PrimitiveManager::Impl::~Impl()
 {
 	m_device = nullptr;
-}
-
-bool PrimitiveManager::Impl::CreatePipeline()
-{
-	if (!CreateRootSignature()) return false;
-	if (!CreatePSO()) return false;
-	return true;
-}
-
-bool PrimitiveManager::Impl::CreateRootSignature()
-{
-	HRESULT result = S_OK;
-	//Root Signature
-	D3D12_ROOT_SIGNATURE_DESC rtSigDesc = {};
-	rtSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	// Descriptor table
-	D3D12_DESCRIPTOR_RANGE range[3] = {};
-	D3D12_ROOT_PARAMETER parameter[5] = {};
-
-	// world pass constant
-	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[0], 0, 0, D3D12_SHADER_VISIBILITY_ALL);
-
-	// shadow depth buffer
-	range[0] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,        // range type
-		1,                                      // number of descriptors
-		0);                                     // base shader register
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[1], 1, &range[0], D3D12_SHADER_VISIBILITY_ALL);
-
-	// object constant (transform, texture)
-	range[1] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,        // range type
-		1,                                      // number of descriptors
-		1);                                     // base shader register
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[2], 1, &range[1], D3D12_SHADER_VISIBILITY_ALL);
-
-	// texture
-	range[2] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-		1,
-		1);
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(parameter[3], 1, &range[2], D3D12_SHADER_VISIBILITY_ALL);
-
-	// material constant
-	CD3DX12_ROOT_PARAMETER::InitAsConstantBufferView(parameter[4], 2, 0, D3D12_SHADER_VISIBILITY_ALL);
-
-	rtSigDesc.pParameters = parameter;
-	rtSigDesc.NumParameters = _countof(parameter);
-
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
-
-	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[0], 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
-	CD3DX12_STATIC_SAMPLER_DESC::Init(samplerDesc[1], 1,
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-		D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-		D3D12_TEXTURE_ADDRESS_MODE_BORDER);
-
-	rtSigDesc.pStaticSamplers = samplerDesc;
-	rtSigDesc.NumStaticSamplers = _countof(samplerDesc);
-
-	ComPtr<ID3DBlob> rootSigBlob;
-	ComPtr<ID3DBlob> errBlob;
-	result = D3D12SerializeRootSignature(&rtSigDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1_0,             //※ 
-		&rootSigBlob,
-		&errBlob);
-	D12Helper::OutputFromErrorBlob(errBlob);
-	assert(SUCCEEDED(result));
-	result = m_device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(),
-		IID_PPV_ARGS(m_rootSig.GetAddressOf()));
-	assert(SUCCEEDED(result));
-
-	return true;
-}
-bool PrimitiveManager::Impl::CreatePSO()
-{
-	HRESULT result = S_OK;
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	//IA(Input-Assembler...つまり頂点入力)
-	//まず入力レイアウト（ちょうてんのフォーマット）
-
-	D3D12_INPUT_ELEMENT_DESC layout[] = {
-	{
-	"POSITION",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	0,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0},
-	{
-	"NORMAL",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0
-	},
-{
-	"TANGENT",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0
-	},
-	{
-	"TEXCOORD",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0
-	},
-	};
-
-	// Input Assembler
-	psoDesc.InputLayout.NumElements = _countof(layout);
-	psoDesc.InputLayout.pInputElementDescs = layout;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	// Vertex Shader
-	ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-	// Rasterizer
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	// Pixel Shader
-	const D3D_SHADER_MACRO defines[] =
-	{	"ALPHA_TEST", "1",
-		"FOG", "1",
-		nullptr, nullptr };
-	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1", defines);
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-	// Other set up
-	psoDesc.NodeMask = 0;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.SampleDesc.Quality = 0;
-	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-	// Output set up
-	psoDesc.NumRenderTargets = 2;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	// Blend
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-	D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc = {};
-	rtBlendDesc.BlendEnable = true;
-	rtBlendDesc.LogicOpEnable = false;
-	rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-	rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-	rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	psoDesc.BlendState.RenderTarget[0] = rtBlendDesc;
-
-	// Depth stencil
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	// Root Signature
-	psoDesc.pRootSignature = m_rootSig.Get();
-	result = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipeline.GetAddressOf()));
-	assert(SUCCEEDED(result));
-
-	return true;
 }
 
 bool PrimitiveManager::SetDefaultTexture(ID3D12Resource* whiteTexture, ID3D12Resource* blackTexture, ID3D12Resource* gradiationTexture)
@@ -442,7 +263,6 @@ bool PrimitiveManager::Init(ID3D12GraphicsCommandList* cmdList)
 	if (!IMPL.m_device) return false;
 	if (!IMPL.m_worldPassAdress) return false;
 	if (!IMPL.m_depthHeap) return false;
-	if (!IMPL.CreatePipeline()) return false;
 
 	uint32_t indexCount = 0;
 	uint32_t vertexCount = 0;
@@ -526,9 +346,6 @@ void PrimitiveManager::Update(const float& deltaTime)
 
 void PrimitiveManager::Render(ID3D12GraphicsCommandList* pCmdList)
 {
-	pCmdList->SetPipelineState(IMPL.m_pipeline.Get());
-	pCmdList->SetGraphicsRootSignature(IMPL.m_rootSig.Get());
-
 	// Set Input Assembler
 	pCmdList->IASetVertexBuffers(0, 1, &IMPL.m_mesh.VertexBufferView);
 	pCmdList->IASetIndexBuffer(&IMPL.m_mesh.IndexBufferView);

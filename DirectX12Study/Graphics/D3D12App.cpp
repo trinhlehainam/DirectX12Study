@@ -257,6 +257,8 @@ void D3D12App::RenderToRenderTargetTexture()
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->Render(m_cmdList.Get());
 
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("primitive"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("primitive"));
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->Render(m_cmdList.Get());
 
@@ -849,13 +851,29 @@ void D3D12App::CreateRootSignatures()
     rootSig.AddStaticSampler(RootSignature::LINEAR_CLAMP);
     rootSig.AddStaticSampler(RootSignature::COMPARISION_LINEAR_WRAP);
     rootSig.Create(m_device.Get());
-
     m_psoMng->CreateRootSignature("pmd", rootSig.Get());
+
+    //
+    // Primitive
+    //
+    rootSig.Reset();
+    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    // shadow depth buffer
+    rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
+    // Object constant
+    rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
+    // Texture
+    rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
+    // Material constant
+    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
+    rootSig.Create(m_device.Get());
+    m_psoMng->CreateRootSignature("primitive", rootSig.Get());
 }
 
 void D3D12App::CreatePSOs()
 {
-
     auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
@@ -928,6 +946,39 @@ void D3D12App::CreatePSOs()
     pso.SetRootSignature(m_psoMng->GetRootSignature("pmd"));
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("pmd", pso.Get());
+
+    //
+    // Primitive
+    //
+    pso.SetInputLayout(m_psoMng->GetInputLayout("primitive"));
+    pso.SetPrimitiveTopology();
+    pso.SetSampleMask();
+    pso.SetRenderTargetFormats(2);
+    pso.SetRasterizerState(rasterizerDesc);
+    pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+    D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc = {};
+    rtBlendDesc.BlendEnable = true;
+    rtBlendDesc.LogicOpEnable = false;
+    rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+    rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+    rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+    rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blendDesc.RenderTarget[0] = rtBlendDesc;
+    pso.SetBlendState(blendDesc);
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    const D3D_SHADER_MACRO primitiveDefines[] =
+    { "ALPHA_TEST", "1",
+        "FOG", "1",
+        nullptr, nullptr };
+    psBlob = D12Helper::CompileShaderFromFile(L"Shader/primitivePS.hlsl", "primitivePS", "ps_5_1", primitiveDefines);
+    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
+    pso.SetRootSignature(m_psoMng->GetRootSignature("primitive"));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("primitive", pso.Get());
 }
 
 void D3D12App::UpdateFence()
