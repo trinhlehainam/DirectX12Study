@@ -60,9 +60,6 @@ private:
 	bool m_isInitDone = false;
 private:
 
-	bool CreatePipeline();
-	bool CreateRootSignature();
-	bool CreatePSO();
 	// check default buffers are initialized or not
 	bool CheckDefaultBuffers();
 
@@ -75,9 +72,6 @@ private:
 	ComPtr<ID3D12Resource> m_blackTexture;
 	ComPtr<ID3D12Resource> m_gradTexture;
 	/*-----------------------------------------*/
-	
-	ComPtr<ID3D12RootSignature> m_rootSig;
-	ComPtr<ID3D12PipelineState> m_pipeline;
 
 	D3D12_GPU_VIRTUAL_ADDRESS m_worldPassGpuAdress = 0;
 
@@ -195,9 +189,6 @@ void PMDManager::Impl::NormalUpdate(const float& deltaTime)
 
 void PMDManager::Impl::NormalRender(ID3D12GraphicsCommandList* cmdList)
 {
-	cmdList->SetPipelineState(m_pipeline.Get());
-	cmdList->SetGraphicsRootSignature(m_rootSig.Get());
-
 	// Set Input Assembler
 	cmdList->IASetVertexBuffers(0, 1, &m_mesh.VertexBufferView);
 	cmdList->IASetIndexBuffer(&m_mesh.IndexBufferView);
@@ -275,119 +266,6 @@ void PMDManager::Impl::DepthRender(ID3D12GraphicsCommandList* cmdList)
 		transformHeap.Offset(1, heapSize);
 		cmdList->DrawIndexedInstanced(indexCount, 1, startIndex, baseVertex, 0);
 	}
-}
-
-bool PMDManager::Impl::CreatePipeline()
-{
-	if (!CreateRootSignature()) return false;
-	if (!CreatePSO()) return false;
-	return true;
-}
-
-bool PMDManager::Impl::CreateRootSignature()
-{
-	RootSignature rootSignature;
-
-	// World pass constant
-	rootSignature.AddRootParameterAsRootDescriptor(RootSignature::CBV);
-	// Depth
-	rootSignature.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	// Object Constant
-	rootSignature.AddRootParameterAsDescriptorTable(1, 0, 0);
-	// Material Constant
-	rootSignature.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootSignature.AddStaticSampler(RootSignature::LINEAR_WRAP);
-	rootSignature.AddStaticSampler(RootSignature::LINEAR_CLAMP);
-	rootSignature.AddStaticSampler(RootSignature::COMPARISION_LINEAR_WRAP);
-	rootSignature.Create(m_device.Get());
-
-	m_rootSig = rootSignature.Get();
-	rootSignature.Reset();
-	
-	return true;
-}
-
-bool PMDManager::Impl::CreatePSO()
-{
-	HRESULT result = S_OK;
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	//IA(Input-Assembler...つまり頂点入力)
-	//まず入力レイアウト（ちょうてんのフォーマット）
-
-	D3D12_INPUT_ELEMENT_DESC layout[] = {
-	{
-	"POSITION",                                   //semantic
-	0,                                            //semantic index(配列の場合に配列番号を入れる)
-	DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
-	0,                                            //スロット番号（頂点データが入ってくる入口地番号）
-	0,                                            //このデータが何バイト目から始まるのか
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
-	0},
-	{
-	"NORMAL",
-	0,
-	DXGI_FORMAT_R32G32B32_FLOAT,
-	0,
-	D3D12_APPEND_ALIGNED_ELEMENT,
-	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-	0
-	},
-		// UV layout
-		{
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,                     // float2 -> [2D array] R32G32
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		},
-		{
-		"BONENO",
-		0,
-		DXGI_FORMAT_R16G16_UINT,
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		},
-		{
-		"WEIGHT",
-		0,
-		DXGI_FORMAT_R32_FLOAT,
-		0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-		}
-	};
-
-	GraphicsPSO pso;
-	pso.SetInputLayout(_countof(layout), layout);
-	pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	pso.SetSampleMask();
-	pso.SetRenderTargetFormats(2);
-	auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-	pso.SetRasterizerState(rasterizerDesc);
-	pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
-	pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
-	ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1");
-	pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-	const D3D_SHADER_MACRO defines[] =
-	{
-		"FOG" , "1",
-		nullptr, nullptr
-	};
-	ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/ps.hlsl", "PS", "ps_5_1", defines);
-	pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
-
-	pso.SetRootSignature(m_rootSig.Get());
-	pso.Create(m_device.Get());
-
-	m_pipeline = pso.Get();
-
-	return true;
 }
 
 bool PMDManager::Impl::CheckDefaultBuffers()
@@ -529,7 +407,6 @@ bool PMDManager::Impl::Init(ID3D12GraphicsCommandList* cmdList)
 	if (!m_depthHeap) return false;
 
 	if (!CheckDefaultBuffers()) return false;
-	if (!CreatePipeline()) return false;
 
 	m_texMng.SetDevice(m_device.Get());
 	CreateDefaultToonTextures(cmdList);

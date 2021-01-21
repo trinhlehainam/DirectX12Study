@@ -252,10 +252,15 @@ void D3D12App::RenderToRenderTargetTexture()
     m_cmdList->ClearRenderTargetView(rtTexHeap, fogColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
 
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("pmd"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("pmd"));
     m_pmdManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_pmdManager->Render(m_cmdList.Get());
+
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->Render(m_cmdList.Get());
+
+    EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -302,8 +307,6 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_cmdList->DrawInstanced(4, 1, 0, 0);
 
-    EffekseerRender();
-
 }
 
 void D3D12App::SetBackBufferIndexForNextFrame()
@@ -317,7 +320,7 @@ void D3D12App::EffekseerInit()
     // Create renderer
     auto backBufferFormat = m_backBuffer[0]->GetDesc().Format;
     m_effekRenderer = EffekseerRendererDX12::Create(m_device.Get(), m_cmdQue.Get(), 2, &backBufferFormat, 1,
-        DXGI_FORMAT_UNKNOWN, false, 8000);
+        DXGI_FORMAT_D32_FLOAT, false, 8000);
 
     // Create memory pool
     m_effekPool = EffekseerRendererDX12::CreateSingleFrameMemoryPool(m_effekRenderer);
@@ -821,24 +824,53 @@ void D3D12App::CreateRootSignatures()
     rootSig.Create(m_device.Get());
     m_psoMng->CreateRootSignature("board", rootSig.Get());
 
+    //
+    // Shadow
+    //
     rootSig.Reset();
     rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
     rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
     rootSig.Create(m_device.Get());
     m_psoMng->CreateRootSignature("shadow", rootSig.Get());
+
+    //
+    // PMD
+    //
+    rootSig.Reset();
+    // World pass constant
+    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    // Depth
+    rootSig.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    // Object Constant
+    rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
+    // Material Constant
+    rootSig.AddRootParameterAsDescriptorTable(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_CLAMP);
+    rootSig.AddStaticSampler(RootSignature::COMPARISION_LINEAR_WRAP);
+    rootSig.Create(m_device.Get());
+
+    m_psoMng->CreateRootSignature("pmd", rootSig.Get());
 }
 
 void D3D12App::CreatePSOs()
 {
+
+    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+
+    auto depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
+    auto blendDesc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
     GraphicsPSO pso;
+
     pso.SetInputLayout(m_psoMng->GetInputLayout("board"));
     pso.SetPrimitiveTopology();
     pso.SetRenderTargetFormat();
     pso.SetSampleMask();
-    auto rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
     pso.SetRasterizerState(rasterizerDesc);
-    pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+    pso.SetBlendState(blendDesc);
     ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
@@ -847,12 +879,15 @@ void D3D12App::CreatePSOs()
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("board", pso.Get());
 
+    //
+    // Shadow
+    //
     pso.Reset();
     pso.SetInputLayout(m_psoMng->GetInputLayout("pmd"));
     pso.SetPrimitiveTopology();
     pso.SetSampleMask();
     pso.SetDepthStencilFormat();
-    pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+    pso.SetDepthStencilState(depthStencilDesc);
     pso.SetRasterizerState(rasterizerDesc);
     D3D_SHADER_MACRO defines[] = { "SHADOW_PIPELINE", "1", nullptr, nullptr };
     vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1", defines);
@@ -861,11 +896,38 @@ void D3D12App::CreatePSOs()
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("shadow", pso.Get());
 
+    //
+    // Primitive Shadow
+    //
     pso.SetInputLayout(m_psoMng->GetInputLayout("primitive"));
     vsBlob = D12Helper::CompileShaderFromFile(L"Shader/primitiveVS.hlsl", "primitiveVS", "vs_5_1", defines);
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("primitiveShadow", pso.Get());
+
+    //
+    // PMD
+    //
+    pso.Reset();
+    pso.SetInputLayout(m_psoMng->GetInputLayout("pmd"));
+    pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    pso.SetSampleMask();
+    pso.SetRenderTargetFormats(2);
+    pso.SetRasterizerState(rasterizerDesc);
+    pso.SetDepthStencilState(depthStencilDesc);
+    pso.SetBlendState(blendDesc);
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/vs.hlsl", "VS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    const D3D_SHADER_MACRO pmdDefines[] =
+    {
+        "FOG" , "1",
+        nullptr, nullptr
+    };
+    psBlob = D12Helper::CompileShaderFromFile(L"Shader/ps.hlsl", "PS", "ps_5_1", pmdDefines);
+    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
+    pso.SetRootSignature(m_psoMng->GetRootSignature("pmd"));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("pmd", pso.Get());
 }
 
 void D3D12App::UpdateFence()
