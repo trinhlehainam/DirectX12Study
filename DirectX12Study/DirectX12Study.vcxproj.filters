@@ -202,6 +202,9 @@
     <FxCompile Include="shader\boardVS.hlsl" />
     <FxCompile Include="shader\primitiveVS.hlsl" />
     <FxCompile Include="shader\primitivePS.hlsl" />
+    <FxCompile Include="shader\TreeBillboardVS.hlsl" />
+    <FxCompile Include="shader\TreeBillboardPS.hlsl" />
+    <FxCompile Include="shader\TreeBillboardGS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\common.hlsli" />

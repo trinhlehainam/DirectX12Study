@@ -203,5 +203,31 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
+private:
+	struct TreeVertex
+	{
+		DirectX::XMFLOAT3 Position;
+		DirectX::XMFLOAT2 Size;
+	};
+
+	std::vector<TreeVertex> m_treeVertices;
+	ComPtr<ID3D12Resource> m_treeVertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_treeVBV;
+
+	std::vector<uint16_t> m_treeIndices;
+	ComPtr<ID3D12Resource> m_treeIndexBuffer;
+	D3D12_INDEX_BUFFER_VIEW m_treeIBV;
+
+	struct TreeConstant
+	{
+		DirectX::XMFLOAT4X4 World;
+	};
+
+	UploadBuffer<TreeConstant> m_treeConstant;
+	ComPtr<ID3D12Resource> m_treeTex;
+	ComPtr<ID3D12DescriptorHeap> m_treeObjectHeap;
+
+	void CreateTreeBillBoard();
+	void TreeRender();
 };
 

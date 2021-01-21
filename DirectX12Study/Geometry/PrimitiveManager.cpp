@@ -410,11 +410,6 @@ void PrimitiveManager::RenderDepth(ID3D12GraphicsCommandList* pCmdList)
 	}
 }
 
-PrimitiveManager::PrimitiveManager(const PrimitiveManager&)
-{
-}
-
-void PrimitiveManager::operator=(const PrimitiveManager&)
-{
-}
+PrimitiveManager::PrimitiveManager(const PrimitiveManager&){}
+void PrimitiveManager::operator=(const PrimitiveManager&){}
 

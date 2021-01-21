@@ -262,6 +262,8 @@ void D3D12App::RenderToRenderTargetTexture()
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->Render(m_cmdList.Get());
 
+    TreeRender();
+
     EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -428,6 +430,85 @@ void D3D12App::EffekseerTerminate()
     ES_SAFE_RELEASE(m_effekPool);
 
     m_effekRenderer->Destroy();
+}
+
+void D3D12App::CreateTreeBillBoard()
+{
+    //
+    // Vertices
+    //
+    m_treeVertices.push_back({ XMFLOAT3(0.0f,50.0f,0.0f),XMFLOAT2(50.0f,50.0f) });
+
+    const size_t stride_in_bytes = sizeof(m_treeVertices[0]);
+    const size_t size_in_bytes = m_treeVertices.size() * stride_in_bytes;
+    
+    m_treeVertexBuffer = D12Helper::CreateBuffer(m_device.Get(), size_in_bytes);
+
+    TreeVertex* mappedVertex = nullptr;
+    D12Helper::ThrowIfFailed(m_treeVertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertex)));
+    std::copy(m_treeVertices.begin(), m_treeVertices.end(), mappedVertex);
+    m_treeVertexBuffer->Unmap(0, nullptr);
+
+    m_treeVBV.BufferLocation = m_treeVertexBuffer->GetGPUVirtualAddress();
+    m_treeVBV.SizeInBytes = size_in_bytes;
+    m_treeVBV.StrideInBytes = stride_in_bytes;
+
+    //
+    // Indices
+    //
+    m_treeIndices.push_back(0);
+    
+    m_treeIndexBuffer = D12Helper::CreateBuffer(m_device.Get(), sizeof(uint16_t) * m_treeIndices.size());
+    uint16_t* mappedIndices = nullptr;
+    m_treeIndexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndices));
+    std::copy(m_treeIndices.begin(), m_treeIndices.end(), mappedIndices);
+    m_treeIndexBuffer->Unmap(0, nullptr);
+
+    m_treeIBV.BufferLocation = m_treeIndexBuffer->GetGPUVirtualAddress();
+    m_treeIBV.Format = DXGI_FORMAT_R16_UINT;
+    m_treeIBV.SizeInBytes = sizeof(uint16_t) * m_treeIndices.size();
+
+    // 
+    // Object constant
+    //
+    m_treeConstant.Create(m_device.Get(), 1, true);
+    auto mappedData = m_treeConstant.GetHandleMappedData();
+    XMStoreFloat4x4(&mappedData->World, XMMatrixIdentity());
+
+    m_treeTex = m_texMng->Get("tree0");
+
+    D12Helper::CreateDescriptorHeap(m_device.Get(), m_treeObjectHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_treeObjectHeap->GetCPUDescriptorHandleForHeapStart());
+    const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = m_treeConstant.GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = m_treeConstant.SizeInBytes();
+    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
+    heapHandle.Offset(1, heap_size);
+
+    auto texDesc = m_treeTex->GetDesc();
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = texDesc.Format;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    m_device->CreateShaderResourceView(m_treeTex.Get(), &srvDesc, heapHandle);
+}
+
+void D3D12App::TreeRender()
+{
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("tree"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("tree"));
+
+    m_cmdList->IASetVertexBuffers(0, 1, &m_treeVBV);
+    m_cmdList->IASetIndexBuffer(&m_treeIBV);
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+    m_cmdList->SetGraphicsRootConstantBufferView(0, m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_cmdList->SetDescriptorHeaps(1, m_treeObjectHeap.GetAddressOf());
+    m_cmdList->SetGraphicsRootDescriptorTable(1, m_treeObjectHeap->GetGPUDescriptorHandleForHeapStart());
+
+    m_cmdList->DrawIndexedInstanced(1, 1, 0, 0, 0);
 }
 
 void D3D12App::UpdateCamera(const float& deltaTime)
@@ -694,7 +775,7 @@ void D3D12App::CreateTextureManager()
     m_texMng->Create(m_cmdList.Get(), "tile", L"resource/image/Textures/tile.dds");
     m_texMng->Create(m_cmdList.Get(), "brick", L"resource/image/Textures/bricks.dds");
     m_texMng->Create(m_cmdList.Get(), "stone", L"resource/image/Textures/stone.dds");
-    
+    m_texMng->Create(m_cmdList.Get(), "tree0", L"resource/image/Textures/tree01S.dds");
 }
 
 void D3D12App::CreatePSOManager()
@@ -810,6 +891,27 @@ void D3D12App::CreateInputLayouts()
     },
     };
     m_psoMng->CreateInputLayout("primitive", _countof(primitiveLayout), primitiveLayout);
+
+    D3D12_INPUT_ELEMENT_DESC treeLayout[] = {
+    {
+    "POSITION",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32B32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    0,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0},
+    {
+    "SIZE",                                   //semantic
+    0,                                            //semantic index(配列の場合に配列番号を入れる)
+    DXGI_FORMAT_R32G32_FLOAT,                  // float3 -> [3D array] R32G32B32
+    0,                                            //スロット番号（頂点データが入ってくる入口地番号）
+    D3D12_APPEND_ALIGNED_ELEMENT,                                            //このデータが何バイト目から始まるのか
+    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   //頂点ごとのデータ
+    0
+    }
+    };
+    m_psoMng->CreateInputLayout("tree", _countof(treeLayout), treeLayout);
 }
 
 void D3D12App::CreateRootSignatures()
@@ -830,7 +932,9 @@ void D3D12App::CreateRootSignatures()
     // Shadow
     //
     rootSig.Reset();
+    // World Constant
     rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    // Object Constant
     rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
     rootSig.Create(m_device.Get());
     m_psoMng->CreateRootSignature("shadow", rootSig.Get());
@@ -870,6 +974,19 @@ void D3D12App::CreateRootSignatures()
     rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
     rootSig.Create(m_device.Get());
     m_psoMng->CreateRootSignature("primitive", rootSig.Get());
+
+    //
+    // Tree BillBoard
+    //
+    rootSig.Reset();
+    // World Pass Constant
+    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    // Object Constant
+    // Texture
+    rootSig.AddRootParameterAsDescriptorTable(1, 1, 0);
+    rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
+    rootSig.Create(m_device.Get());
+    m_psoMng->CreateRootSignature("tree", rootSig.Get());
 }
 
 void D3D12App::CreatePSOs()
@@ -881,6 +998,10 @@ void D3D12App::CreatePSOs()
 
     auto blendDesc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
+    ComPtr<ID3DBlob> vsBlob;
+    ComPtr<ID3DBlob> psBlob;
+    ComPtr<ID3DBlob> gsBlob;
+
     GraphicsPSO pso;
 
     pso.SetInputLayout(m_psoMng->GetInputLayout("board"));
@@ -889,9 +1010,9 @@ void D3D12App::CreatePSOs()
     pso.SetSampleMask();
     pso.SetRasterizerState(rasterizerDesc);
     pso.SetBlendState(blendDesc);
-    ComPtr<ID3DBlob> vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/boardVS.hlsl", "boardVS", "vs_5_1");
     pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
-    ComPtr<ID3DBlob> psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
+    psBlob = D12Helper::CompileShaderFromFile(L"Shader/boardPS.hlsl", "boardPS", "ps_5_1");
     pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
     pso.SetRootSignature(m_psoMng->GetRootSignature("board"));
     pso.Create(m_device.Get());
@@ -950,6 +1071,7 @@ void D3D12App::CreatePSOs()
     //
     // Primitive
     //
+    pso.Reset();
     pso.SetInputLayout(m_psoMng->GetInputLayout("primitive"));
     pso.SetPrimitiveTopology();
     pso.SetSampleMask();
@@ -979,6 +1101,27 @@ void D3D12App::CreatePSOs()
     pso.SetRootSignature(m_psoMng->GetRootSignature("primitive"));
     pso.Create(m_device.Get());
     m_psoMng->CreatePSO("primitive", pso.Get());
+
+    //
+    // Tree Billboard
+    //
+    pso.Reset();
+    pso.SetInputLayout(m_psoMng->GetInputLayout("tree"));
+    pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+    pso.SetSampleMask();
+    pso.SetRenderTargetFormats(2);
+    pso.SetRasterizerState(rasterizerDesc);
+    pso.SetDepthStencilState(depthStencilDesc);
+    pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+    vsBlob = D12Helper::CompileShaderFromFile(L"Shader/TreeBillboardVS.hlsl", "TreeBillboardVS", "vs_5_1");
+    pso.SetVertexShader(CD3DX12_SHADER_BYTECODE(vsBlob.Get()));
+    gsBlob = D12Helper::CompileShaderFromFile(L"Shader/TreeBillboardGS.hlsl", "TreeBillboardGS", "gs_5_1");
+    pso.SetGeometryShader(CD3DX12_SHADER_BYTECODE(gsBlob.Get()));
+    psBlob = D12Helper::CompileShaderFromFile(L"Shader/TreeBillboardPS.hlsl", "TreeBillboardPS", "ps_5_1");
+    pso.SetPixelShader(CD3DX12_SHADER_BYTECODE(psBlob.Get()));
+    pso.SetRootSignature(m_psoMng->GetRootSignature("tree"));
+    pso.Create(m_device.Get());
+    m_psoMng->CreatePSO("tree", pso.Get());
 }
 
 void D3D12App::UpdateFence()
@@ -1104,6 +1247,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateDefaultTexture();
     CreatePMDModel();
     CreatePrimitive();
+    CreateTreeBillBoard();
 
     m_cmdList->Close();
     ComPtr<ID3D12CommandList> cmdList;

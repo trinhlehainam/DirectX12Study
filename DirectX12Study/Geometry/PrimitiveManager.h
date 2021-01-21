@@ -8,15 +8,8 @@
 class PrimitiveManager
 {
 public:
-	enum GEOMETRY
-	{
-		CYLINDER,
-		GEOSPHERE,
-		GRID
-	};
-public:
 	PrimitiveManager();
-	PrimitiveManager(ID3D12Device* pDevice);
+	explicit PrimitiveManager(ID3D12Device* pDevice);
 	~PrimitiveManager();
 
 	bool SetDevice(ID3D12Device* pDevice);
