@@ -18,10 +18,6 @@ groupshared float4 g_sharedCache[N];
 void BlurFilter( uint3 DispatchThreadID : SV_DispatchThreadID,
 					uint3 GroupThreadID : SV_GroupThreadID)
 {
-	g_output[DispatchThreadID.xy] = g_input[DispatchThreadID.xy];
-
-	GroupMemoryBarrierWithGroupSync();
-	
-	g_output[DispatchThreadID.xy] = g_sharedCache[GroupThreadID.x];
+	g_output[DispatchThreadID.xy] = float4(1.0f, 1.0f, 1.0f, 1.0f);
 
 }

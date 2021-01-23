@@ -49,7 +49,8 @@ bool BlurFilter::Impl::CreateRootSignature(ID3D12Device* pDevice)
 {
 	RootSignature rootSig;
 	rootSig.AddRootParameterAs32BitsConstants(12);
-	rootSig.AddRootParameterAsDescriptorTable(0, 1, 1);
+	rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
+	rootSig.AddRootParameterAsDescriptorTable(0, 0, 1);
 	rootSig.Create(pDevice);
 
 	m_rootSig = rootSig.Get();
@@ -86,8 +87,9 @@ bool BlurFilter::Impl::CreateResources(ID3D12Device* pDevice, UINT texWidth, UIN
 
 bool BlurFilter::Impl::CreateDescriptors(ID3D12Device* pDevice)
 {
-	D12Helper::CreateDescriptorHeap(pDevice, m_heap, 4, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(pDevice, m_heap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	m_heap->SetName(L"Blur-Heap");
+
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_heap->GetCPUDescriptorHandleForHeapStart());
 	const auto heap_size = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_heapSize = heap_size;
@@ -103,14 +105,15 @@ bool BlurFilter::Impl::CreateDescriptors(ID3D12Device* pDevice)
 	uavDesc.Format = texDesc.Format;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
-	pDevice->CreateShaderResourceView(m_mainTex.Get(), &srvDesc, heapHandle);
+	pDevice->CreateShaderResourceView(m_mainTex.Get(), &srvDesc, m_heap->GetCPUDescriptorHandleForHeapStart());
 	heapHandle.Offset(1, heap_size);
 	pDevice->CreateUnorderedAccessView(m_subTex.Get(), nullptr, &uavDesc, heapHandle);
-	heapHandle.Offset(1, heap_size);
 
-	pDevice->CreateShaderResourceView(m_subTex.Get(), &srvDesc, heapHandle);
-	heapHandle.Offset(1, heap_size);
-	pDevice->CreateUnorderedAccessView(m_mainTex.Get(), nullptr, &uavDesc, heapHandle);
+	//
+	//pDevice->CreateShaderResourceView(m_subTex.Get(), &srvDesc, heapHandle);
+	//heapHandle.Offset(1, heap_size);
+	//pDevice->CreateUnorderedAccessView(m_mainTex.Get(), nullptr, &uavDesc, heapHandle);
+
 
 	return true;
 }
@@ -176,8 +179,8 @@ bool BlurFilter::Create(ID3D12Device* pDevice, UINT16 textureWidth, UINT16 textu
 
 void BlurFilter::Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destTexture, UINT16 blurCount)
 {
-	pCmdList->SetPipelineState(IMPL.m_pso.Get());
 	pCmdList->SetComputeRootSignature(IMPL.m_rootSig.Get());
+	pCmdList->SetPipelineState(IMPL.m_pso.Get());
 
 	pCmdList->SetComputeRoot32BitConstants(0, 1, &IMPL.m_blurRadius, 0);
 	pCmdList->SetComputeRoot32BitConstants(0, IMPL.m_weights.size(), IMPL.m_weights.data(), 1);
@@ -211,8 +214,12 @@ void BlurFilter::Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destT
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_heap->GetGPUDescriptorHandleForHeapStart());
-		heapHandle.Offset(3, IMPL.m_heapSize);
+		/* ALWAYS BIND TO DESCRIPTOR HEAP BEFORE USE ROOT DESCRIPTOR TABLE */
+		pCmdList->SetDescriptorHeaps(1, IMPL.m_heap.GetAddressOf());
+		/*-----------------------------------------------------------------------------*/
 		pCmdList->SetComputeRootDescriptorTable(1, heapHandle);
+		heapHandle.Offset(1, IMPL.m_heapSize);
+		pCmdList->SetComputeRootDescriptorTable(2, heapHandle);
 
 		pCmdList->Dispatch(static_cast<UINT>(ceil(texWidth / 256.0f)), texHeight, 1);
 

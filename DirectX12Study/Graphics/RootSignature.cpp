@@ -92,10 +92,10 @@ bool RootSignature::AddRootParameterAsDescriptor(ROOT_DESCRIPTOR_TYPE rootDescri
 	return true;
 }
 
-bool RootSignature::AddRootParameterAs32BitsConstants(UINT16 num32BitsConstants)
+bool RootSignature::AddRootParameterAs32BitsConstants(UINT16 num32BitsConstants, D3D12_SHADER_VISIBILITY shaderVisibility)
 {
 	CD3DX12_ROOT_PARAMETER param;
-	param.InitAsConstants(num32BitsConstants, IMPL.m_cbvIndex);
+	param.InitAsConstants(num32BitsConstants, IMPL.m_cbvIndex, shaderVisibility);
 	IMPL.m_params.push_back(std::move(param));
 	++IMPL.m_cbvIndex;
 
