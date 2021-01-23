@@ -49,8 +49,7 @@ bool BlurFilter::Impl::CreateRootSignature(ID3D12Device* pDevice)
 {
 	RootSignature rootSig;
 	rootSig.AddRootParameterAs32BitsConstants(12);
-	rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
-	rootSig.AddRootParameterAsDescriptorTable(0, 0, 1);
+	rootSig.AddRootParameterAsDescriptorTable(0, 1, 1);
 	rootSig.Create(pDevice);
 
 	m_rootSig = rootSig.Get();
@@ -87,7 +86,7 @@ bool BlurFilter::Impl::CreateResources(ID3D12Device* pDevice, UINT texWidth, UIN
 
 bool BlurFilter::Impl::CreateDescriptors(ID3D12Device* pDevice)
 {
-	D12Helper::CreateDescriptorHeap(pDevice, m_heap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	D12Helper::CreateDescriptorHeap(pDevice, m_heap, 4, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	m_heap->SetName(L"Blur-Heap");
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_heap->GetCPUDescriptorHandleForHeapStart());
@@ -108,11 +107,11 @@ bool BlurFilter::Impl::CreateDescriptors(ID3D12Device* pDevice)
 	pDevice->CreateShaderResourceView(m_mainTex.Get(), &srvDesc, m_heap->GetCPUDescriptorHandleForHeapStart());
 	heapHandle.Offset(1, heap_size);
 	pDevice->CreateUnorderedAccessView(m_subTex.Get(), nullptr, &uavDesc, heapHandle);
-
-	//
-	//pDevice->CreateShaderResourceView(m_subTex.Get(), &srvDesc, heapHandle);
-	//heapHandle.Offset(1, heap_size);
-	//pDevice->CreateUnorderedAccessView(m_mainTex.Get(), nullptr, &uavDesc, heapHandle);
+	heapHandle.Offset(1, heap_size);
+	
+	pDevice->CreateShaderResourceView(m_subTex.Get(), &srvDesc, heapHandle);
+	heapHandle.Offset(1, heap_size);
+	pDevice->CreateUnorderedAccessView(m_mainTex.Get(), nullptr, &uavDesc, heapHandle);
 
 
 	return true;
@@ -218,8 +217,6 @@ void BlurFilter::Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destT
 		pCmdList->SetDescriptorHeaps(1, IMPL.m_heap.GetAddressOf());
 		/*-----------------------------------------------------------------------------*/
 		pCmdList->SetComputeRootDescriptorTable(1, heapHandle);
-		heapHandle.Offset(1, IMPL.m_heapSize);
-		pCmdList->SetComputeRootDescriptorTable(2, heapHandle);
 
 		pCmdList->Dispatch(static_cast<UINT>(ceil(texWidth / 256.0f)), texHeight, 1);
 
