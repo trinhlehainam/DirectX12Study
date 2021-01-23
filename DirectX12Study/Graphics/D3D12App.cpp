@@ -265,6 +265,14 @@ void D3D12App::RenderToRenderTargetTexture()
 
     TreeRender();
 
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
+
+    m_blurFilter->Blur(m_cmdList.Get(), m_rtTexture.Get(), 1);
+
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
+        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
     EffekseerRender();
 
     // Set resource state of postEffectTexture from RTV -> SRV

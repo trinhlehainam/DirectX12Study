@@ -11,7 +11,6 @@ public:
 	// Blur destination texture
 	// *** destination texture needed set to COMMON STATE before ***
 	void Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destinationTexture, UINT16 blurCount);
-	ID3D12Resource* Get() const;
 private:
 	// Disable copy semantics
 	BlurFilter(const BlurFilter&);

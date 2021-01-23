@@ -95,8 +95,8 @@ bool RootSignature::AddRootParameterAsDescriptor(ROOT_DESCRIPTOR_TYPE rootDescri
 bool RootSignature::AddRootParameterAs32BitsConstants(UINT16 num32BitsConstants)
 {
 	CD3DX12_ROOT_PARAMETER param;
-
 	param.InitAsConstants(num32BitsConstants, IMPL.m_cbvIndex);
+	IMPL.m_params.push_back(std::move(param));
 	++IMPL.m_cbvIndex;
 
 	return true;

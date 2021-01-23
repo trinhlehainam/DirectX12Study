@@ -117,7 +117,7 @@ ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const
 #endif
     ComPtr<ID3DBlob> byteCode = nullptr;
     ComPtr<ID3DBlob> errorMsg = nullptr;
-    ThrowIfFailed(D3DCompileFromFile(
+    D3DCompileFromFile(
         filePath,
         defines,
         D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -125,7 +125,7 @@ ComPtr<ID3DBlob> D12Helper::CompileShaderFromFile(const wchar_t* filePath, const
         targetVersion,
         compileFlag1, 0,
         byteCode.GetAddressOf(),
-        errorMsg.GetAddressOf()));
+        errorMsg.GetAddressOf());
     OutputFromErrorBlob(errorMsg);
     return byteCode;
 }
