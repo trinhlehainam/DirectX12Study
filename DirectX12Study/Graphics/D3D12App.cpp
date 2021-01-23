@@ -269,7 +269,7 @@ void D3D12App::RenderToRenderTargetTexture()
     D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
 
-    m_blurFilter->Blur(m_cmdList.Get(), m_rtTexture.Get(), 1);
+    m_blurFilter->Blur(m_cmdList.Get(), m_rtTexture.Get(), 4);
 
     D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
