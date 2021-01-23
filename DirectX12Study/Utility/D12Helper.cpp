@@ -249,7 +249,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> D12Helper::CreateTextureFromFilePath(ID3D
         &heapProp,
         D3D12_HEAP_FLAG_NONE,
         &rsDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         nullptr,
         IID_PPV_ARGS(texture.GetAddressOf())
     ));
@@ -284,7 +284,11 @@ ComPtr<ID3D12Resource> D12Helper::CreateDefaultBuffer(ID3D12Device* pDevice, ID3
     subResource.RowPitch = dataSize;
     subResource.SlicePitch = subResource.RowPitch;
 
+    TransitionResourceState(pCmdList, buffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+
     UpdateSubresources(pCmdList, buffer.Get(), emptyUploadBuffer.Get(), 0, 0, 1, &subResource);
+
+    TransitionResourceState(pCmdList, buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     return buffer;
 }
@@ -299,14 +303,14 @@ bool D12Helper::UpdateDataToTextureBuffer(ID3D12Device* pDevice, ID3D12GraphicsC
     emptyUploadBuffer = D12Helper::CreateBuffer(pDevice, uploadBufferSize, D3D12_HEAP_TYPE_UPLOAD);
 
     // Transition resource state to copy state to do copy subresource at GPU
-    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 
     // 中でcmdList->CopyTextureRegionが走っているため
     // コマンドキューうを実行して待ちをしなければならない
     UpdateSubresources(pCmdList, textureBuffer.Get(), emptyUploadBuffer.Get(), 0, 0, numResources, pSubresources);
 
     // Transition resource state back to normal use
-    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+    TransitionResourceState(pCmdList, textureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     return true;
 }
