@@ -13,6 +13,7 @@
 #include "GraphicsPSO.h"
 #include "TextureManager.h"
 #include "PipelineManager.h"
+#include "BlurFilter.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
@@ -947,7 +948,7 @@ void D3D12App::CreateRootSignatures()
     //
     rootSig.Reset();
     // World Constant
-    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV);
     // Object Constant
     rootSig.AddRootParameterAsDescriptorTable(1, 0, 0);
     rootSig.Create(m_device.Get());
@@ -958,7 +959,7 @@ void D3D12App::CreateRootSignatures()
     //
     rootSig.Reset();
     // World pass constant
-    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV);
     // Depth
     rootSig.AddRootParameterAsDescriptorTable(0, 2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
     // Object Constant
@@ -975,7 +976,7 @@ void D3D12App::CreateRootSignatures()
     // Primitive
     //
     rootSig.Reset();
-    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV);
     // shadow depth buffer
     rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
     // Object constant
@@ -983,7 +984,7 @@ void D3D12App::CreateRootSignatures()
     // Texture
     rootSig.AddRootParameterAsDescriptorTable(0, 1, 0);
     // Material constant
-    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV);
     rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
     rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
     rootSig.Create(m_device.Get());
@@ -994,7 +995,7 @@ void D3D12App::CreateRootSignatures()
     //
     rootSig.Reset();
     // World Pass Constant
-    rootSig.AddRootParameterAsRootDescriptor(RootSignature::CBV);
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV);
     // Object Constant
     // Texture
     rootSig.AddRootParameterAsDescriptorTable(1, 1, 0);
@@ -1274,6 +1275,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreatePMDModel();
     CreatePrimitive();
     CreateTreeBillBoard();
+    CreateBlurFilter();
 
     m_cmdList->Close();
     ComPtr<ID3D12CommandList> cmdList;
@@ -1491,6 +1493,13 @@ void D3D12App::CreatePrimitive()
 
     m_primitiveManager->Move("box", 0.0f, 40.0f, 0.0f);
     m_primitiveManager->ScaleTexture("grid", 4.0f, 4.0f);
+}
+
+void D3D12App::CreateBlurFilter()
+{
+    m_blurFilter = std::make_unique<BlurFilter>();
+    auto bbDesc = m_backBuffer[m_currentBackBuffer]->GetDesc();
+    m_blurFilter->Create(m_device.Get(), bbDesc.Width, bbDesc.Height, bbDesc.Format);
 }
 
 bool D3D12App::ProcessMessage()

@@ -28,8 +28,9 @@ public:
 public:
 	void AddRootParameterAsDescriptorTable(UINT16 numCBV, UINT16 numSRV, UINT16 numUAV, 
 		D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL);
-	bool AddRootParameterAsRootDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor,
+	bool AddRootParameterAsDescriptor(ROOT_DESCRIPTOR_TYPE rootDescriptor,
 		D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL);
+	bool AddRootParameterAs32BitsConstants(UINT16 num32BitsConstants);
 	void AddStaticSampler(STATIC_SAMPLER_TYPE);
 	bool Create(ID3D12Device* pDevice);
 	ID3D12RootSignature* Get() const;

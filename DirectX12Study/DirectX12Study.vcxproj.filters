@@ -99,6 +99,9 @@
     <ClCompile Include="Graphics\GraphicsPSO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\BlurFilter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -194,6 +197,9 @@
     <ClInclude Include="Graphics\GraphicsPSO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Graphics\BlurFilter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\VS.hlsl" />
@@ -205,6 +211,7 @@
     <FxCompile Include="shader\TreeBillboardVS.hlsl" />
     <FxCompile Include="shader\TreeBillboardPS.hlsl" />
     <FxCompile Include="shader\TreeBillboardGS.hlsl" />
+    <FxCompile Include="shader\BlurFilter.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\common.hlsli" />

@@ -42,6 +42,7 @@ class PrimitiveManager;
 class PMDManager;
 class TextureManager;
 class PipelineManager;
+class BlurFilter;
 
 /// <summary>
 /// DirectX12 feature
@@ -145,6 +146,9 @@ private:
 
 	std::unique_ptr<PrimitiveManager> m_primitiveManager;
 	void CreatePrimitive();
+
+	std::unique_ptr<BlurFilter> m_blurFilter;
+	void CreateBlurFilter();
 private:
 	std::unordered_map<std::string, uint16_t> m_materialIndices;
 	UploadBuffer<Material> m_materialCB;
