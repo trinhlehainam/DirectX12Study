@@ -39,16 +39,17 @@ void BlurFilter( uint3 DispatchThreadID : SV_DispatchThreadID,
 	// Prevent access out-of-bounds index that causing unpredicted value
 	//
 	// Clamp x index of image at LEFT border
-	uint leftLimit = max(DispatchThreadID.x - g_blurRadius, 0);
+	uint cacheLeftLimit = max(DispatchThreadID.x - g_blurRadius, 0);
 	// Clamp x index of image at RIGHT border
-	uint rightLimit = min(DispatchThreadID.x + g_blurRadius, inputWidth);
+	uint cacheRightLimit = min(DispatchThreadID.x + g_blurRadius, inputWidth - 1);
+	uint2 texSizeLimit = uint2(min(DispatchThreadID.x, inputWidth - 1), min(DispatchThreadID.y, inputHeight - 1));
 	
 	// First R(g_blurRadius) threads need to fetch R extra pixels
 	// at the LEFT side of current sampling input texture's pixels
 	// to the first R slots of shared cache
 	if (GroupThreadID.x < g_blurRadius)
 	{
-		g_sharedCache[GroupThreadID.x] = g_input[uint2(leftLimit, DispatchThreadID.y)];
+		g_sharedCache[GroupThreadID.x] = g_input[uint2(cacheLeftLimit, DispatchThreadID.y)];
 	}
 	
 	// Last R(N - g_blurRadius) threads need to fetch R extra pixels
@@ -56,12 +57,12 @@ void BlurFilter( uint3 DispatchThreadID : SV_DispatchThreadID,
 	// to the last R slots of shared cache
 	if (GroupThreadID.x >= N - g_blurRadius)
 	{
-		g_sharedCache[GroupThreadID.x + 2 * g_blurRadius] = g_input[uint2(rightLimit, DispatchThreadID.y)];
+		g_sharedCache[GroupThreadID.x + 2 * g_blurRadius] = g_input[uint2(cacheRightLimit, DispatchThreadID.y)];
 	}
 	
 	// N threads sample texture normally
 	// with base offset of group cache start from R (g_blurRadius + GroupThreadID.x)
-	g_sharedCache[GroupThreadID.x + g_blurRadius] = g_input[uint2(rightLimit, DispatchThreadID.y)];
+	g_sharedCache[GroupThreadID.x + g_blurRadius] = g_input[texSizeLimit];
 	
 	GroupMemoryBarrierWithGroupSync();
 	
