@@ -96,9 +96,9 @@ bool PrimitiveManager::SetDefaultTexture(ID3D12Resource* whiteTexture, ID3D12Res
 
 bool PrimitiveManager::Impl::CreateObjectHeap()
 {
-	const auto num_primitive = m_drawDatas.size() * 2;
-	D12Helper::CreateDescriptorHeap(m_device.Get(), m_objectHeap, num_primitive, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	m_objectConstant.Create(m_device.Get(), num_primitive, true);
+	const auto num_primitive_descriptors = m_drawDatas.size() * 2;
+	D12Helper::CreateDescriptorHeap(m_device.Get(), m_objectHeap, num_primitive_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	m_objectConstant.Create(m_device.Get(), m_drawDatas.size(), true);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_objectHeap->GetCPUDescriptorHandleForHeapStart());
 	const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

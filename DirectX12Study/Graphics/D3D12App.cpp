@@ -14,6 +14,7 @@
 #include "TextureManager.h"
 #include "PipelineManager.h"
 #include "BlurFilter.h"
+#include "SpriteManager.h"
 #include "../Application.h"
 #include "../Loader/BmpLoader.h"
 #include "../PMDModel/PMDManager.h"
@@ -263,7 +264,11 @@ void D3D12App::RenderToRenderTargetTexture()
     m_primitiveManager->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_primitiveManager->Render(m_cmdList.Get());
 
-    TreeRender();
+    m_cmdList->SetPipelineState(m_psoMng->GetPSO("tree"));
+    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("tree"));
+    m_spriteMng->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_spriteMng->Render(m_cmdList.Get());
+
     EffekseerRender();
 
     D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
@@ -438,98 +443,6 @@ void D3D12App::EffekseerTerminate()
     ES_SAFE_RELEASE(m_effekPool);
 
     m_effekRenderer->Destroy();
-}
-
-void D3D12App::CreateTreeBillBoard()
-{
-    //
-    // Vertices
-    //
-    m_treeVertices.push_back({ XMFLOAT3(0.0f,50.0f,0.0f),XMFLOAT2(50.0f,50.0f) });
-
-    const size_t stride_in_bytes = sizeof(m_treeVertices[0]);
-    const size_t size_in_bytes = m_treeVertices.size() * stride_in_bytes;
-    
-    m_treeVertexBuffer = D12Helper::CreateBuffer(m_device.Get(), size_in_bytes);
-
-    TreeVertex* mappedVertex = nullptr;
-    D12Helper::ThrowIfFailed(m_treeVertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertex)));
-    std::copy(m_treeVertices.begin(), m_treeVertices.end(), mappedVertex);
-    m_treeVertexBuffer->Unmap(0, nullptr);
-
-    m_treeVBV.BufferLocation = m_treeVertexBuffer->GetGPUVirtualAddress();
-    m_treeVBV.SizeInBytes = size_in_bytes;
-    m_treeVBV.StrideInBytes = stride_in_bytes;
-
-    //
-    // Indices
-    //
-    m_treeIndices.push_back(0);
-    
-    m_treeIndexBuffer = D12Helper::CreateBuffer(m_device.Get(), sizeof(uint16_t) * m_treeIndices.size());
-    uint16_t* mappedIndices = nullptr;
-    m_treeIndexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndices));
-    std::copy(m_treeIndices.begin(), m_treeIndices.end(), mappedIndices);
-    m_treeIndexBuffer->Unmap(0, nullptr);
-
-    m_treeIBV.BufferLocation = m_treeIndexBuffer->GetGPUVirtualAddress();
-    m_treeIBV.Format = DXGI_FORMAT_R16_UINT;
-    m_treeIBV.SizeInBytes = sizeof(uint16_t) * m_treeIndices.size();
-
-    // 
-    // Object constant
-    //
-    m_treeConstant.Create(m_device.Get(), 1, true);
-    auto mappedData = m_treeConstant.GetHandleMappedData();
-    XMStoreFloat4x4(&mappedData->World, XMMatrixIdentity());
-
-    m_treeTex = m_texMng->Get("tree0");
-
-    D12Helper::CreateDescriptorHeap(m_device.Get(), m_treeObjectHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_treeObjectHeap->GetCPUDescriptorHandleForHeapStart());
-    const auto heap_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = m_treeConstant.GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = m_treeConstant.SizeInBytes();
-    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
-    heapHandle.Offset(1, heap_size);
-
-    auto texDesc = m_treeTex->GetDesc();
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = texDesc.Format;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    m_device->CreateShaderResourceView(m_treeTex.Get(), &srvDesc, heapHandle);
-}
-
-void D3D12App::TreeRender()
-{
-    m_cmdList->SetPipelineState(m_psoMng->GetPSO("tree"));
-    m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("tree"));
-
-    m_cmdList->IASetVertexBuffers(0, 1, &m_treeVBV);
-    m_cmdList->IASetIndexBuffer(&m_treeIBV);
-    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-
-    m_cmdList->SetGraphicsRootConstantBufferView(0, m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_cmdList->SetDescriptorHeaps(1, m_treeObjectHeap.GetAddressOf());
-    m_cmdList->SetGraphicsRootDescriptorTable(1, m_treeObjectHeap->GetGPUDescriptorHandleForHeapStart());
-
-    m_cmdList->DrawIndexedInstanced(1, 1, 0, 0, 0);
-}
-
-void D3D12App::TreeRenderDepth()
-{
-    m_cmdList->IASetVertexBuffers(0, 1, &m_treeVBV);
-    m_cmdList->IASetIndexBuffer(&m_treeIBV);
-    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-
-    m_cmdList->SetGraphicsRootConstantBufferView(0, m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
-    m_cmdList->SetDescriptorHeaps(1, m_treeObjectHeap.GetAddressOf());
-    m_cmdList->SetGraphicsRootDescriptorTable(1, m_treeObjectHeap->GetGPUDescriptorHandleForHeapStart());
-
-    m_cmdList->DrawIndexedInstanced(1, 1, 0, 0, 0);
 }
 
 void D3D12App::UpdateCamera(const float& deltaTime)
@@ -760,7 +673,6 @@ void D3D12App::RenderToShadowDepthBuffer()
     m_pmdManager->RenderDepth(m_cmdList.Get());
 
     m_cmdList->SetPipelineState(m_psoMng->GetPSO("treeShadow"));
-    TreeRenderDepth();
 
     // After draw to shadow buffer, change its state from DSV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -1281,8 +1193,8 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateDefaultTexture();
     CreatePMDModel();
     CreatePrimitive();
-    CreateTreeBillBoard();
     CreateBlurFilter();
+    CreateSprite();
 
     m_cmdList->Close();
     ComPtr<ID3D12CommandList> cmdList;
@@ -1296,6 +1208,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     m_updateBuffers.Clear();
     m_pmdManager->ClearSubresources();
     m_primitiveManager->ClearSubresources();
+    m_spriteMng->ClearSubresources();
 
     return true;
 }
@@ -1507,6 +1420,20 @@ void D3D12App::CreateBlurFilter()
     m_blurFilter = std::make_unique<BlurFilter>();
     auto bbDesc = m_backBuffer[m_currentBackBuffer]->GetDesc();
     m_blurFilter->Create(m_device.Get(), bbDesc.Width, bbDesc.Height, bbDesc.Format);
+}
+
+void D3D12App::CreateSprite()
+{
+    m_spriteMng = std::make_unique<SpriteManager>();
+    m_spriteMng->SetDevice(m_device.Get());
+    m_spriteMng->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
+    m_spriteMng->Create("tree0", 50.0f, 50.0f, m_texMng->Get("tree0"));
+    m_spriteMng->Create("tree1", 20.0f, 40.0f, m_texMng->Get("tree0"));
+
+    m_spriteMng->Init(m_cmdList.Get());
+
+    m_spriteMng->Move("tree0", 0.0f, 25.0f, 0.0f);
+    m_spriteMng->Move("tree1", 10.0f, 20.0f, 10.0f);
 }
 
 bool D3D12App::ProcessMessage()

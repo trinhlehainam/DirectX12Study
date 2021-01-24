@@ -14,6 +14,11 @@ struct GSOutput
 	float2 uv : TEXCOORD;
 };
 
+cbuffer ObjectConstant : register(b1)
+{
+	float4x4 g_world;
+};
+
 static float3 UP = { 0.0f, 1.0f, 0.0f };
 
 [maxvertexcount(4)]
@@ -47,6 +52,7 @@ void TreeBillboardGS(
 	[unroll]
 	for (uint i = 0; i < 4; i++)
 	{
+		v[i] = mul(g_world, v[i]);
 		element.pos = v[i].xyz;
 #if SHADOW_PIPELINE
 		element.svpos = mul(g_lights[0].ProjectMatrix, v[i]);

@@ -1,13 +1,8 @@
-
 #include "common.hlsli"
 
 Texture2D<float4> g_tex : register(t0);
 SamplerState g_smpWrap : register(s0);
 
-cbuffer ObjectConstant : register(b0)
-{
-	float4x4 g_world;
-};
 
 struct GSOutput
 {
