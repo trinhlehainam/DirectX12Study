@@ -41,6 +41,11 @@ private:
 bool BlurFilter::Impl::CreateWeights()
 {
 	m_weights = CalculateGaussianWeights(2.5f);
+	float sum = 0;
+	for (const auto& weight : m_weights)
+	{
+		sum += weight;
+	}
 	m_blurRadius = m_weights.size() / 2;
 	return true;
 }
