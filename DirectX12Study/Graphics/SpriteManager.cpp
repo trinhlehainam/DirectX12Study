@@ -242,7 +242,6 @@ void SpriteManager::Render(ID3D12GraphicsCommandList* pCmdList)
 
 bool SpriteManager::Move(const std::string& name, float x, float y, float z)
 {
-	if (!IMPL.Has(name)) return false;
 	const auto& index = IMPL.m_drawArgs[name];
 	auto mappedData = IMPL.m_objectConstant.GetHandleMappedData(index);
 	XMStoreFloat4x4(&mappedData->World, XMMatrixTranslation(x, y, z));
@@ -251,7 +250,6 @@ bool SpriteManager::Move(const std::string& name, float x, float y, float z)
 
 bool SpriteManager::Scale(const std::string& name, float x, float y, float z)
 {
-	if (!IMPL.Has(name)) return false;
 	const auto& index = IMPL.m_drawArgs[name];
 	auto mappedData = IMPL.m_objectConstant.GetHandleMappedData(index);
 	XMStoreFloat4x4(&mappedData->World, XMMatrixScaling(x, y, z));

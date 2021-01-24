@@ -710,6 +710,8 @@ void D3D12App::CreateTextureManager()
     m_texMng->Create(m_cmdList.Get(), "brick", L"resource/image/Textures/bricks.dds");
     m_texMng->Create(m_cmdList.Get(), "stone", L"resource/image/Textures/stone.dds");
     m_texMng->Create(m_cmdList.Get(), "tree0", L"resource/image/Textures/tree01S.dds");
+    m_texMng->Create(m_cmdList.Get(), "tree1", L"resource/image/Textures/tree02S.dds");
+    m_texMng->Create(m_cmdList.Get(), "tree2", L"resource/image/Textures/tree35S.dds");
 }
 
 void D3D12App::CreatePSOManager()
@@ -1428,12 +1430,18 @@ void D3D12App::CreateSprite()
     m_spriteMng->SetDevice(m_device.Get());
     m_spriteMng->SetWorldPassConstantGpuAddress(m_worldPCBuffer.GetGPUVirtualAddress(m_currentFrameResourceIndex));
     m_spriteMng->Create("tree0", 50.0f, 50.0f, m_texMng->Get("tree0"));
-    m_spriteMng->Create("tree1", 20.0f, 40.0f, m_texMng->Get("tree0"));
+    m_spriteMng->Create("tree1", 20.0f, 40.0f, m_texMng->Get("tree1"));
+    m_spriteMng->Create("tree2", 20.0f, 40.0f, m_texMng->Get("tree2"));
+    m_spriteMng->Create("tree3", 20.0f, 40.0f, m_texMng->Get("tree1"));
+    m_spriteMng->Create("tree4", 20.0f, 40.0f, m_texMng->Get("tree2"));
 
     m_spriteMng->Init(m_cmdList.Get());
 
-    m_spriteMng->Move("tree0", 0.0f, 25.0f, 0.0f);
-    m_spriteMng->Move("tree1", 10.0f, 20.0f, 10.0f);
+    m_spriteMng->Move("tree0", 30.0f, 25.0f, 0.0f);
+    m_spriteMng->Move("tree1", 80.0f, 20.0f, 60.0f);
+    m_spriteMng->Move("tree2", 70.0f, 20.0f, 30.0f);
+    m_spriteMng->Move("tree3", 10.0f, 20.0f, 50.0f);
+    m_spriteMng->Move("tree4", 30.0f, 20.0f, 10.0f);
 }
 
 bool D3D12App::ProcessMessage()
