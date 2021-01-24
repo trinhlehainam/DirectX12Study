@@ -189,6 +189,10 @@ void BlurFilter::Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destT
 	pCmdList->SetComputeRoot32BitConstants(0, 1, &IMPL.m_blurRadius, 0);
 	pCmdList->SetComputeRoot32BitConstants(0, IMPL.m_weights.size(), IMPL.m_weights.data(), 1);
 
+	/* ALWAYS BIND TO DESCRIPTOR HEAP BEFORE USE ROOT DESCRIPTOR TABLE */
+	pCmdList->SetDescriptorHeaps(1, IMPL.m_heap.GetAddressOf());
+	/*-----------------------------------------------------------------------------*/
+
 	// Transition to copy destination texture to blur's texture
 	D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(), 
 		D3D12_RESOURCE_STATE_COMMON, 
@@ -209,28 +213,53 @@ void BlurFilter::Blur(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* destT
 
 	for (uint16_t i = 0; i < blurCount; ++i)
 	{
-		// Transition blur's resources to get ready to compute blur
-		D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		CD3DX12_GPU_DESCRIPTOR_HANDLE heapHandle(IMPL.m_heap->GetGPUDescriptorHandleForHeapStart());
-		/* ALWAYS BIND TO DESCRIPTOR HEAP BEFORE USE ROOT DESCRIPTOR TABLE */
-		pCmdList->SetDescriptorHeaps(1, IMPL.m_heap.GetAddressOf());
-		/*-----------------------------------------------------------------------------*/
-		pCmdList->SetComputeRootDescriptorTable(1, heapHandle);
 
-		pCmdList->Dispatch(static_cast<UINT>(ceil(texWidth / 256.0f)), texHeight, 1);
+		// Switch back-and-fore main Texture and sub Texture when do multiple blur
+		// -> this can add more blur to texture 
+		if (i % 2 == 0)
+		{
+			// Transition blur's resources to get ready to compute blur
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_COMMON);
-		D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			D3D12_RESOURCE_STATE_COMMON);
+			pCmdList->SetComputeRootDescriptorTable(1, heapHandle);
+
+			pCmdList->Dispatch(static_cast<UINT>(ceil(texWidth / 256.0f)), texHeight, 1);
+
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_COMMON);
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON);
+		}
+		else
+		{
+			// Transition blur's resources to get ready to compute blur
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			heapHandle.Offset(2, IMPL.m_heapSize);
+			pCmdList->SetComputeRootDescriptorTable(1, heapHandle);
+
+			pCmdList->Dispatch(static_cast<UINT>(ceil(texWidth / 256.0f)), texHeight, 1);
+
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_subTex.Get(),
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_COMMON);
+			D12Helper::TransitionResourceState(pCmdList, IMPL.m_mainTex.Get(),
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COMMON);
+		}
 	}
 
 	// Transition to copy blured texture back to destination resource
