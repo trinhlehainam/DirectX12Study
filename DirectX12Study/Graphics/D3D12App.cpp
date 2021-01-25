@@ -1437,11 +1437,11 @@ void D3D12App::CreateSprite()
 
     m_spriteMng->Init(m_cmdList.Get());
 
-    m_spriteMng->Move("tree0", 30.0f, 25.0f, 0.0f);
-    m_spriteMng->Move("tree1", 80.0f, 20.0f, 60.0f);
-    m_spriteMng->Move("tree2", 70.0f, 20.0f, 30.0f);
-    m_spriteMng->Move("tree3", 10.0f, 20.0f, 50.0f);
-    m_spriteMng->Move("tree4", 30.0f, 20.0f, 10.0f);
+    m_spriteMng->Move("tree0", 30.0f, 25.0f, -20.0f);
+    m_spriteMng->Move("tree1", -30.0f, 20.0f, -30.0f);
+    m_spriteMng->Move("tree2", -25.0f, 20.0f, 30.0f);
+    m_spriteMng->Move("tree3", 10.0f, 20.0f, 30.0f);
+    m_spriteMng->Move("tree4", 50.0f, 20.0f, -10.0f);
 }
 
 bool D3D12App::ProcessMessage()
