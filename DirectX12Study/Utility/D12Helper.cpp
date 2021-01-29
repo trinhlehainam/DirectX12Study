@@ -78,7 +78,7 @@ bool D12Helper::CreateDescriptorHeap(ID3D12Device* pDevice, ComPtr<ID3D12Descrip
     descHeap.NumDescriptors = numDesciprtor;
     descHeap.Type = heapType;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&descHeap, IID_PPV_ARGS(pDescriptorHeap.ReleaseAndGetAddressOf())));
-    return false;
+    return true;
 }
 
 void D12Helper::OutputFromErrorBlob(ComPtr<ID3DBlob>& errBlob)

@@ -445,6 +445,43 @@ void D3D12App::EffekseerTerminate()
     m_effekRenderer->Destroy();
 }
 
+bool D3D12App::CreateImGui(const HWND& hwnd)
+{
+    CreateImGuiDescriptorHeap();
+    if (!ImGui::CreateContext())
+        return false;
+    if (!ImGui_ImplWin32_Init(hwnd))
+        return false;
+    if (!ImGui_ImplDX12_Init(m_device.Get(), 1, DEFAULT_BACK_BUFFER_FORMAT, m_imguiHeap.Get(),
+        m_imguiHeap->GetCPUDescriptorHandleForHeapStart(),
+        m_imguiHeap->GetGPUDescriptorHandleForHeapStart()))
+        return false;
+
+    return true;
+}
+
+void D3D12App::CreateImGuiDescriptorHeap()
+{
+    D12Helper::CreateDescriptorHeap(m_device.Get(), m_imguiHeap, 1, 
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+}
+
+void D3D12App::RenderImGui()
+{
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Hello World!");
+    ImGui::SetWindowSize(ImVec2(400.0f, 400.0f));
+    ImGui::End();
+
+    ImGui::Render();
+
+    m_cmdList->SetDescriptorHeaps(1, m_imguiHeap.GetAddressOf());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_cmdList.Get());
+}
+
 void D3D12App::UpdateCamera(const float& deltaTime)
 {
     if (m_mouse.IsRightPressed())
@@ -1197,6 +1234,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreatePrimitive();
     CreateBlurFilter();
     CreateSprite();
+    assert(CreateImGui(hwnd));
 
     m_cmdList->Close();
     ComPtr<ID3D12CommandList> cmdList;
@@ -1528,6 +1566,8 @@ bool D3D12App::Render()
 
     SetResourceStateForNextFrame();
 
+    RenderImGui();
+
     m_cmdList->Close();
     m_cmdQue->ExecuteCommandLists(1, (ID3D12CommandList* const*)m_cmdList.GetAddressOf());
     // screen flip
@@ -1549,6 +1589,10 @@ void D3D12App::Terminate()
     }
     m_currentFrameResource = nullptr;
     EffekseerTerminate();
+
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void D3D12App::ClearKeyState()

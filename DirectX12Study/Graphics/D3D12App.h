@@ -8,6 +8,8 @@
 #include <dxgi1_6.h>
 #include <Effekseer/Effekseer.h>
 #include <EffekseerRendererDX12/EffekseerRendererDX12.h>
+#include "../Dependencies/ImGui/imgui_impl_dx12.h"
+#include "../Dependencies/ImGui/imgui_impl_win32.h"
 
 #include "../common.h"
 #include "Camera.h"
@@ -211,5 +213,12 @@ private:
 	void EffekseerUpdate(const float& deltaTime);
 	void EffekseerRender();
 	void EffekseerTerminate();
+
+private:
+	ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
+	 
+	bool CreateImGui(const HWND&);
+	void CreateImGuiDescriptorHeap();
+	void RenderImGui();
 };
 

@@ -124,7 +124,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;$(EFFEKSEER_DIR)\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;$(EFFEKSEER_DIR)\lib;$(IMGUI_DIR)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -143,12 +143,20 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(EFFEKSEER_DIR);$(IMGUI_DIR)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
+    <ClCompile Include="Dependencies\ImGui\imgui.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="Dependencies\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Graphics\BlurFilter.cpp" />
     <ClCompile Include="Graphics\Camera.cpp" />
     <ClCompile Include="Common\Timer.cpp" />
@@ -181,6 +189,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Dependencies\ImGui\imconfig.h" />
+    <ClInclude Include="Dependencies\ImGui\imgui.h" />
+    <ClInclude Include="Dependencies\ImGui\imgui_impl_dx12.h" />
+    <ClInclude Include="Dependencies\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="Dependencies\ImGui\imgui_internal.h" />
+    <ClInclude Include="Dependencies\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="Dependencies\ImGui\imstb_textedit.h" />
+    <ClInclude Include="Dependencies\ImGui\imstb_truetype.h" />
     <ClInclude Include="Graphics\BlurFilter.h" />
     <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="common.h" />
