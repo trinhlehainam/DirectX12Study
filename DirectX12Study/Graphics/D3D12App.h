@@ -219,6 +219,7 @@ private:
 	 
 	bool CreateImGui(const HWND&);
 	void CreateImGuiDescriptorHeap();
+	void UpdateImGui(float deltaTime);
 	void RenderImGui();
 };
 

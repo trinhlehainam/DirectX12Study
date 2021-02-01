@@ -151,7 +151,6 @@
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="Dependencies\ImGui\imgui.cpp" />
-    <ClCompile Include="Dependencies\ImGui\imgui_demo.cpp" />
     <ClCompile Include="Dependencies\ImGui\imgui_draw.cpp" />
     <ClCompile Include="Dependencies\ImGui\imgui_impl_dx12.cpp" />
     <ClCompile Include="Dependencies\ImGui\imgui_impl_win32.cpp" />

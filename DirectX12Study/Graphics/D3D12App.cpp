@@ -466,15 +466,25 @@ void D3D12App::CreateImGuiDescriptorHeap()
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 }
 
-void D3D12App::RenderImGui()
+void D3D12App::UpdateImGui(float deltaTime)
 {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
     ImGui::Begin("Hello World!");
-    ImGui::SetWindowSize(ImVec2(400.0f, 400.0f));
+    static auto wsize = ImGui::GetWindowSize();
+    ImGui::SetWindowSize(wsize);
+    wsize = ImGui::GetWindowSize();
+    static float col[3] = {0.0f,0.0f,0.0f};
+    ImGui::ColorPicker3("Color3", col);
+    static bool flag = false;
+    ImGui::Checkbox("Sample Box", &flag);
     ImGui::End();
+}
+
+void D3D12App::RenderImGui()
+{
 
     ImGui::Render();
 
@@ -1493,6 +1503,7 @@ bool D3D12App::Update(const float& deltaTime)
 {
     UpdateCamera(deltaTime);
     EffekseerUpdate(deltaTime);
+    UpdateImGui(deltaTime);
 
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
     m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];

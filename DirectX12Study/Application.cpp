@@ -8,6 +8,7 @@
 #include <string>
 #include <exception>
 
+#include "Dependencies/ImGui/imgui_impl_win32.h"
 #include "Graphics/D3D12App.h"
 
 namespace
@@ -17,6 +18,8 @@ namespace
 	constexpr int WINDOW_WIDTH = 1280;
 	constexpr int WINDOW_HEIGHT = 720;
 }
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 Application::Application()
 {
@@ -58,6 +61,7 @@ void Application::CalculatePerformance()
 LRESULT CALLBACK Application::WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	auto& app = Application::Instance();
+	ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 	return app.ProcessMessage(hwnd, msg, wparam, lparam);
 }
 
