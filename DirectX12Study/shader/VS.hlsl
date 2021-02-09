@@ -29,12 +29,8 @@ VsOutput VS( VsInput input )
 	matrix skinMat = g_bones[input.boneno.x] * input.weight + g_bones[input.boneno.y] * (1.0f - input.weight);
 	ret.pos = mul(g_world, mul(skinMat, input.pos));
 
-	skinMat._14_24_34 = 0.0f;		// •½sˆÚ“®¬•ª–³Œø
+	skinMat._14_24_34 = 0.0f;		// remove translation of matrix
 	ret.norm = mul(g_world, mul(skinMat, input.normal)); // normal vector DOESN'T TRANSLATE position
-
-	// Offset models to create outline
-	//ret.pos.xyz += ret.norm.xyz;
-	//
 
 #if SHADOW_PIPELINE
 	ret.svpos = mul(g_lights[0].ProjectMatrix, ret.pos);

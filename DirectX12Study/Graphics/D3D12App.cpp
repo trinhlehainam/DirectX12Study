@@ -1401,6 +1401,10 @@ void D3D12App::CreatePMDModel()
     assert(m_pmdManager->Init(m_cmdList.Get()));
     assert(m_pmdManager->Play("Miku", "Dancing1"));
     assert(m_pmdManager->Play("Hibiki", "Dancing1"));
+    assert(m_pmdManager->Play("Haku", "Dancing1"));
+
+    m_pmdManager->Move("Hibiki", -20.0f, 0.0f, 20.0f);
+    m_pmdManager->Move("Haku", 20.0f, 0.0f, 20.0f);
 }
 
 void D3D12App::CreatePrimitive()
@@ -1556,14 +1560,6 @@ bool D3D12App::Update(const float& deltaTime)
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
     }
-
-    if (m_keyboard.IsPressed('R'))
-        m_pmdManager->RotateY("Miku", 1.0f*deltaTime);
-
-    if (m_keyboard.IsPressed(VK_LEFT))
-        m_pmdManager->Move("Hibiki", 10.0f * deltaTime, 0.0f, 0.0f);
-    if (m_keyboard.IsPressed(VK_RIGHT))
-        m_pmdManager->Move("Haku", -10.0f * deltaTime, 0.0f, 0.0f);
 
     UpdateWorldPassConstant();
     m_pmdManager->Update(deltaTime);
