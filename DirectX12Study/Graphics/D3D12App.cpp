@@ -1411,7 +1411,8 @@ void D3D12App::CreatePrimitive()
     m_primitiveManager->Create("cylinder12", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_texMng->Get("brick"));
     m_primitiveManager->Create("cylinder13", GeometryGenerator::CreateCylinder(3.0f, 5.0f, 20.0f, 20, 1), brickGpuAdress, m_texMng->Get("brick"));
     m_primitiveManager->Create("box", GeometryGenerator::CreateBox(20.0f, 20.0f, 20.0f), woodCrateGpuAdress, m_texMng->Get("wire-fence"));
-    assert(m_primitiveManager->Init(m_cmdList.Get()));
+    //assert(m_primitiveManager->Init(m_cmdList.Get()));
+    m_primitiveManager->Init(m_cmdList.Get());
 
     float startX = 100.0f;
     float startZ = 50.0f - 3.0f;
@@ -1574,10 +1575,8 @@ bool D3D12App::Render()
     RenderToShadowDepthBuffer();
     RenderToRenderTargetTexture();
     RenderToBackBuffer();
-
-    SetResourceStateForNextFrame();
-
     RenderImGui();
+    SetResourceStateForNextFrame();
 
     m_cmdList->Close();
     m_cmdQue->ExecuteCommandLists(1, (ID3D12CommandList* const*)m_cmdList.GetAddressOf());
