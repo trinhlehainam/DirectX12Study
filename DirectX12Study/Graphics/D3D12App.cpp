@@ -99,19 +99,28 @@ void D3D12App::CreateRenderTargetTexture()
     auto worldPCB = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
     float fogColor[] = { worldPCB->FogColor.x,worldPCB->FogColor.y,worldPCB->FogColor.z,worldPCB->FogColor.w };
     auto clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, fogColor);
-    m_rtTexture = D12Helper::CreateTexture2D(m_device.Get(),
+    m_rtTex = D12Helper::CreateTexture2D(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
     float color[] = { 0.f,0.0f,0.0f,1.0f };
     clearValue = CD3DX12_CLEAR_VALUE(rsDesc.Format, color);
-    m_rtNormalTexture = D12Helper::CreateTexture2D(m_device.Get(),
+    m_rtNormalTex = D12Helper::CreateTexture2D(m_device.Get(),
         rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
 
-    D12Helper::CreateDescriptorHeap(m_device.Get(),m_rtvHeap, 2, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    m_rtBrightTex = D12Helper::CreateTexture2D(m_device.Get(),
+        rsDesc.Width, rsDesc.Height, rsDesc.Format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue);
+
+    // RTT for back buffer
+    // RTT for normal texture
+    // RTT for bright color ( that color > 1.0f )
+    const size_t num_rtx = 3;
+    D12Helper::CreateDescriptorHeap(m_device.Get(),m_rtvHeap, num_rtx, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     // Main render target
@@ -120,21 +129,28 @@ void D3D12App::CreateRenderTargetTexture()
     rtvDesc.Format = rsDesc.Format;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
-    m_device->CreateRenderTargetView(m_rtTexture.Get(), &rtvDesc, rtvHeapHandle);
 
-    // Normal render target
+    // Scene texture
+    m_device->CreateRenderTargetView(m_rtTex.Get(), &rtvDesc, rtvHeapHandle);
+
+    // Normal texture
     rtvHeapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
-    m_device->CreateRenderTargetView(m_rtNormalTexture.Get(), &rtvDesc, rtvHeapHandle);
+    m_device->CreateRenderTargetView(m_rtNormalTex.Get(), &rtvDesc, rtvHeapHandle);
+
+    // Bright texture
+    rtvHeapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+    m_device->CreateRenderTargetView(m_rtBrightTex.Get(), &rtvDesc, rtvHeapHandle);
 
     //
-    // SRV 5 resources
+    // SRV 6 resources
     //
     // Render target texture
-    // Normal render target texture
+    // Render target normal texture
+    // Render target bright texture
     // Normal map texture
     // Shadow depth texture
     // View Depth Texture
-    D12Helper::CreateDescriptorHeap(m_device.Get(),m_boardSRVHeap, 5, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    D12Helper::CreateDescriptorHeap(m_device.Get(),m_boardSRVHeap, 6, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -148,13 +164,18 @@ void D3D12App::CreateRenderTargetTexture()
     // 1st SRV 
     // main render target
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHeapHandle(m_boardSRVHeap->GetCPUDescriptorHandleForHeapStart());
-    m_device->CreateShaderResourceView(m_rtTexture.Get(), &srvDesc, srvHeapHandle);
+    m_device->CreateShaderResourceView(m_rtTex.Get(), &srvDesc, srvHeapHandle);
 
     // 2nd SRV
-    // normal render target
+    // Render target normal texture
     const int rt_normal_index = 1;
     srvHeapHandle.Offset(rt_normal_index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-    m_device->CreateShaderResourceView(m_rtNormalTexture.Get(), &srvDesc, srvHeapHandle);
+    m_device->CreateShaderResourceView(m_rtNormalTex.Get(), &srvDesc, srvHeapHandle);
+
+    // 3rd SRV
+    // Render target bright texture
+    srvHeapHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    m_device->CreateShaderResourceView(m_rtBrightTex.Get(), &srvDesc, srvHeapHandle);
 }
 
 void D3D12App::CreateBoardPolygonVertices()
@@ -195,8 +216,8 @@ void D3D12App::CreateBoardShadowDepthView()
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    // 4th SRV
-    const int shadow_depth_index = 3;
+    // 5th SRV
+    const int shadow_depth_index = 4;
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_boardSRVHeap->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(shadow_depth_index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
@@ -222,15 +243,15 @@ void D3D12App::CreateBoardViewDepthView()
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    // 5th SRV
-    const int view_depth_index = 4;
+    // 6th SRV
+    const int view_depth_index = 5;
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_boardSRVHeap->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(view_depth_index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
     m_device->CreateShaderResourceView(m_viewDepthBuffer.Get(), &srvDesc, heapHandle);
 }
 
-void D3D12App::RenderToRenderTargetTexture()
+void D3D12App::RenderToRenderTargetTextures()
 {
     auto worldPCB = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
 
@@ -246,13 +267,16 @@ void D3D12App::RenderToRenderTargetTexture()
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtTexHeap(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtNormalTexHeap(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     rtNormalTexHeap.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtBrightTexHeap(rtNormalTexHeap);
+    rtBrightTexHeap.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtHeapHandle[] = { rtTexHeap , rtNormalTexHeap };
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtHeapHandle[] = { rtTexHeap , rtNormalTexHeap, rtBrightTexHeap };
     auto dsvHeap = m_viewDSVHeap->GetCPUDescriptorHandleForHeapStart();
-    m_cmdList->OMSetRenderTargets(2, rtHeapHandle, false, &dsvHeap);
+    m_cmdList->OMSetRenderTargets(_countof(rtHeapHandle), rtHeapHandle, false, &dsvHeap);
     m_cmdList->ClearDepthStencilView(dsvHeap, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtTexHeap, fogColor, 0, nullptr);
     m_cmdList->ClearRenderTargetView(rtNormalTexHeap, rtTexDefaultColor, 0, nullptr);
+    m_cmdList->ClearRenderTargetView(rtBrightTexHeap, rtTexDefaultColor, 0, nullptr);
 
     m_cmdList->SetPipelineState(m_psoMng->GetPSO("pmd"));
     m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("pmd"));
@@ -271,18 +295,30 @@ void D3D12App::RenderToRenderTargetTexture()
 
     EffekseerRender();
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
 
-    m_blurFilter->Blur(m_cmdList.Get(), m_rtTexture.Get(), 8);
+    m_blurFilter->Blur(m_cmdList.Get(), m_rtTex.Get(), 8);
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTexture.Get(),
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_rtTexture.Get(),
+        m_rtTex.Get(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_rtNormalTex.Get(),
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_rtBrightTex.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_cmdList->ResourceBarrier(1, &barrier);
@@ -538,8 +574,8 @@ void D3D12App::CreateNormalMapTexture()
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // ¦
     srvDesc.Format = m_normalMapTex.Get()->GetDesc().Format;
 
-    // 3rd SRV
-    const int normal_texture_index = 2;
+    // 4rd SRV
+    const int normal_texture_index = 3;
     CD3DX12_CPU_DESCRIPTOR_HANDLE heapHandle(m_boardSRVHeap->GetCPUDescriptorHandleForHeapStart());
     heapHandle.Offset(normal_texture_index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
@@ -905,7 +941,7 @@ void D3D12App::CreateRootSignatures()
     // Normal texture
     // Shadow depth texture
     // View depth texture
-    rootSig.AddRootParameterAsDescriptorTable(0, 5, 0);
+    rootSig.AddRootParameterAsDescriptorTable(0, 6, 0);
     rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
     rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
     rootSig.Create(m_device.Get());
@@ -1046,7 +1082,7 @@ void D3D12App::CreatePSOs()
     pso.SetInputLayout(m_psoMng->GetInputLayout("pmd"));
     pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     pso.SetSampleMask();
-    pso.SetRenderTargetFormats(2);
+    pso.SetRenderTargetFormats(3);
     pso.SetRasterizerState(rasterizerDesc);
     pso.SetDepthStencilState(depthStencilDesc);
     pso.SetBlendState(blendDesc);
@@ -1070,7 +1106,7 @@ void D3D12App::CreatePSOs()
     pso.SetInputLayout(m_psoMng->GetInputLayout("primitive"));
     pso.SetPrimitiveTopology();
     pso.SetSampleMask();
-    pso.SetRenderTargetFormats(2);
+    pso.SetRenderTargetFormats(3);
     pso.SetRasterizerState(rasterizerDesc);
     pso.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
     D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc = {};
@@ -1104,7 +1140,7 @@ void D3D12App::CreatePSOs()
     pso.SetInputLayout(m_psoMng->GetInputLayout("tree"));
     pso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
     pso.SetSampleMask();
-    pso.SetRenderTargetFormats(2);
+    pso.SetRenderTargetFormats(3);
     pso.SetRasterizerState(rasterizerDesc);
     pso.SetDepthStencilState(depthStencilDesc);
     pso.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
@@ -1540,7 +1576,19 @@ bool D3D12App::Update(const float& deltaTime)
 void D3D12App::SetResourceStateForNextFrame()
 {
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        m_rtTexture.Get(),
+        m_rtTex.Get(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_rtNormalTex.Get(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_rtBrightTex.Get(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_cmdList->ResourceBarrier(1, &barrier);
@@ -1573,7 +1621,7 @@ bool D3D12App::Render()
     m_cmdList->Reset(cmdAlloc.Get(), nullptr);
 
     RenderToShadowDepthBuffer();
-    RenderToRenderTargetTexture();
+    RenderToRenderTargetTextures();
     RenderToBackBuffer();
     RenderImGui();
     SetResourceStateForNextFrame();

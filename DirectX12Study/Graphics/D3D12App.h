@@ -172,8 +172,9 @@ private:
 	void CreateBoardShadowDepthView();
 	void CreateBoardViewDepthView();
 
-	ComPtr<ID3D12Resource> m_rtTexture;
-	ComPtr<ID3D12Resource> m_rtNormalTexture;
+	ComPtr<ID3D12Resource> m_rtTex;
+	ComPtr<ID3D12Resource> m_rtNormalTex;
+	ComPtr<ID3D12Resource> m_rtBrightTex;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_boardSRVHeap;
 
@@ -194,7 +195,7 @@ private:
 private:
 	// Function for Render
 	void RenderToShadowDepthBuffer();
-	void RenderToRenderTargetTexture();
+	void RenderToRenderTargetTextures();
 	void RenderToBackBuffer();
 
 	void SetResourceStateForNextFrame();

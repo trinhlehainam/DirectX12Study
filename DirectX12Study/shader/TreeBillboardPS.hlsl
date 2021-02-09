@@ -14,8 +14,9 @@ struct GSOutput
 
 struct PixelOutput
 {
-	float4 color : SV_TARGET0;
-	float4 normalColor : SV_TARGET1;
+	float4 rtTex : SV_TARGET0;
+	float4 rtNormalTex : SV_TARGET1;
+	float4 rtBrightTex : SV_TARGET2;
 };
 
 PixelOutput TreeBillboardPS(GSOutput input)
@@ -23,7 +24,8 @@ PixelOutput TreeBillboardPS(GSOutput input)
 	PixelOutput ret;
 	float4 color = g_tex.Sample(g_smpWrap, input.uv);
 	clip(color.a - 0.1f);
-	ret.color = color;
-	ret.normalColor = float4(input.normal, 1.0f);
+	ret.rtTex = color;
+	ret.rtNormalTex = float4(input.normal, 1.0f);
+	ret.rtBrightTex = float4(1.0f, 0.0f, 0.0f, 1.0f);
 	return ret;
 }

@@ -20,8 +20,9 @@ cbuffer Materials : register(b2)
 
 struct PSOutput
 {
-	float4 rtTexColor : SV_TARGET0;
-	float4 rtNormalTexColor : SV_TARGET1;
+	float4 rtTex : SV_TARGET0;
+	float4 rtNormalTex : SV_TARGET1;
+	float4 rtBrightTex : SV_TARGET2;
 };
 
 PSOutput primitivePS(PrimitiveOut input)
@@ -54,8 +55,9 @@ PSOutput primitivePS(PrimitiveOut input)
 	color = lerp(color, g_fogColor, clampFogDistance);
 #endif
 	
-	ret.rtTexColor = float4(color.rgb, 1.0f);
-	ret.rtNormalTexColor = float4(input.normal.xyz, 1.0f);
+	ret.rtTex = float4(color.rgb, 1.0f);
+	ret.rtNormalTex = float4(input.normal.xyz, 1.0f);
+	ret.rtBrightTex = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
 	return ret;
 }

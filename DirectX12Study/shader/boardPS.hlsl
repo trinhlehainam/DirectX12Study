@@ -2,9 +2,10 @@
 
 Texture2D<float4> g_rtTex:register (t0);
 Texture2D<float4> g_rtNormalTex:register(t1);
-Texture2D<float4> g_normalMapTex:register (t2);
-Texture2D<float> g_shadowDepthTex:register (t3);
-Texture2D<float> g_viewDepthTex:register(t4);
+Texture2D<float4> g_rtBrightTex:register(t2);
+Texture2D<float4> g_normalMapTex:register (t3);
+Texture2D<float> g_shadowDepthTex:register (t4);
+Texture2D<float> g_viewDepthTex:register(t5);
 
 SamplerState smpWrap:register(s0);
 SamplerState smpBorder:register(s1);
@@ -55,6 +56,13 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	if (input.uv.x < 0.25f && input.uv.y >= 0.5f && input.uv.y < 0.75f)
 	{
 		float3 rtNormalColor = g_rtNormalTex.Sample(smpWrap, input.uv * 4);
+		return float4(rtNormalColor, 1);
+	}
+	
+	// Debug for bright texture
+	if (input.uv.x < 0.25f && input.uv.y >= 0.75f && input.uv.y < 1.0f)
+	{
+		float3 rtNormalColor = g_rtBrightTex.Sample(smpWrap, input.uv * 4);
 		return float4(rtNormalColor, 1);
 	}
 	

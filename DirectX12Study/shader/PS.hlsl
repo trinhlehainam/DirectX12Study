@@ -28,8 +28,9 @@ cbuffer Material:register (b2)
 
 struct PSOutput
 {
-	float4 rtTexColor : SV_TARGET0;
-	float4 rtNormalTexColor : SV_TARGET1;
+	float4 rtTex : SV_TARGET0;
+	float4 rtNormalTex : SV_TARGET1;
+	float4 rtBrightTex : SV_TARGET2;
 };
 
 // Pixel Shader
@@ -70,12 +71,14 @@ PSOutput PS(VsOutput input)
 	color = lerp(color, g_fogColor, clampFogDistance);
 #endif
 	
-	ret.rtTexColor = color
+	ret.rtTex = color
 		* g_tex.Sample(g_smp, input.uv)
 		* g_sph.Sample(g_smp, sphereUV)
 		+ g_spa.Sample(g_smp, sphereUV);
 	
-	ret.rtNormalTexColor = float4(input.norm.xyz, 1.0f);
+	ret.rtNormalTex = float4(input.norm.xyz, 1.0f);
+	
+	ret.rtBrightTex = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
 	return ret;
 }
