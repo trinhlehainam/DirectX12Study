@@ -57,7 +57,9 @@ PSOutput primitivePS(PrimitiveOut input)
 	
 	ret.rtTex = float4(color.rgb, 1.0f);
 	ret.rtNormalTex = float4(input.normal.xyz, 1.0f);
-	ret.rtBrightTex = float4(1.0f, 0.0f, 0.0f, 1.0f);
+	
+	float bright_check = dot(float3(0.299f, 0.587f, 0.114f), ret.rtTex.rgb);
+	ret.rtBrightTex = bright_check > 0.99f ? ret.rtTex : 0.0f;
 
 	return ret;
 }

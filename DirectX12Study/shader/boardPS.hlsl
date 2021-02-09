@@ -47,33 +47,33 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 	// Debug for view depth
 	if (input.uv.x < 0.25f && input.uv.y >= 0.25f && input.uv.y < 0.5f)
 	{
-		float3 viewDepthColor = g_viewDepthTex.Sample(smpWrap, input.uv * 4);
-		viewDepthColor = pow(viewDepthColor, 50);
-		return float4(viewDepthColor,1);
+		float3 test = g_viewDepthTex.Sample(smpWrap, input.uv * 4);
+		test = pow(test, 50);
+		return float4(test, 1);
 	}
 
 	// Debug for normal render target
 	if (input.uv.x < 0.25f && input.uv.y >= 0.5f && input.uv.y < 0.75f)
 	{
-		float3 rtNormalColor = g_rtNormalTex.Sample(smpWrap, input.uv * 4);
-		return float4(rtNormalColor, 1);
+		float3 test = g_rtNormalTex.Sample(smpWrap, input.uv * 4);
+		return float4(test, 1);
 	}
 	
 	// Debug for bright texture
 	if (input.uv.x < 0.25f && input.uv.y >= 0.75f && input.uv.y < 1.0f)
 	{
-		float3 rtNormalColor = g_rtBrightTex.Sample(smpWrap, input.uv * 4);
-		return float4(rtNormalColor, 1);
+		float3 test = g_rtBrightTex.Sample(smpWrap, input.uv * 4);
+		return float4(test, 1);
 	}
 	
 	float4 color = g_rtTex.Sample(smpBorder, input.uv);
+	float4 brightColor = g_rtBrightTex.Sample(smpBorder, input.uv);
 	
 	if (color.a > 0.0f)
 	{
-		return color;
-	}	
-
+		return color + brightColor;
+	}
+	
 	float div = 100.0f;
-	return float4(0.0f, 0.0f, 0.0f, 1.0f);
 	return float4(fmod(input.uv, 1.0f / div) * div, 1, 1);
 }

@@ -295,12 +295,12 @@ void D3D12App::RenderToRenderTargetTextures()
 
     EffekseerRender();
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtBrightTex.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
 
-    m_blurFilter->Blur(m_cmdList.Get(), m_rtTex.Get(), 8);
+    m_blurFilter->Blur(m_cmdList.Get(), m_rtBrightTex.Get(), 8);
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
+    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtBrightTex.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // Set resource state of postEffectTexture from RTV -> SRV
@@ -1333,11 +1333,11 @@ bool D3D12App::CreateWorldPassConstant()
         mappedData->Lights[1] = Light();
         mappedData->Lights[2] = Light();
         mappedData->Lights[0].Direction = { 0.0f, -1.0f, -1.0f };
-        mappedData->Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+        mappedData->Lights[0].Strength = { 1.2f, 1.2f, 1.2f };
         mappedData->Lights[1].Direction = { -1.0f, -1.0f, 0.0f };
-        mappedData->Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+        mappedData->Lights[1].Strength = { 0.6f, 0.6f, 0.6f };
         mappedData->Lights[2].Direction = { -1.0f, -1.0f, -1.0f };
-        mappedData->Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+        mappedData->Lights[2].Strength = { 0.3f, 0.3f, 0.3f };
 
         auto lightDirection = XMLoadFloat3(&mappedData->Lights[0].Direction);
         auto lightViewProj = XMMatrixLookToRH(lightPos, lightDirection, { 0,1,0,0 }) *
