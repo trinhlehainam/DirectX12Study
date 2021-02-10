@@ -9,8 +9,8 @@ cbuffer worldPass:register (b0)
 	float4 g_fogColor;
 	float g_fogStart;
 	float g_fogRange;
-	float padding1;
-	float padding2;
+	float g_focusStart;
+	float g_focusRange;
 	
 	Light g_lights[MAX_LIGHTS];
 }

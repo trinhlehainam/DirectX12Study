@@ -3,9 +3,10 @@
 Texture2D<float4> g_rtTex:register (t0);
 Texture2D<float4> g_rtNormalTex:register(t1);
 Texture2D<float4> g_rtBrightTex:register(t2);
-Texture2D<float4> g_normalMapTex:register (t3);
-Texture2D<float> g_shadowDepthTex:register (t4);
-Texture2D<float> g_viewDepthTex:register(t5);
+Texture2D<float4> g_rtFocusTex : register(t3);
+Texture2D<float4> g_normalMapTex:register (t4);
+Texture2D<float> g_shadowDepthTex:register (t5);
+Texture2D<float> g_viewDepthTex:register(t6);
 
 SamplerState smpWrap:register(s0);
 SamplerState smpBorder:register(s1);
@@ -66,14 +67,27 @@ float4 boardPS(BoardOutput input) : SV_TARGET
 		return float4(test, 1);
 	}
 	
+	if (input.uv.x < 0.5f && input.uv.x >= 0.25f && input.uv.y < 0.25f)
+	{
+		float3 test = g_rtFocusTex.Sample(smpWrap, input.uv * 4);
+		return float4(test, 1);
+	}
+	
+	
 	float4 color = g_rtTex.Sample(smpBorder, input.uv);
 	float4 brightColor = g_rtBrightTex.Sample(smpBorder, input.uv);
+	float4 focusColor = g_rtFocusTex.Sample(smpWrap, input.uv);
+	
+	if (focusColor.a > 0.0f)
+	{
+		return focusColor + brightColor;
+	}
 	
 	if (color.a > 0.0f)
 	{
 		return color + brightColor;
 	}
-	
+
 	float div = 100.0f;
 	return float4(fmod(input.uv, 1.0f / div) * div, 1, 1);
 }

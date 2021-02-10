@@ -32,8 +32,8 @@ struct WorldPassConstant {
 	DirectX::XMFLOAT4 FogColor;
 	float FogStart;				// distance from eye to start seeing fog
 	float FogRange;				// distance eye can see only fog
-	float padding1;
-	float padding2;
+	float FocusStart;			// start of depth of field
+	float FocusRange;			// depth of field range
 
 	Light Lights[MAX_LIGHTS];
 };
@@ -166,7 +166,7 @@ private:
 	//
 
 	void CreatePostEffect();
-	void CreateRenderTargetTexture();
+	void CreateRenderTargetTextures();
 	void CreateBoardPolygonVertices();
 	void CreateNormalMapTexture();
 	void CreateBoardShadowDepthView();
@@ -175,6 +175,7 @@ private:
 	ComPtr<ID3D12Resource> m_rtTex;
 	ComPtr<ID3D12Resource> m_rtNormalTex;
 	ComPtr<ID3D12Resource> m_rtBrightTex;
+	ComPtr<ID3D12Resource> m_rtFocusTex;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_boardSRVHeap;
 
