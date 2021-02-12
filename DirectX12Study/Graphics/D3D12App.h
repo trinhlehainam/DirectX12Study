@@ -165,12 +165,23 @@ private:
 	// Post effect
 	//
 
+	struct BoardConstant
+	{
+		int EnableShowDebug;
+		int EnableBloom;
+		int EnableDoF;
+		float Padding0;
+	};
+
 	void CreatePostEffect();
+	void CreateBoardConstant();
 	void CreateRenderTargetTextures();
 	void CreateBoardPolygonVertices();
 	void CreateNormalMapTexture();
 	void CreateBoardShadowDepthView();
 	void CreateBoardViewDepthView();
+
+	void UpdateBoardConstant(float deltaTime);
 
 	ComPtr<ID3D12Resource> m_rtTex;
 	ComPtr<ID3D12Resource> m_rtNormalTex;
@@ -186,6 +197,8 @@ private:
 
 	ComPtr<ID3D12Resource> m_normalMapTex;
 	
+	UploadBuffer<BoardConstant> m_boardConstant;
+
 private:
 	// ShadowMapping
 	bool CreateShadowDepthBuffer();
@@ -218,7 +231,14 @@ private:
 
 private:
 	ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
-	 
+	ImVec2 m_debugWin;
+	float m_focusStart;
+	float m_focusRange;
+	bool m_enableShowDebug;
+	bool m_enableBloom;
+	bool m_enableDoF;
+	bool m_enableBlur;
+
 	bool CreateImGui(const HWND&);
 	void CreateImGuiDescriptorHeap();
 	void UpdateImGui(float deltaTime);

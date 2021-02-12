@@ -267,6 +267,14 @@ void D3D12App::CreateBoardViewDepthView()
     m_device->CreateShaderResourceView(m_viewDepthBuffer.Get(), &srvDesc, heapHandle);
 }
 
+void D3D12App::UpdateBoardConstant(float deltaTime)
+{
+    auto pMappedData = m_boardConstant.GetHandleMappedData();
+    pMappedData->EnableShowDebug = m_enableShowDebug;
+    pMappedData->EnableDoF = m_enableDoF;
+    pMappedData->EnableBloom = m_enableBloom;
+}
+
 void D3D12App::RenderToRenderTargetTextures()
 {
     auto worldPCB = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
@@ -323,13 +331,17 @@ void D3D12App::RenderToRenderTargetTextures()
     D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtBrightTex.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
+    if (m_enableDoF || m_enableBlur)
+    {
+        D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
 
-    m_blurFilter->Blur(m_cmdList.Get(), m_rtTex.Get(), 8);
+        m_blurFilter->Blur(m_cmdList.Get(), m_rtTex.Get(), 8);
 
-    D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
-        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        D12Helper::TransitionResourceState(m_cmdList.Get(), m_rtTex.Get(),
+            D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    }
 
     // Set resource state of postEffectTexture from RTV -> SRV
     // -> Ready to be used as SRV when Render to Back Buffer
@@ -380,9 +392,10 @@ void D3D12App::RenderToBackBuffer()
     m_cmdList->SetPipelineState(m_psoMng->GetPSO("board"));
     m_cmdList->SetGraphicsRootSignature(m_psoMng->GetRootSignature("board"));
 
+    m_cmdList->SetGraphicsRootConstantBufferView(0, m_boardConstant.GetGPUVirtualAddress());
     m_cmdList->SetDescriptorHeaps(1, m_boardSRVHeap.GetAddressOf());
     CD3DX12_GPU_DESCRIPTOR_HANDLE shaderHeap(m_boardSRVHeap->GetGPUDescriptorHandleForHeapStart());
-    m_cmdList->SetGraphicsRootDescriptorTable(0, shaderHeap);
+    m_cmdList->SetGraphicsRootDescriptorTable(1, shaderHeap);
 
     m_cmdList->IASetVertexBuffers(0, 1, &m_boardVBV);
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -461,7 +474,7 @@ void D3D12App::EffekseerUpdate(const float& deltaTime)
     }
     
     s_angle += 1.f * deltaTime;
-    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(1.f * deltaTime, 0.0f, 0.0f));
+    m_effekManager->AddLocation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.f * deltaTime, 0.0f));
     m_effekManager->SetRotation(m_effekHandle, Effekseer::Vector3D(0.0f, 1.0f, 0.0f), s_angle);
 
     if (m_keyboard.IsPressed('S'))
@@ -521,6 +534,15 @@ bool D3D12App::CreateImGui(const HWND& hwnd)
         m_imguiHeap->GetGPUDescriptorHandleForHeapStart()))
         return false;
 
+    m_debugWin = {500.0f,500.0f};
+
+    m_focusStart = 50.0f;
+    m_focusRange = 20.0f;
+    m_enableShowDebug = false;
+    m_enableBloom = false;
+    m_enableDoF = false;
+    m_enableBlur = false;
+
     return true;
 }
 
@@ -536,14 +558,25 @@ void D3D12App::UpdateImGui(float deltaTime)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Hello World!");
-    static auto wsize = ImGui::GetWindowSize();
-    ImGui::SetWindowSize(wsize);
-    wsize = ImGui::GetWindowSize();
-    static float col[3] = {0.0f,0.0f,0.0f};
-    ImGui::ColorPicker3("Color3", col);
-    static bool flag = false;
-    ImGui::Checkbox("Sample Box", &flag);
+    ImGui::Begin("Debug");
+    m_debugWin = ImGui::GetWindowSize();
+    ImGui::SetWindowSize(m_debugWin);
+    ImGui::Checkbox("Show Debug", &m_enableShowDebug);
+    ImGui::Checkbox("Gaussian Blur", &m_enableBlur);
+    ImGui::Checkbox("Bloom", &m_enableBloom);
+    ImGui::Checkbox("Depth Of Field", &m_enableDoF);
+    ImGui::DragFloat("Focus Start", &m_focusStart);
+    ImGui::DragFloat("Focus Range", &m_focusRange);
+    m_debugWin = ImGui::GetWindowSize();
+    ImGui::End();
+
+    ImGui::Begin("Control");
+    static auto control_window = ImGui::GetWindowSize();
+    ImGui::SetWindowSize(control_window);
+    ImGui::Text("PRESS KEY_UP : Move camera toward origin");
+    ImGui::Text("PRESS KEY_DOWN : Move camera far away origin");
+    ImGui::Text("HOLD MOUSE_RIGHT_BUTTON : rorate around origin");
+    control_window = ImGui::GetWindowSize();
     ImGui::End();
 }
 
@@ -584,6 +617,8 @@ void D3D12App::UpdateWorldPassConstant()
     auto pMappedData = m_worldPCBuffer.GetHandleMappedData(m_currentFrameResourceIndex);
     pMappedData->ViewPos = m_camera.GetCameraPosition();
     pMappedData->ViewProj = m_camera.GetViewProjectionMatrix();
+    pMappedData->FocusStart = m_focusStart;
+    pMappedData->FocusRange = m_focusRange;
 }
 
 void D3D12App::CreateNormalMapTexture()
@@ -969,6 +1004,7 @@ void D3D12App::CreateRootSignatures()
     // Normal texture
     // Shadow depth texture
     // View depth texture
+    rootSig.AddRootParameterAsDescriptor(RootSignature::CBV, D3D12_SHADER_VISIBILITY_ALL);
     rootSig.AddRootParameterAsDescriptorTable(0, 7, 0);
     rootSig.AddStaticSampler(RootSignature::LINEAR_WRAP);
     rootSig.AddStaticSampler(RootSignature::LINEAR_BORDER);
@@ -1200,12 +1236,23 @@ void D3D12App::UpdateFence()
 
 void D3D12App::CreatePostEffect()
 {
+    CreateBoardConstant();
     CreateBoardPolygonVertices();
-
     CreateRenderTargetTextures();
     CreateNormalMapTexture();
     CreateBoardShadowDepthView();
     CreateBoardViewDepthView();
+}
+
+void D3D12App::CreateBoardConstant()
+{
+    m_boardConstant.Create(m_device.Get(), 1, true);
+    
+    auto handle_mapped_data = m_boardConstant.GetHandleMappedData();
+    handle_mapped_data->EnableBloom = 0;
+    handle_mapped_data->EnableDoF = 0;
+    handle_mapped_data->EnableShowDebug = 0;
+
 }
 
 D3D12App::D3D12App()
@@ -1302,7 +1349,6 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateBackBufferView();
     CreateTextureManager();
     CreatePSOManager();
-    CreatePipelines();
     CreateWorldPassConstant();
     CreateMaterials();
     CreateShadowDepthBuffer();
@@ -1314,6 +1360,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateBlurFilter();
     CreateSprite();
     assert(CreateImGui(hwnd));
+    CreatePipelines();
 
     m_cmdList->Close();
     ComPtr<ID3D12CommandList> cmdList;
@@ -1581,6 +1628,7 @@ bool D3D12App::Update(const float& deltaTime)
     UpdateCamera(deltaTime);
     EffekseerUpdate(deltaTime);
     UpdateImGui(deltaTime);
+    UpdateBoardConstant(deltaTime);
 
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
     m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];
