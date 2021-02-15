@@ -125,7 +125,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;$(EFFEKSEER_DIR)\lib;$(IMGUI_DIR)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

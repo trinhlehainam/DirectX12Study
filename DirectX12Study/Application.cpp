@@ -14,7 +14,7 @@
 namespace
 {
 	const auto className = L"DX12Study";
-	const auto window_caption = L"DirectX12Study";
+	const auto window_caption = L"1916021_TRINH LE HAI NAM";
 	constexpr int WINDOW_WIDTH = 1280;
 	constexpr int WINDOW_HEIGHT = 720;
 }
@@ -50,7 +50,7 @@ void Application::CalculatePerformance()
 
 		std::wstring windowTitle = window_caption + fpsStr + mspfStr;
 
-		SetWindowText(m_hWnd, windowTitle.c_str());
+		//SetWindowText(m_hWnd, windowTitle.c_str());
 
 		frameCnt = 0;
 		elapsedTime += 1.0f;

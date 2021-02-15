@@ -1307,18 +1307,23 @@ bool D3D12App::Initialize(const HWND& hwnd)
 
     // Check all adapters (Graphics cards)
     UINT i = 0;
-    ComPtr<IDXGIAdapter> pAdapter;
+    std::wstring find_GTX(L"NVIDIA");
+    ComPtr<IDXGIAdapter> checkAdapter;
+    ComPtr<IDXGIAdapter> runAdapter;
     std::vector<ComPtr<IDXGIAdapter>> adapterList;
-    while (m_dxgi->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
+    while (m_dxgi->EnumAdapters(i, &checkAdapter) != DXGI_ERROR_NOT_FOUND)
     {
         DXGI_ADAPTER_DESC desc;
-        pAdapter->GetDesc(&desc);
+        checkAdapter->GetDesc(&desc);
         std::wstring text = L"***Graphic card: ";
         text += desc.Description;
         text += L"/n";
 
+        auto find = text.find(find_GTX);
+        if (find != std::string::npos) runAdapter = checkAdapter;
+            
         std::cout << text.c_str() << std::endl;
-        adapterList.push_back(std::move(pAdapter));
+        adapterList.push_back(std::move(checkAdapter));
         ++i;
     }
 
@@ -1326,7 +1331,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     {
         //result = D3D12CreateDevice(nullptr, fLevel, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
         /*-------Use strongest graphics card (adapter) GTX-------*/
-        result = D3D12CreateDevice(adapterList[1].Get(), fLevel, IID_PPV_ARGS(m_device.GetAddressOf()));
+        result = D3D12CreateDevice(runAdapter.Get(), fLevel, IID_PPV_ARGS(m_device.GetAddressOf()));
 
         if (SUCCEEDED(result))
             break;
