@@ -217,11 +217,11 @@ private:
 
 private:
 	// Effekseer
-	EffekseerRenderer::Renderer* m_effekRenderer = nullptr;
-	EffekseerRenderer::SingleFrameMemoryPool* m_effekPool = nullptr;
-	Effekseer::Manager* m_effekManager = nullptr;
-	EffekseerRenderer::CommandList* m_effekCmdList = nullptr;
-	Effekseer::Effect* m_effekEffect = nullptr;
+	EffekseerRenderer::RendererRef m_effekRenderer;
+	Effekseer::RefPtr<EffekseerRenderer::SingleFrameMemoryPool> m_effekPool;
+	Effekseer::ManagerRef m_effekManager;
+	Effekseer::RefPtr<EffekseerRenderer::CommandList> m_effekCmdList;
+	Effekseer::EffectRef m_effekEffect;
 	Effekseer::Handle m_effekHandle = -1;
 
 	void EffekseerInit();

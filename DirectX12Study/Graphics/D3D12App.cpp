@@ -417,10 +417,10 @@ void D3D12App::EffekseerInit()
         DXGI_FORMAT_D32_FLOAT, false, 8000);
 
     // Create memory pool
-    m_effekPool = EffekseerRendererDX12::CreateSingleFrameMemoryPool(m_effekRenderer);
+    m_effekPool = EffekseerRenderer::CreateSingleFrameMemoryPool(m_effekRenderer->GetGraphicsDevice());
 
     // Create commandList
-    m_effekCmdList = EffekseerRendererDX12::CreateCommandList(m_effekRenderer, m_effekPool);
+    m_effekCmdList = EffekseerRenderer::CreateCommandList(m_effekRenderer->GetGraphicsDevice(), m_effekPool);
 
     // Create manager
     m_effekManager = Effekseer::Manager::Create(8000);
@@ -512,14 +512,14 @@ void D3D12App::EffekseerRender()
 
 void D3D12App::EffekseerTerminate()
 {
-    ES_SAFE_RELEASE(m_effekEffect);
+    /*ES_SAFE_RELEASE(m_effekEffect);
 
     m_effekManager->Destroy();
 
     ES_SAFE_RELEASE(m_effekCmdList);
     ES_SAFE_RELEASE(m_effekPool);
 
-    m_effekRenderer->Destroy();
+    m_effekRenderer->Destroy();*/
 }
 
 bool D3D12App::CreateImGui(const HWND& hwnd)
@@ -578,11 +578,12 @@ void D3D12App::UpdateImGui(float deltaTime)
     ImGui::Text("HOLD MOUSE_RIGHT_BUTTON : rorate around origin");
     control_window = ImGui::GetWindowSize();
     ImGui::End();
+
+    ImGui::EndFrame();
 }
 
 void D3D12App::RenderImGui()
 {
-
     ImGui::Render();
 
     m_cmdList->SetDescriptorHeaps(1, m_imguiHeap.GetAddressOf());
@@ -1486,10 +1487,10 @@ void D3D12App::CreatePMDModel()
     m_pmdManager->CreateAnimation("Dancing1", motion1_path);
     m_pmdManager->CreateAnimation("Dancing2", motion2_path);
 
-    assert(m_pmdManager->Init(m_cmdList.Get()));
-    assert(m_pmdManager->Play("Miku", "Dancing1"));
-    assert(m_pmdManager->Play("Hibiki", "Dancing1"));
-    assert(m_pmdManager->Play("Haku", "Dancing1"));
+    m_pmdManager->Init(m_cmdList.Get());
+    m_pmdManager->Play("Miku", "Dancing1");
+    m_pmdManager->Play("Hibiki", "Dancing1");
+    m_pmdManager->Play("Haku", "Dancing1");
 
     m_pmdManager->Move("Hibiki", -20.0f, 0.0f, 20.0f);
     m_pmdManager->Move("Haku", 20.0f, 0.0f, 20.0f);
