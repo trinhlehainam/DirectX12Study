@@ -1,6 +1,5 @@
 #include "TextureManager.h"
 
-#include <string>
 #include <vector>
 #include <unordered_map>
 
@@ -24,8 +23,8 @@ private:
 	bool Has(const std::string& name);
 private:
 	using Index_t = uint32_t;
-	ID3D12Device* m_device = nullptr;
 	Index_t m_maxIndex = -1;
+	ID3D12Device* m_device = nullptr;
 	std::vector<ComPtr<ID3D12Resource>> m_textures;
 	std::vector<ComPtr<ID3D12Resource>> m_uploadBuffers;
 	std::unordered_map<std::string, Index_t> m_indices;

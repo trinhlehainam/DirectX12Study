@@ -51,6 +51,7 @@ private:
 
 private:
 	Mesh<Geometry::Vertex> m_mesh;
+
 	struct Loader
 	{
 		Geometry::Mesh Primitive;
@@ -58,6 +59,7 @@ private:
 		ComPtr<ID3D12Resource> Texture;
 	};
 	std::unordered_map<std::string, Loader> m_loaders;
+
 	struct DrawData
 	{
 		uint16_t Index;

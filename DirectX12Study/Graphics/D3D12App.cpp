@@ -1639,17 +1639,7 @@ bool D3D12App::Update(const float& deltaTime)
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % num_frame_resources;
     m_currentFrameResource = &m_frameResources[m_currentFrameResourceIndex];
 
-    // Check if current GPU fence value is processing at current frame resource
-    // If current GPU fence value < current frame resource value
-    // -> GPU is processing at current frame resource
-    auto fenceValue = m_fence->GetCompletedValue();
-    if (m_currentFrameResource->FenceValue != 0 && fenceValue < m_currentFrameResource->FenceValue)
-    {
-        auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-        m_fence->SetEventOnCompletion(m_currentFrameResource->FenceValue, fenceEvent);
-        WaitForSingleObject(fenceEvent, INFINITE);
-        CloseHandle(fenceEvent);
-    }
+    WaitForGPU();
 
     UpdateWorldPassConstant();
     m_pmdManager->Update(deltaTime);
