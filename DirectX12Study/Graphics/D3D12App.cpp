@@ -1227,11 +1227,11 @@ void D3D12App::CreatePSOs()
 
 void D3D12App::UpdateFence()
 {
-    // Set current GPU target fence value to next process frame
+    // Set up next fence value for current GPU process.
     m_currentFrameResource->FenceValue = ++m_targetFenceValue;
 
-    // use Signal of Command Que to tell GPU to set current GPU fence value
-    // to next process frame, after finished last Execution Draw Call
+    // Tell GPU to mark m_targetFenceValue to current GPU process.
+    // When this GPU process is done, GPU sets m_targetFenceValue to m_fence's value
     m_cmdQue->Signal(m_fence.Get(), m_targetFenceValue);
 }
 
@@ -1365,7 +1365,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreatePrimitive();
     CreateBlurFilter();
     CreateSprite();
-    assert(CreateImGui(hwnd));
+    CreateImGui(hwnd);
     CreatePipelines();
 
     m_cmdList->Close();

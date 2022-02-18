@@ -43,14 +43,14 @@ void Application::CalculatePerformance()
 	if (m_timer.TotalTime() - elapsedTime >= 1.0f)
 	{
 		float fps = static_cast<float>(frameCnt);
-		float mspf = second_to_millisecond / fps;
+		// float mspf = second_to_millisecond / fps;
 
-		std::wstring fpsStr = L"    fps: " + std::to_wstring(fps);
-		std::wstring mspfStr = L"    mspf: " + std::to_wstring(mspf);
+		std::wstring fpsStr = L"    FPS: " + std::to_wstring(fps);
+		// std::wstring mspfStr = L"    mspf: " + std::to_wstring(mspf);
 
-		std::wstring windowTitle = window_caption + fpsStr + mspfStr;
+		std::wstring windowTitle = window_caption + fpsStr;
 
-		//SetWindowText(m_hWnd, windowTitle.c_str());
+		SetWindowText(m_hWnd, windowTitle.c_str());
 
 		frameCnt = 0;
 		elapsedTime += 1.0f;
