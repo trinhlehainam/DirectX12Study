@@ -837,13 +837,13 @@ void D3D12App::WaitForGPU()
     // If GPU current fence value haven't reached target Fence Value
     // Tell CPU to wait until GPU reach current fence
     auto fenceValue = m_fence->GetCompletedValue();
-    if (fenceValue < m_targetFenceValue)
+    if (m_currentFrameResource->FenceValue != 0 && fenceValue < m_currentFrameResource->FenceValue)
     {
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-        m_fence->SetEventOnCompletion(m_targetFenceValue, fenceEvent);
+        m_fence->SetEventOnCompletion(m_currentFrameResource->FenceValue, fenceEvent);
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
-    };
+    }
 }
 
 void D3D12App::CreateTextureManager()

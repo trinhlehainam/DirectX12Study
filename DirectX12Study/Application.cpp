@@ -14,7 +14,7 @@
 namespace
 {
 	const auto className = L"DX12Study";
-	const auto window_caption = L"1916021_TRINH LE HAI NAM";
+	const auto window_caption = L"DX12Study";
 	constexpr int WINDOW_WIDTH = 1280;
 	constexpr int WINDOW_HEIGHT = 720;
 }
