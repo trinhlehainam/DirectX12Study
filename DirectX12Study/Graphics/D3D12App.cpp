@@ -833,14 +833,16 @@ void D3D12App::RenderToShadowDepthBuffer()
 
 void D3D12App::WaitForGPU()
 {
-    // Check GPU current fence value 
-    // If GPU current fence value haven't reached target Fence Value
-    // Tell CPU to wait until GPU reach current fence
-    auto fenceValue = m_fence->GetCompletedValue();
-    if (m_currentFrameResource->FenceValue != 0 && fenceValue < m_currentFrameResource->FenceValue)
+    // Check GPU current complete fence value 
+    // If complete fence value haven't reached current fence value
+    // -> Tell CPU to wait until GPU reach current fence value
+    const auto completeFenceValue = m_fence->GetCompletedValue();
+    const auto currentFenceValue = m_currentFrameResource->FenceValue;
+    if (currentFenceValue != 0 && completeFenceValue < currentFenceValue)
     {
+        // Create windows wait event
         auto fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-        m_fence->SetEventOnCompletion(m_currentFrameResource->FenceValue, fenceEvent);
+        m_fence->SetEventOnCompletion(currentFenceValue, fenceEvent);
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
     }
@@ -1228,11 +1230,11 @@ void D3D12App::CreatePSOs()
 void D3D12App::UpdateFence()
 {
     // Set up next fence value for current GPU process.
-    m_currentFrameResource->FenceValue = ++m_targetFenceValue;
+    m_currentFrameResource->FenceValue = ++m_latestFenceValue;
 
-    // Tell GPU to mark m_targetFenceValue to current GPU process.
+    // Tell GPU to mark current FenceValue to current GPU process.
     // When this GPU process is done, GPU sets m_targetFenceValue to m_fence's value
-    m_cmdQue->Signal(m_fence.Get(), m_targetFenceValue);
+    m_cmdQue->Signal(m_fence.Get(), m_currentFrameResource->FenceValue);
 }
 
 void D3D12App::CreatePostEffect()
@@ -1346,7 +1348,7 @@ bool D3D12App::Initialize(const HWND& hwnd)
     CreateFrameResources();
 
     m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
-    m_targetFenceValue = m_fence->GetCompletedValue();
+    m_latestFenceValue = m_fence->GetCompletedValue();
 
     m_cmdAlloc->Reset();
     m_cmdList->Reset(m_cmdAlloc.Get(), nullptr);
@@ -1691,10 +1693,11 @@ void D3D12App::SetResourceStateForNextFrame()
 
 bool D3D12App::Render()
 {
-    // Clear commands and open
+    // Clear all commands in command allocator before set up new commands
     auto& cmdAlloc = m_currentFrameResource->CmdAlloc;
     cmdAlloc->Reset();
     m_cmdList->Reset(cmdAlloc.Get(), nullptr);
+    //
 
     RenderToShadowDepthBuffer();
     RenderToRenderTargetTextures();

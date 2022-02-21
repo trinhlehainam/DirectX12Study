@@ -8,6 +8,5 @@ struct FrameResource
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdAlloc;
 	// Use to check if GPU is currently working on this frame resource
 	uint64_t FenceValue = 0;
-	
 };
 

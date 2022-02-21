@@ -93,12 +93,12 @@ private:
 	// Current GPU target fence value use to check GPU is processing
 	// If value of fence object haven't reach this target value
 	// -> GPU is processing
-	uint64_t m_targetFenceValue = 0;
+	uint64_t m_latestFenceValue = 0;
 
-	std::vector<FrameResource> m_frameResources;
-	FrameResource* m_currentFrameResource = nullptr;
 	const uint16_t num_frame_resources = 3;
 	uint16_t m_currentFrameResourceIndex = 0;
+	std::vector<FrameResource> m_frameResources;
+	FrameResource* m_currentFrameResource = nullptr;
 
 	void CreateCommandFamily();
 	void CreateSwapChain(const HWND& hwnd);
