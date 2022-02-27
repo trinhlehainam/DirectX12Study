@@ -160,7 +160,7 @@
     <ClCompile Include="Dependencies\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Graphics\BlurFilter.cpp" />
     <ClCompile Include="Graphics\Camera.cpp" />
-    <ClCompile Include="Common\Timer.cpp" />
+    <ClCompile Include="Utility\Timer.cpp" />
     <ClCompile Include="Graphics\FrameResource.cpp" />
     <ClCompile Include="Geometry\Mesh.cpp" />
     <ClCompile Include="Geometry\GeometryCommon.cpp" />
@@ -201,7 +201,7 @@
     <ClInclude Include="Graphics\BlurFilter.h" />
     <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="common.h" />
-    <ClInclude Include="Common\Timer.h" />
+    <ClInclude Include="Utility\Timer.h" />
     <ClInclude Include="Graphics\FrameResource.h" />
     <ClInclude Include="Geometry\GeometryCommon.h" />
     <ClInclude Include="Geometry\Mesh.h" />

@@ -24,7 +24,7 @@
     <ClCompile Include="Loader\BmpLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Timer.cpp">
+    <ClCompile Include="Utility\Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Input\Keyboard.cpp">
@@ -134,7 +134,7 @@
     <ClInclude Include="common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\Timer.h">
+    <ClInclude Include="Utility\Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Input\Mouse.h">
